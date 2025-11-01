@@ -11,28 +11,36 @@
     "lint:oxlint": "oxlint",
     "lint:biome": "biome check .",
     "fix:biome": "biome check --write .",
-    "check:types": "tsc --noEmit"
+    "check:types": "tsc --noEmit",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.9.2",
     "biome": "^0.3.3",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.19.2",
     "next": "16.0.1",
     "oxlint": "^1.25.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-redux": "^9.2.0"
+    "react-redux": "^9.2.0",
+    "tsx": "^4.20.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.0.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "pnpm": {
-    "ignoredBuiltDependencies": ["core-js"]
+    "ignoredBuiltDependencies": [
+      "core-js"
+    ]
   }
 }

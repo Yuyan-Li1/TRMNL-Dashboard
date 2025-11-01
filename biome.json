@@ -1,107 +1,106 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": true
-	},
-	"files": {
-		"ignoreUnknown": false,
-		"ignore": [
-			"node_modules/**",
-			".next/**",
-			"out/**",
-			"build/**",
-			"dist/**",
-			"*.config.js",
-			"*.config.ts",
-			"*.config.mjs",
-			"pnpm-lock.yaml"
-		]
-	},
-	"formatter": {
-		"enabled": true,
-		"indentStyle": "space",
-		"indentWidth": 2,
-		"lineEnding": "lf",
-		"lineWidth": 100,
-		"formatWithErrors": false
-	},
-	"organizeImports": {
-		"enabled": true
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"correctness": {
-				"noUnusedVariables": "warn",
-				"useExhaustiveDependencies": "warn"
-			},
-			"suspicious": {
-				"noConsoleLog": "warn",
-				"noDebugger": "error",
-				"noArrayIndexKey": "warn",
-				"noAssignInExpressions": "warn",
-				"noAsyncPromiseExecutor": "error",
-				"noDuplicateObjectKeys": "error",
-				"noFallthroughSwitchClause": "error",
-				"noShadowRestrictedNames": "error",
-				"noUnreachable": "error"
-			},
-			"performance": {
-				"noDelete": "error"
-			},
-			"style": {
-				"noVar": "error",
-				"useConst": "warn",
-				"useImportType": "warn",
-				"useNodejsImportProtocol": "warn",
-				"useShorthandArrayType": "warn",
-				"useTemplate": "warn"
-			},
-			"complexity": {
-				"noForEach": "off",
-				"useSimplifiedLogicExpression": "warn"
-			},
-			"security": {
-				"noDangerouslySetInnerHtml": "warn"
-			}
-		}
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double",
-			"jsxQuoteStyle": "double",
-			"quoteProperties": "asNeeded",
-			"trailingCommas": "es5",
-			"semicolons": "asNeeded",
-			"arrowParentheses": "always",
-			"bracketSpacing": true,
-			"bracketSameLine": false
-		},
-		"globals": ["React", "JSX"]
-	},
-	"json": {
-		"formatter": {
-			"enabled": true
-		}
-	},
-	"overrides": [
-		{
-			"include": ["*.tsx", "*.jsx"],
-			"linter": {
-				"rules": {
-					"correctness": {
-						"useExhaustiveDependencies": {
-							"level": "warn",
-							"options": {
-								"hooks": ["useEffect", "useMemo", "useCallback"]
-							}
-						}
-					}
-				}
-			}
-		}
-	]
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100,
+    "formatWithErrors": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noConsole": {
+          "level": "warn",
+          "options": {
+            "allow": ["log"]
+          }
+        },
+        "noDebugger": "error",
+        "noArrayIndexKey": "warn",
+        "noAssignInExpressions": "warn",
+        "noAsyncPromiseExecutor": "error",
+        "noDuplicateObjectKeys": "error",
+        "noFallthroughSwitchClause": "error",
+        "noShadowRestrictedNames": "error",
+        "noVar": "error"
+      },
+      "performance": {
+        "noDelete": "error"
+      },
+      "style": {
+        "useConst": "warn",
+        "useImportType": "warn",
+        "useNodejsImportProtocol": "warn",
+        "useTemplate": "warn"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useSimplifiedLogicExpression": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "es5",
+      "semicolons": "asNeeded",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false
+    },
+    "globals": ["React", "JSX"]
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["*.tsx", "*.jsx"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": {
+              "level": "warn",
+              "options": {
+                "hooks": [
+                  {
+                    "name": "useEffect"
+                  },
+                  {
+                    "name": "useMemo"
+                  },
+                  {
+                    "name": "useCallback"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
