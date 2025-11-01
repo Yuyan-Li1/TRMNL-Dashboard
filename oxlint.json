@@ -1,0 +1,59 @@
+{
+	"$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxc_linter/src/schemas/rule_config_schema.json",
+	"rules": {
+		"correctness": {
+			"no-array-index-key": "warn",
+			"no-unused-vars": "warn",
+			"no-const-assign": "error",
+			"no-duplicate-case": "error",
+			"no-empty-pattern": "error",
+			"no-self-assign": "error",
+			"no-unused-labels": "warn",
+			"use-exhaustive-dependencies": "warn"
+		},
+		"suspicious": {
+			"no-assign-in-expressions": "warn",
+			"no-async-promise-executor": "error",
+			"no-await-in-loop": "warn",
+			"no-console": "warn",
+			"no-debugger": "error",
+			"no-duplicate-object-keys": "error",
+			"no-empty-type-parameters": "error",
+			"no-fallthrough": "error",
+			"no-redeclare": "error",
+			"no-shadow-restricted-names": "error",
+			"no-unreachable": "error",
+			"no-unsafe-finally": "error",
+			"no-unused-labels": "warn",
+			"use-getter-return": "warn"
+		},
+		"pedantic": {
+			"no-empty-interface": "warn",
+			"no-explicit-any": "warn",
+			"no-non-null-assertion": "warn",
+			"no-var": "error",
+			"prefer-const": "warn",
+			"use-nullish-coalescing": "warn",
+			"use-optional-chain": "warn"
+		},
+		"style": {
+			"no-console": "off",
+			"no-non-null-assertion": "off",
+			"no-var": "error",
+			"use-exhaustive-dependencies": "warn"
+		},
+		"perf": {
+			"no-delete-var": "error"
+		}
+	},
+	"ignore": [
+		"node_modules/**",
+		".next/**",
+		"out/**",
+		"build/**",
+		"dist/**",
+		"*.config.js",
+		"*.config.ts",
+		"*.config.mjs"
+	]
+}

@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@dashboard/*": ["./src/*"],
+      "@dashboard/lib/*": ["./src/lib/*"],
+      "@dashboard/redux/*": ["./src/redux/*"],
     }
   },
   "include": [
