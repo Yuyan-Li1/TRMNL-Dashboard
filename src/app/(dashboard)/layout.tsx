@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "../globals.css";
+import Script from "next/script";
 
 export const metadata: Metadata = {
 	title: "TRMNL Dashboard",
@@ -12,16 +12,17 @@ export default function DashboardLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<html lang="en">
-			<head>
-				{/* TRMNL requires these for proper rendering */}
-				<link
-					rel="stylesheet"
-					href="https://usetrmnl.com/css/latest/plugins.css"
-				/>
-				<script src="https://usetrmnl.com/js/latest/plugins.js" async />
-			</head>
-			<body className="m-0 p-0">{children}</body>
-		</html>
+		<>
+			{/* TRMNL requires these for proper rendering */}
+			<link
+				rel="stylesheet"
+				href="https://usetrmnl.com/css/latest/plugins.css"
+			/>
+			<Script
+				src="https://usetrmnl.com/js/latest/plugins.js"
+				strategy="afterInteractive"
+			/>
+			{children}
+		</>
 	);
 }
