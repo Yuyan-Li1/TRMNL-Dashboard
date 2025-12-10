@@ -1,27 +1,30 @@
 {
-  "name": "trmnl-dashboard",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.0.8",
-    "react": "19.2.1",
-    "react-dom": "19.2.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.8",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+	"name": "trmnl-dashboard",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "oxlint",
+		"format": "biome check .",
+		"type-check": "tsc --noEmit",
+		"ci": "pnpm lint && pnpm format && pnpm type-check && pnpm build"
+	},
+	"dependencies": {
+		"next": "16.0.8",
+		"react": "19.2.1",
+		"react-dom": "19.2.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@tailwindcss/postcss": "^4",
+		"@types/node": "^20",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"babel-plugin-react-compiler": "1.0.0",
+		"oxlint": "^0.15.3",
+		"tailwindcss": "^4",
+		"typescript": "^5"
+	}
 }
