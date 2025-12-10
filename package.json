@@ -8,6 +8,7 @@
 		"start": "next start",
 		"lint": "oxlint",
 		"format": "biome check .",
+		"fix": "biome check --write",
 		"type-check": "tsc --noEmit",
 		"ci": "pnpm lint && pnpm format && pnpm type-check && pnpm build"
 	},
