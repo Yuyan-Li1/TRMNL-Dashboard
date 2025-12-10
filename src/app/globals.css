@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
-:root {
-	--background: #ffffff;
-	--foreground: #171717;
-}
-
+/* TRMNL E-ink Display Optimization */
+/* E-ink only has 4 shades - optimize for these */
 @theme inline {
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
+	/* E-ink colors */
+	--color-eink-black: #000000;
+	--color-eink-dark: #555555;
+	--color-eink-light: #aaaaaa;
+	--color-eink-white: #ffffff;
+
+	/* TRMNL display dimensions */
+	--width-trmnl: 800px;
+	--height-trmnl: 480px;
+
+	/* Font sizes optimized for e-ink readability */
+	--font-size-eink-xs: 12px;
+	--line-height-eink-xs: 16px;
+	--font-size-eink-sm: 14px;
+	--line-height-eink-sm: 20px;
+	--font-size-eink-base: 16px;
+	--line-height-eink-base: 24px;
+	--font-size-eink-lg: 20px;
+	--line-height-eink-lg: 28px;
+	--font-size-eink-xl: 24px;
+	--line-height-eink-xl: 32px;
+	--font-size-eink-2xl: 32px;
+	--line-height-eink-2xl: 40px;
+	--font-size-eink-3xl: 48px;
+	--line-height-eink-3xl: 56px;
+
+	/* E-ink optimized font */
+	--font-eink: "Inter", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
-	}
+html {
+	font-family: var(--font-eink);
 }
 
+/* E-ink displays work best with high contrast */
 body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+	background-color: var(--color-eink-white);
+	color: var(--color-eink-black);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	margin: 0;
+	padding: 0;
+}
+
+/* E-ink card component */
+.eink-card {
+	border: 2px solid var(--color-eink-black);
+	background-color: var(--color-eink-white);
+	padding: 1rem;
+}
+
+/* E-ink button */
+.eink-button {
+	border: 2px solid var(--color-eink-black);
+	background-color: var(--color-eink-white);
+	padding: 0.5rem 1rem;
+	font-weight: 600;
+}
+
+.eink-button:hover {
+	background-color: var(--color-eink-light);
+}
+
+.eink-button:active {
+	background-color: var(--color-eink-dark);
+	color: var(--color-eink-white);
+}
+
+/* Dashboard container - exactly TRMNL dimensions */
+.trmnl-container {
+	width: 800px;
+	height: 480px;
+	overflow: hidden;
+	background-color: var(--color-eink-white);
+}
+
+/* High contrast text utilities */
+.text-eink-primary {
+	color: var(--color-eink-black);
+}
+
+.text-eink-secondary {
+	color: var(--color-eink-dark);
+}
+
+.text-eink-muted {
+	color: var(--color-eink-light);
+}
+
+/* Border utilities for e-ink */
+.border-eink {
+	border: 2px solid var(--color-eink-black);
+}
+
+.border-eink-subtle {
+	border: 1px solid var(--color-eink-dark);
 }
