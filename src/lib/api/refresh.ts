@@ -5,7 +5,7 @@ import type { TransitData } from "@/types/transport";
 import type { WeatherData } from "@/types/weather";
 import { getCalendarEvents } from "./calendar";
 import { getGamingData } from "./gaming";
-import { getTransitDepartures } from "./transport";
+import { getCommuteJourneys } from "./transport";
 import { getWeather } from "./weather";
 
 export interface DashboardData {
@@ -27,7 +27,7 @@ export async function refreshAllData(): Promise<DashboardData> {
 	// Fetch all data in parallel
 	const results = await Promise.allSettled([
 		getWeather(),
-		getTransitDepartures(),
+		getCommuteJourneys(),
 		getCalendarEvents(),
 		getGamingData(),
 	]);

@@ -1,45 +1,77 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
-import { STATION } from "@/lib/config";
-import type { StopDeparture, TransitData } from "@/types/transport";
+import { COMMUTE, LOCATION } from "@/lib/config";
+import { getNow } from "@/lib/utils/date";
+import type {
+	CommuteJourney,
+	CommuteLeg,
+	TransitData,
+} from "@/types/transport";
 
 const TFNSW_API_KEY = process.env.TFNSW_API_KEY;
 
-// Transport NSW Departure Monitor endpoint (returns JSON, no protobuf needed)
-const DEPARTURE_MONITOR_URL =
-	"https://api.transport.nsw.gov.au/v1/tp/departure_mon";
+// Transport NSW Trip Planner endpoint
+const TRIP_PLANNER_URL = "https://api.transport.nsw.gov.au/v1/tp/trip";
 
-interface DepartureMonitorResponse {
-	stopEvents?: DepartureStopEvent[];
+// --- TfNSW Trip Planner response types ---
+
+interface TripPlannerResponse {
+	journeys?: TripJourney[];
 }
 
-interface DepartureStopEvent {
-	departureTimePlanned: string;
+interface TripJourney {
+	legs: TripLeg[];
+}
+
+interface TripLeg {
+	origin: TripStop;
+	destination: TripStop;
+	transportation: {
+		number?: string; // "T2", "T4"
+		name?: string; // full line name
+		product?: {
+			class?: number; // 1 = train, 5 = bus, 9 = ferry, 11 = school bus
+			name?: string;
+		};
+		disassembledName?: string;
+	};
+	duration?: number; // seconds
+	isRealtimeControlled?: boolean;
+	stopSequence?: TripStopSequence[];
+}
+
+interface TripStop {
+	name: string;
+	departureTimePlanned?: string;
+	departureTimeEstimated?: string;
+	arrivalTimePlanned?: string;
+	arrivalTimeEstimated?: string;
+	disassembledName?: string; // platform
+	isCancelled?: boolean;
+}
+
+interface TripStopSequence {
+	arrivalTimePlanned?: string;
+	arrivalTimeEstimated?: string;
+	departureTimePlanned?: string;
 	departureTimeEstimated?: string;
 	isCancelled?: boolean;
-	transportation: {
-		number: string; // e.g., "T1"
-		name?: string;
-		destination: {
-			name: string; // e.g., "City via Central"
-		};
-		product?: {
-			class?: number;
-			name?: string; // e.g., "Sydney Trains"
-		};
-	};
-	location: {
-		disassembledName?: string; // Platform name, e.g., "Platform 1"
-		id?: string;
-	};
 }
 
-function getDelayStatus(
+// --- Helpers ---
+
+function getLegStatus(
 	delaySeconds: number,
 	isCancelled?: boolean,
-): StopDeparture["status"] {
+): CommuteLeg["status"] {
 	if (isCancelled) return "cancelled";
 	if (delaySeconds <= -60) return "early";
 	if (delaySeconds >= 300) return "delayed"; // 5+ minutes late
+	return "on_time";
+}
+
+function getJourneyStatus(legs: CommuteLeg[]): CommuteJourney["status"] {
+	if (legs.some((l) => l.status === "cancelled")) return "cancelled";
+	if (legs.some((l) => l.status === "delayed")) return "delayed";
 	return "on_time";
 }
 
@@ -49,123 +81,192 @@ function getDelayStatus(
 export function formatDelay(delaySeconds: number): string {
 	if (Math.abs(delaySeconds) < 60) return "On time";
 	const minutes = Math.round(delaySeconds / 60);
-	if (minutes > 0) return `${minutes} min late`;
-	return `${Math.abs(minutes)} min early`;
+	if (minutes > 0) return `+${minutes}`;
+	return `${minutes}`;
 }
 
 /**
- * Fetch departures from the Transport NSW Departure Monitor API
- * Rate limit: 60,000 requests/day
+ * Check if any journeys have significant delays (10+ min) or cancellations
  */
-async function fetchDepartures(
-	stopId: string,
-	limit = 5,
-): Promise<StopDeparture[]> {
+export function hasSignificantDelays(transit: TransitData): boolean {
+	return transit.journeys.some(
+		(j) => j.delayMinutes >= 10 || j.status === "cancelled",
+	);
+}
+
+/**
+ * Fetch commute journeys from the TfNSW Trip Planner API
+ */
+async function fetchCommuteJourneys(
+	reverse = false,
+	limit = 3,
+): Promise<CommuteJourney[]> {
 	if (!TFNSW_API_KEY) {
 		throw new Error("TFNSW_API_KEY not configured");
 	}
 
+	const origin = reverse ? COMMUTE.destination : COMMUTE.origin;
+	const destination = reverse ? COMMUTE.origin : COMMUTE.destination;
+
+	const now = getNow(LOCATION.timezone);
+	const itdDate = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+	const itdTime = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
 	const params = new URLSearchParams({
 		outputFormat: "rapidJSON",
 		coordOutputFormat: "EPSG:4326",
-		mode: "direct",
-		type_dm: "stop",
-		name_dm: stopId,
-		departureMonitorMacro: "true",
-		TfNSWDM: "true",
+		depArrMacro: "dep",
+		type_origin: "stop",
+		name_origin: origin.stopId,
+		type_destination: "stop",
+		name_destination: destination.stopId,
+		itdDate,
+		itdTime,
+		calcNumberOfTrips: String(limit),
+		TfNSWTR: "true",
 		version: "10.2.1.42",
 	});
 
-	const response = await fetch(`${DEPARTURE_MONITOR_URL}?${params}`, {
+	const response = await fetch(`${TRIP_PLANNER_URL}?${params}`, {
 		headers: {
 			Authorization: `apikey ${TFNSW_API_KEY}`,
 		},
 	});
 
 	if (!response.ok) {
-		throw new Error(`TfNSW Departure Monitor API error: ${response.status}`);
+		throw new Error(`TfNSW Trip Planner API error: ${response.status}`);
 	}
 
-	const data: DepartureMonitorResponse = await response.json();
-	const stopEvents = data.stopEvents || [];
-	const departures: StopDeparture[] = [];
+	const data: TripPlannerResponse = await response.json();
+	const rawJourneys = data.journeys || [];
 
-	for (const event of stopEvents) {
-		const plannedTime = new Date(event.departureTimePlanned);
-		const estimatedTime = event.departureTimeEstimated
-			? new Date(event.departureTimeEstimated)
-			: undefined;
+	return rawJourneys.slice(0, limit).map((journey) => {
+		const legs = parseLegs(journey.legs);
+		const firstLeg = legs[0];
+		const lastLeg = legs[legs.length - 1];
+		const worstDelay = Math.max(...legs.map((l) => l.delaySeconds));
 
-		const delaySeconds = estimatedTime
-			? Math.round((estimatedTime.getTime() - plannedTime.getTime()) / 1000)
-			: 0;
+		const departureTime =
+			firstLeg?.departEstimated || firstLeg?.departPlanned || "";
+		const arrivalTime =
+			lastLeg?.arriveEstimated || lastLeg?.arrivePlanned || "";
 
-		departures.push({
-			tripId: `${event.transportation.number}-${event.departureTimePlanned}`,
-			routeId: event.transportation.number,
-			routeShortName: event.transportation.number,
-			transportType: event.transportation.product?.name || "Train",
-			headsign: event.transportation.destination.name,
-			scheduledTime: plannedTime.toISOString(),
-			estimatedTime: estimatedTime?.toISOString(),
-			delaySeconds,
-			platform: event.location.disassembledName,
-			status: getDelayStatus(delaySeconds, event.isCancelled),
-		});
-	}
+		let totalDurationMinutes = 0;
+		if (departureTime && arrivalTime) {
+			totalDurationMinutes = Math.round(
+				(new Date(arrivalTime).getTime() - new Date(departureTime).getTime()) /
+					60000,
+			);
+		}
 
-	return departures
-		.sort((a, b) => {
-			const timeA = new Date(a.estimatedTime || a.scheduledTime).getTime();
-			const timeB = new Date(b.estimatedTime || b.scheduledTime).getTime();
-			return timeA - timeB;
-		})
-		.slice(0, limit);
+		return {
+			legs,
+			totalDurationMinutes,
+			departureTime,
+			arrivalTime,
+			status: getJourneyStatus(legs),
+			delayMinutes: Math.max(0, Math.round(worstDelay / 60)),
+		};
+	});
 }
 
 /**
- * Get transit data with caching
+ * Parse TfNSW trip legs into CommuteLeg[], filtering out walking legs
  */
-export async function getTransitDepartures(
-	stopId: string = STATION.stopId,
-): Promise<TransitData> {
-	const cacheKey = `${CACHE_KEYS.TRANSIT}:${stopId}`;
+function parseLegs(rawLegs: TripLeg[]): CommuteLeg[] {
+	return rawLegs
+		.filter((leg) => {
+			// Only include train legs (product class 1), skip walking/transfer
+			const productClass = leg.transportation.product?.class;
+			return productClass === 1;
+		})
+		.map((leg) => {
+			const departPlanned = leg.origin.departureTimePlanned || "";
+			const departEstimated = leg.origin.departureTimeEstimated;
+			const arrivePlanned = leg.destination.arrivalTimePlanned || "";
+			const arriveEstimated = leg.destination.arrivalTimeEstimated;
 
-	const cached = await cacheGet<TransitData>(cacheKey);
-	if (cached) {
+			const plannedDep = departPlanned ? new Date(departPlanned) : null;
+			const estimatedDep = departEstimated ? new Date(departEstimated) : null;
+			const delaySeconds =
+				plannedDep && estimatedDep
+					? Math.round((estimatedDep.getTime() - plannedDep.getTime()) / 1000)
+					: 0;
+
+			const isCancelled = leg.origin.isCancelled || leg.destination.isCancelled;
+
+			// Extract short line name (e.g., "T2") from transportation.number or disassembledName
+			const line =
+				leg.transportation.number || leg.transportation.disassembledName || "";
+
+			// Clean origin/destination names (remove "Station" suffix, platform info)
+			const originName = cleanStationName(leg.origin.name);
+			const destName = cleanStationName(leg.destination.name);
+
+			return {
+				line,
+				lineName: leg.transportation.name || line,
+				origin: originName,
+				destination: destName,
+				departPlanned,
+				departEstimated: departEstimated || undefined,
+				arrivePlanned,
+				arriveEstimated: arriveEstimated || undefined,
+				delaySeconds,
+				status: getLegStatus(delaySeconds, isCancelled),
+				platform: leg.origin.disassembledName || undefined,
+			};
+		});
+}
+
+/**
+ * Clean station name: "Lidcombe Station, Platform 1" → "Lidcombe"
+ */
+function cleanStationName(name: string): string {
+	return name
+		.replace(/\s*Station.*$/i, "")
+		.replace(/,.*$/, "")
+		.trim();
+}
+
+/**
+ * Get commute direction based on current Sydney time
+ * Morning/workday → to_work, Evening/night → to_home
+ */
+export function getCommuteDirection(): "to_work" | "to_home" {
+	const now = getNow(LOCATION.timezone);
+	const hour = now.getHours();
+	// Before 2 PM: heading to work. 2 PM and after: heading home.
+	return hour < 14 ? "to_work" : "to_home";
+}
+
+/**
+ * Get commute data with caching
+ */
+export async function getCommuteJourneys(
+	direction?: "to_work" | "to_home",
+): Promise<TransitData> {
+	const dir = direction ?? getCommuteDirection();
+	const reverse = dir === "to_home";
+
+	const cached = await cacheGet<TransitData>(CACHE_KEYS.TRANSIT);
+	if (cached && cached.direction === dir) {
 		return cached;
 	}
 
-	const departures = await fetchDepartures(stopId);
+	const journeys = await fetchCommuteJourneys(reverse);
+
+	const origin = reverse ? COMMUTE.destination : COMMUTE.origin;
+	const destination = reverse ? COMMUTE.origin : COMMUTE.destination;
 
 	const data: TransitData = {
-		stationName: STATION.name,
-		stationId: stopId,
-		departures,
+		origin: origin.name,
+		destination: destination.name,
+		direction: dir,
+		journeys,
 		fetchedAt: new Date().toISOString(),
 	};
 
-	await cacheSet(cacheKey, data, CACHE_TTL.TRANSIT);
+	await cacheSet(CACHE_KEYS.TRANSIT, data, CACHE_TTL.TRANSIT);
 	return data;
-}
-
-/**
- * Check if any trains are significantly delayed
- */
-export function hasSignificantDelays(transit: TransitData): boolean {
-	return transit.departures.some((d) => d.delaySeconds >= 600); // 10+ minutes
-}
-
-/**
- * Get the next train to a specific destination
- */
-export function getNextTrainTo(
-	transit: TransitData,
-	destinationPattern: string,
-): StopDeparture | null {
-	return (
-		transit.departures.find((d) =>
-			d.headsign.toLowerCase().includes(destinationPattern.toLowerCase()),
-		) || null
-	);
 }

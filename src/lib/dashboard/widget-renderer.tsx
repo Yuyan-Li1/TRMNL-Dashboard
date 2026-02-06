@@ -59,7 +59,6 @@ export function renderWidget(
 					key="transit"
 					data={data.transit}
 					size={size as "small" | "medium" | "large"}
-					limit={size === "large" ? 6 : 4}
 				/>
 			);
 

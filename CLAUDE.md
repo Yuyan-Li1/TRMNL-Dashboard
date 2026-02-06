@@ -112,7 +112,7 @@ src/
 ├── lib/
 │   ├── api/                     # External API clients
 │   │   ├── weather.ts           # Open-Meteo
-│   │   ├── transport.ts         # Transport NSW
+│   │   ├── transport.ts         # Transport NSW (Trip Planner API)
 │   │   ├── calendar.ts          # Google Calendar
 │   │   ├── steam.ts             # Steam API
 │   │   ├── xbox.ts              # OpenXBL
@@ -131,7 +131,7 @@ src/
 │   │   ├── context.ts           # Current schedule context + special conditions
 │   │   ├── timing.ts            # Time block calculations
 │   │   └── widgets.ts           # Widget selection for context
-│   ├── config.ts                # Location (Sydney), station (Lidcombe), TRMNL config
+│   ├── config.ts                # Location (Sydney), commute (Lidcombe→Bondi Jct), TRMNL config
 │   ├── env.ts                   # Environment variable validation groups
 │   └── utils/date.ts            # Date utilities
 ├── types/                       # TypeScript type definitions
@@ -158,6 +158,9 @@ The dashboard uses a **cache-first architecture**. The dashboard page never fetc
 GitHub Actions (every 15 min)
   → POST /api/refresh (with CRON_SECRET)
     → refreshAllData() fetches all APIs in parallel (Promise.allSettled)
+    → Transit: uses Trip Planner API for commute journeys
+      → Direction auto-detected: before 2 PM = to_work, after = to_home
+      → Lidcombe → Bondi Junction (morning) / reverse (evening)
     → Stores combined result in Redis (TTL'd + non-expiring fallback)
 
 Dashboard page render (server-side)
@@ -185,7 +188,7 @@ The schedule determines which widgets appear based on:
 
 1. **Day type**: office, wfh, weekend
 2. **Time block**: morning, workday, evening, night
-3. **Special conditions**: rain (>30% precip), train delays (>10 min), meeting soon (<30 min), extreme temp (>35C or <10C)
+3. **Special conditions**: rain (>30% precip), train delays/cancellations (>10 min delay or cancelled journeys, checked morning+evening on office days), meeting soon (<30 min), extreme temp (>35C or <10C)
 
 ### Widget System
 
@@ -303,10 +306,12 @@ PSN NPSSO expires every ~2 months. To refresh:
 - Check connection string format includes `retryWrites=true&w=majority`
 - MongoDB Atlas free tier can pause after extended inactivity
 
-### Transport NSW 403 Errors
+### Transport NSW Issues
 
-- API key may have expired; regenerate at opendata.transport.nsw.gov.au
+- **403 Errors**: API key may have expired; regenerate at opendata.transport.nsw.gov.au
 - Ensure correct header format: `Authorization: apikey YOUR_KEY`
+- **API used**: Trip Planner (`/v1/tp/trip`), not Departure Monitor. Returns commute journeys (Lidcombe ↔ Bondi Junction) with legs, durations, and realtime delays.
+- **Stop IDs**: Lidcombe `10101331`, Town Hall `10101101`, Bondi Junction `10101109` (configured in `COMMUTE` constant in `src/lib/config.ts`)
 
 ## Manual Breakpoints
 

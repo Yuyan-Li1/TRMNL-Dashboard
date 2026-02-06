@@ -1,105 +1,143 @@
 import { EinkCard } from "@/components/ui/EinkCard";
 import { EinkIcon } from "@/components/ui/EinkIcon";
-import { formatDelay } from "@/lib/api/transport";
 import { LOCATION } from "@/lib/config";
-import { TRAIN_LINES, type TransitData } from "@/types/transport";
+import type { CommuteJourney, TransitData } from "@/types/transport";
 
 interface TransitWidgetProps {
 	data: TransitData | null;
 	size?: "small" | "medium" | "large";
-	limit?: number;
 }
 
-export function TransitWidget({
-	data,
-	size = "medium",
-	limit = 4,
-}: TransitWidgetProps) {
+/** Short station name: "Bondi Junction" → "Bondi Jct" */
+function shortName(name: string): string {
+	return name.replace("Junction", "Jct");
+}
+
+/** Format departure time as HH:mm */
+function fmtTime(iso: string): string {
+	return new Date(iso).toLocaleTimeString("en-AU", {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+		timeZone: LOCATION.timezone,
+	});
+}
+
+/** Summarise lines across legs: ["T2","T4"] → "T2 → T4", single leg → "T4 direct" */
+function linesSummary(journey: CommuteJourney): string {
+	const lines = journey.legs.map((l) => l.line);
+	if (lines.length === 1) return `${lines[0]} direct`;
+	return lines.join(" → ");
+}
+
+/** Check if the transit data has major disruptions worth highlighting */
+function hasMajorDisruptions(data: TransitData): boolean {
+	return data.journeys.some(
+		(j) => j.status === "cancelled" || j.delayMinutes >= 10,
+	);
+}
+
+export function TransitWidget({ data, size = "medium" }: TransitWidgetProps) {
 	if (!data) {
 		return (
 			<EinkCard
-				title="Trains"
+				title="Commute"
 				icon={<EinkIcon name="train" size="sm" />}
 				size={size}
 			>
 				<div className="flex items-center justify-center h-full text-eink-dark">
-					No transit data
+					No commute data
 				</div>
 			</EinkCard>
 		);
 	}
 
-	const departures = data.departures.slice(0, limit);
-	const hasDelays = departures.some((d) => d.status === "delayed");
+	const hasDisruptions = hasMajorDisruptions(data);
+	const title = `${shortName(data.origin)} → ${shortName(data.destination)}`;
 
 	return (
 		<EinkCard
-			title={data.stationName}
+			title={title}
 			icon={<EinkIcon name="train" size="sm" />}
 			size={size}
-			variant={hasDelays ? "filled" : "default"}
+			variant={hasDisruptions ? "filled" : "default"}
 		>
-			<div className="flex flex-col gap-2">
-				{departures.length === 0 ? (
-					<div className="text-eink-dark text-eink-sm">
-						No upcoming departures
+			<div className="flex flex-col gap-1">
+				{/* Disruption banner when delays ≥ 10 min or cancellations */}
+				{hasDisruptions && (
+					<div className="bg-eink-black text-eink-white px-2 py-1 text-eink-xs font-bold mb-1">
+						{data.journeys.some((j) => j.status === "cancelled")
+							? "CANCELLATIONS — check alternatives"
+							: "MAJOR DELAYS — expect disruptions"}
 					</div>
+				)}
+
+				{data.journeys.length === 0 ? (
+					<div className="text-eink-dark text-eink-sm">No journeys found</div>
 				) : (
-					departures.map((dep, i) => {
-						const _lineInfo = TRAIN_LINES[dep.routeShortName];
-						const departureTime = new Date(
-							dep.estimatedTime || dep.scheduledTime,
-						);
-						const timeStr = departureTime.toLocaleTimeString("en-AU", {
-							hour: "2-digit",
-							minute: "2-digit",
-							hour12: false,
-							timeZone: LOCATION.timezone,
-						});
-
-						return (
-							<div
-								key={`${dep.routeShortName}-${dep.scheduledTime}`}
-								className={`
-                  flex items-center justify-between
-                  ${i < departures.length - 1 ? "pb-2 border-b border-eink-light" : ""}
-                `}
-							>
-								<div className="flex items-center gap-2">
-									{/* Line indicator */}
-									<div
-										className="
-                      w-8 h-6 flex items-center justify-center
-                      border-2 border-eink-black font-bold text-eink-xs
-                    "
-									>
-										{dep.routeShortName}
-									</div>
-									{/* Destination */}
-									<div className="text-eink-sm truncate max-w-[180px]">
-										{dep.headsign}
-									</div>
-								</div>
-
-								{/* Time and status */}
-								<div className="flex items-center gap-2">
-									<span className="text-eink-lg font-bold">{timeStr}</span>
-									{dep.status === "delayed" && (
-										<span className="text-eink-xs border-2 border-eink-black px-1">
-											{formatDelay(dep.delaySeconds)}
-										</span>
-									)}
-									{dep.status === "cancelled" && (
-										<span className="text-eink-xs bg-eink-black text-eink-white px-1">
-											CANC
-										</span>
-									)}
-								</div>
-							</div>
-						);
-					})
+					data.journeys.map((journey, i) => (
+						<JourneyRow
+							key={`${journey.departureTime}-${i}`}
+							journey={journey}
+							isLast={i === data.journeys.length - 1}
+						/>
+					))
 				)}
 			</div>
 		</EinkCard>
+	);
+}
+
+function JourneyRow({
+	journey,
+	isLast,
+}: {
+	journey: CommuteJourney;
+	isLast: boolean;
+}) {
+	const isCancelled = journey.status === "cancelled";
+	const isDelayed = journey.status === "delayed";
+	const depTime = journey.departureTime
+		? fmtTime(journey.departureTime)
+		: "--:--";
+	const lines = linesSummary(journey);
+	const duration = `${journey.totalDurationMinutes} min`;
+
+	return (
+		<div
+			className={`
+				flex items-center justify-between py-1
+				${!isLast ? "border-b border-eink-light" : ""}
+				${isCancelled ? "opacity-60" : ""}
+			`}
+		>
+			<div className="flex items-center gap-2">
+				{/* Departure time */}
+				<span
+					className={`text-eink-lg font-bold ${isCancelled ? "line-through" : ""}`}
+				>
+					{depTime}
+				</span>
+				{/* Lines used */}
+				<span className="text-eink-sm">{lines}</span>
+			</div>
+
+			<div className="flex items-center gap-2">
+				{/* Duration */}
+				<span className="text-eink-sm">{duration}</span>
+
+				{/* Status badges */}
+				{isCancelled && (
+					<span className="text-eink-xs bg-eink-black text-eink-white px-1 font-bold">
+						CANC
+					</span>
+				)}
+				{isDelayed && journey.delayMinutes > 0 && (
+					<span className="text-eink-xs border-2 border-eink-black px-1 font-bold">
+						+{journey.delayMinutes}
+					</span>
+				)}
+			</div>
+		</div>
 	);
 }
