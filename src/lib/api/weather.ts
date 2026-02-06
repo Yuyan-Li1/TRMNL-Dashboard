@@ -23,7 +23,9 @@ function httpsGetJson<T>(url: string): Promise<T> {
 		https
 			.get(options, (res) => {
 				let data = "";
-				res.on("data", (chunk: string) => (data += chunk));
+				res.on("data", (chunk: string) => {
+					data += chunk;
+				});
 				res.on("end", () => {
 					try {
 						resolve(JSON.parse(data) as T);

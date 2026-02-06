@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DayType, TimeBlock, WidgetType } from "@/types";
 
 interface TimeBlockConfig {
+	_id?: string;
 	name: TimeBlock;
 	startTime: string;
 	endTime: string;
@@ -52,15 +53,21 @@ export function ScheduleEditor({
 	scheduleId,
 }: ScheduleEditorProps) {
 	const router = useRouter();
-	const [formData, setFormData] = useState<ScheduleFormData>(
-		initialData || {
+	const nextId = useRef(0);
+	const [formData, setFormData] = useState<ScheduleFormData>(() => {
+		const data = initialData || {
 			name: "",
 			dayType: "office",
 			daysOfWeek: [],
 			timeBlocks: [],
 			isActive: true,
-		},
-	);
+		};
+		// Assign stable IDs to existing blocks
+		for (const block of data.timeBlocks) {
+			if (!block._id) block._id = `tb-${nextId.current++}`;
+		}
+		return data;
+	});
 	const [saving, setSaving] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -92,11 +99,13 @@ export function ScheduleEditor({
 	};
 
 	const addTimeBlock = () => {
+		const id = `tb-${nextId.current++}`;
 		setFormData((prev) => ({
 			...prev,
 			timeBlocks: [
 				...prev.timeBlocks,
 				{
+					_id: id,
 					name: "morning" as TimeBlock,
 					startTime: "06:00",
 					endTime: "09:00",
@@ -229,7 +238,7 @@ export function ScheduleEditor({
 				<div className="space-y-4">
 					{formData.timeBlocks.map((block, blockIndex) => (
 						<TimeBlockEditor
-							key={blockIndex}
+							key={block._id ?? `tb-fallback-${blockIndex}`}
 							block={block}
 							onChange={(updated) => {
 								const newBlocks = [...formData.timeBlocks];
