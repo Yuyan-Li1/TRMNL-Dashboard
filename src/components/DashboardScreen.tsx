@@ -122,7 +122,6 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 						</div>
 					)}
 				</main>
-
 			</div>
 			{/* Debug border: shows TRMNL 800x480 right/bottom edge */}
 			<div

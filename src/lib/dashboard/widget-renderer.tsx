@@ -107,18 +107,12 @@ export function renderWidget(
 			// medication strip above the routine card
 			if (opts?.mergedMedication && medications.length > 0) {
 				return (
-					<div
-						key="routine-medication"
-						className="flex flex-col gap-2 h-full"
-					>
+					<div key="routine-medication" className="flex flex-col gap-2 h-full">
 						<div className="border-2 border-eink-black px-3 py-2 flex items-center justify-between shrink-0">
 							<div className="flex items-center gap-2">
 								<EinkIcon name="pill" size="sm" />
 								{medications.map((m) => (
-									<span
-										key={m.name}
-										className="text-eink-sm font-medium"
-									>
+									<span key={m.name} className="text-eink-sm font-medium">
 										{m.name}
 									</span>
 								))}
@@ -194,8 +188,7 @@ export function renderWidgets(
 	return effective
 		.map((widget) => {
 			const element = renderWidget(widget, data, routine, medications, {
-				mergedMedication:
-					widget.type === "routine" && mergeMedIntoRoutine,
+				mergedMedication: widget.type === "routine" && mergeMedIntoRoutine,
 			});
 			return element ? { config: widget, element } : null;
 		})
