@@ -93,8 +93,9 @@ Create `src/lib/utils/date.ts`:
 ```typescript
 import { format, parse, isWithinInterval, addMinutes, subMinutes } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { LOCATION } from '@/lib/config';
 
-const DEFAULT_TIMEZONE = 'Australia/Sydney';
+const DEFAULT_TIMEZONE = LOCATION.timezone;
 
 /**
  * Get current time in configured timezone
@@ -131,17 +132,16 @@ export function parseTimeToday(timeStr: string, timezone: string = DEFAULT_TIMEZ
 }
 
 /**
- * Check if current time is within a time range
+ * Check if a given time is within a time range
  * Handles overnight ranges (e.g., 22:00 - 06:00)
  */
 export function isWithinTimeRange(
   current: Date,
   startTime: string,
   endTime: string,
-  timezone: string = DEFAULT_TIMEZONE
+  _timezone?: string
 ): boolean {
-  const now = getNow(timezone);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = current.getHours() * 60 + current.getMinutes();
 
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
@@ -201,12 +201,13 @@ import { ScheduleContext, SpecialCondition, ScheduleConfig } from '@/types/sched
 import { getNow, formatTime, formatDate, getDayOfWeek, isWithinTimeRange, applyBuffer } from '@/lib/utils/date';
 import { connectToDatabase } from '@/lib/db/mongodb';
 import { Schedule } from '@/lib/db/models/schedule';
+import { LOCATION, TRMNL } from '@/lib/config';
 
 // Default schedule configuration
 const DEFAULT_CONFIG: ScheduleConfig = {
-  refreshIntervalMinutes: 30,
-  bufferMinutes: 30,  // Show content 30 min before it's needed
-  timezone: 'Australia/Sydney',
+  refreshIntervalMinutes: TRMNL.refreshIntervalMinutes,
+  bufferMinutes: TRMNL.bufferMinutes,
+  timezone: LOCATION.timezone,
 };
 
 // Default time block definitions
@@ -646,12 +647,13 @@ Create `src/lib/schedule/timing.ts`:
 import { ScheduleConfig } from '@/types/schedule';
 import { getNow, parseTimeToday, applyBuffer } from '@/lib/utils/date';
 import { differenceInMinutes, addMinutes } from 'date-fns';
+import { LOCATION, TRMNL } from '@/lib/config';
 
 // Default TRMNL refresh configuration
 const DEFAULT_CONFIG: ScheduleConfig = {
-  refreshIntervalMinutes: 30,
-  bufferMinutes: 30,
-  timezone: 'Australia/Sydney',
+  refreshIntervalMinutes: TRMNL.refreshIntervalMinutes,
+  bufferMinutes: TRMNL.bufferMinutes,
+  timezone: LOCATION.timezone,
 };
 
 /**
@@ -814,65 +816,7 @@ export async function GET() {
 }
 ```
 
-### 4.7 Create Schedule Hook for Components
-
-Create `src/lib/schedule/use-schedule.ts`:
-
-```typescript
-import { ScheduleContext, WidgetDisplay } from '@/types/schedule';
-
-// This would be used on the client side if needed
-// For TRMNL (server-rendered), we use the server functions directly
-
-export interface UseScheduleResult {
-  context: ScheduleContext;
-  widgets: WidgetDisplay[];
-  routine: { name: string; steps: string[] } | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-/**
- * Fetch schedule data from API (for client components)
- */
-export async function fetchSchedule(): Promise<UseScheduleResult> {
-  try {
-    const response = await fetch('/api/schedule');
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch schedule');
-    }
-
-    const data = await response.json();
-
-    return {
-      context: data.context,
-      widgets: data.widgets,
-      routine: data.routine,
-      isLoading: false,
-      error: null,
-    };
-  } catch (error) {
-    return {
-      context: {
-        dayType: 'office',
-        timeBlock: 'workday',
-        date: new Date().toISOString().split('T')[0],
-        time: '12:00',
-        dayOfWeek: new Date().getDay(),
-        isHoliday: false,
-        specialConditions: [],
-      },
-      widgets: [],
-      routine: null,
-      isLoading: false,
-      error: String(error),
-    };
-  }
-}
-```
-
-### 4.8 Verify Setup
+### 4.7 Verify Setup
 
 ```bash
 # Start the dev server
@@ -916,7 +860,6 @@ Expected response:
 - `src/lib/schedule/context.ts`
 - `src/lib/schedule/widgets.ts`
 - `src/lib/schedule/timing.ts`
-- `src/lib/schedule/use-schedule.ts`
 - `src/app/api/schedule/route.ts`
 
 ## Testing Different Contexts

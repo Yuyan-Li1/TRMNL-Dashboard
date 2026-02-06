@@ -415,7 +415,7 @@ const RoutineSchema = new Schema<IRoutine>(
       required: true,
       trim: true,
     },
-    category: {
+    category: { 
       type: String,
       enum: ['morning', 'evening', 'medication', 'skincare', 'custom'],
       required: true,
@@ -469,8 +469,8 @@ export interface ITokenHealth extends Document {
   lastChecked: Date;
   lastSuccess?: Date;
   expiresAt?: Date;
-  refreshToken?: string;  // Encrypted, for PSN
-  accessToken?: string;   // Encrypted, for PSN
+  refreshToken?: string;  // For PSN — encrypt before storing (see note below)
+  accessToken?: string;   // For PSN — encrypt before storing (see note below)
   accessTokenExpiresAt?: Date;
   errorMessage?: string;
   errorCount: number;
@@ -515,6 +515,10 @@ const TokenHealthSchema = new Schema<ITokenHealth>(
 TokenHealthSchema.index({ service: 1 }, { unique: true });
 TokenHealthSchema.index({ status: 1 });
 
+// TODO: For production, encrypt refreshToken and accessToken before storage.
+// Use crypto.createCipheriv with a secret from env vars (e.g., TOKEN_ENCRYPTION_KEY).
+// The current implementation stores them in plaintext for simplicity.
+
 export const TokenHealth: Model<ITokenHealth> =
   mongoose.models.TokenHealth ||
   mongoose.model<ITokenHealth>('TokenHealth', TokenHealthSchema);
@@ -548,11 +552,11 @@ async function seed() {
 
   console.log('Creating default schedules...');
 
-  // Office days: Monday, Tuesday, Wednesday
+  // Office days: Tuesday, Thursday
   await Schedule.create({
     name: 'Office Days',
     dayType: 'office',
-    daysOfWeek: [1, 2, 3],  // Mon, Tue, Wed
+    daysOfWeek: [2, 4],  // Tue, Thu
     timeBlocks: [
       {
         name: 'morning',
@@ -582,15 +586,23 @@ async function seed() {
           { type: 'weather', priority: 2, enabled: true },
         ],
       },
+      {
+        name: 'night',
+        startTime: '22:00',
+        endTime: '06:00',
+        widgets: [
+          { type: 'weather', priority: 1, enabled: true },
+        ],
+      },
     ],
     isActive: true,
   });
 
-  // WFH days: Thursday, Friday
+  // WFH days: Monday, Wednesday, Friday
   await Schedule.create({
     name: 'Work From Home',
     dayType: 'wfh',
-    daysOfWeek: [4, 5],  // Thu, Fri
+    daysOfWeek: [1, 3, 5],  // Mon, Wed, Fri
     timeBlocks: [
       {
         name: 'morning',
@@ -617,6 +629,14 @@ async function seed() {
         widgets: [
           { type: 'routine', priority: 1, enabled: true, config: { category: 'skincare' } },
           { type: 'gaming', priority: 2, enabled: true },
+        ],
+      },
+      {
+        name: 'night',
+        startTime: '22:00',
+        endTime: '07:00',
+        widgets: [
+          { type: 'weather', priority: 1, enabled: true },
         ],
       },
     ],
@@ -656,6 +676,14 @@ async function seed() {
           { type: 'routine', priority: 2, enabled: true, config: { category: 'skincare' } },
         ],
       },
+      {
+        name: 'night',
+        startTime: '23:00',
+        endTime: '08:00',
+        widgets: [
+          { type: 'weather', priority: 1, enabled: true },
+        ],
+      },
     ],
     isActive: true,
   });
@@ -674,7 +702,7 @@ async function seed() {
     ],
     recurrence: {
       type: 'weekly',
-      daysOfWeek: [1, 2, 3],  // Office days
+      daysOfWeek: [2, 4],  // Office days (Tue, Thu)
     },
     timeWindow: {
       startTime: '06:30',

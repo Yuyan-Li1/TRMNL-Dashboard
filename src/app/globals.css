@@ -1,9 +1,11 @@
+/* Inter font for e-ink readability — must precede tailwindcss import */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap");
+
 @import "tailwindcss";
 
-/* TRMNL E-ink Display Optimization */
-/* E-ink only has 4 shades - optimize for these */
+/* TRMNL E-ink Display Theme */
 @theme inline {
-	/* E-ink colors */
+	/* E-ink only has 4 shades */
 	--color-eink-black: #000000;
 	--color-eink-dark: #555555;
 	--color-eink-light: #aaaaaa;

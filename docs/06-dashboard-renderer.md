@@ -380,14 +380,11 @@ export function getSlotStyle(slot: LayoutSlot): React.CSSProperties {
 
 ### 6.4 Create Main Dashboard Page
 
-Update `src/app/(dashboard)/page.tsx`:
+Update `src/app/(dashboard)/page.tsx` to use the shared `DashboardScreen` component:
 
 ```typescript
 import { loadDashboardData } from '@/lib/dashboard/loader';
-import { renderWidgets } from '@/lib/dashboard/widget-renderer';
-import { calculateLayout, getSlotStyle } from '@/lib/dashboard/layout';
-import { AlertBanner } from '@/components/widgets';
-import { formatTime, formatDate } from '@/lib/utils/date';
+import { DashboardScreen } from '@/components/DashboardScreen';
 
 // Force dynamic rendering (no static generation)
 export const dynamic = 'force-dynamic';
@@ -397,96 +394,8 @@ export const revalidate = 0;
 
 export default async function DashboardPage() {
   const dashboardData = await loadDashboardData();
-  const { context, widgets, routine, data, meta } = dashboardData;
 
-  // Calculate widget layout
-  const layout = calculateLayout(widgets);
-
-  // Render widgets
-  const renderedWidgets = renderWidgets(widgets, data, routine);
-
-  // Get current time for header
-  const now = new Date();
-
-  return (
-    <div className="trmnl-container flex flex-col bg-eink-white">
-      {/* Alert banner for special conditions */}
-      {context.specialConditions.length > 0 && (
-        <AlertBanner conditions={context.specialConditions} />
-      )}
-
-      {/* Header */}
-      <header className="flex items-center justify-between px-3 py-2 border-b-2 border-eink-black">
-        <div className="flex items-center gap-4">
-          <time className="text-eink-2xl font-bold">
-            {now.toLocaleTimeString('en-AU', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            })}
-          </time>
-          <span className="text-eink-base text-eink-dark">
-            {now.toLocaleDateString('en-AU', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'short',
-            })}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 text-eink-xs text-eink-dark">
-          <span className="uppercase">{context.dayType}</span>
-          <span>•</span>
-          <span className="uppercase">{context.timeBlock}</span>
-          {meta.dataAge && (
-            <>
-              <span>•</span>
-              <span>{meta.dataAge}</span>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* Widget Grid */}
-      <main
-        className="flex-1 p-2 grid gap-2"
-        style={{
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gridTemplateRows: 'repeat(2, 1fr)',
-        }}
-      >
-        {renderedWidgets.map((widget, index) => {
-          const widgetConfig = widgets[index];
-          const slot = widgetConfig ? layout.get(widgetConfig) : undefined;
-
-          return (
-            <div
-              key={index}
-              style={slot ? getSlotStyle(slot) : undefined}
-            >
-              {widget}
-            </div>
-          );
-        })}
-
-        {/* Fill empty slots with placeholder */}
-        {renderedWidgets.length === 0 && (
-          <div className="col-span-2 row-span-2 flex items-center justify-center text-eink-dark">
-            <div className="text-center">
-              <p className="text-eink-lg mb-2">No widgets configured</p>
-              <p className="text-eink-sm">Check schedule settings</p>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="px-3 py-1 border-t border-eink-light flex justify-between text-eink-xs text-eink-dark">
-        <span>TRMNL Dashboard</span>
-        <span>Updated {meta.renderedAt.split('T')[1].slice(0, 5)}</span>
-      </footer>
-    </div>
-  );
+  return <DashboardScreen data={dashboardData} />;
 }
 ```
 
@@ -494,14 +403,15 @@ export default async function DashboardPage() {
 
 Update `src/app/(dashboard)/layout.tsx`:
 
+> **Important:** Do not add `<html>` or `<body>` tags here — the root layout already provides them. This layout only wraps dashboard-specific content.
+
 ```typescript
 import type { Metadata, Viewport } from 'next';
-import '@/app/globals.css';
 
 export const metadata: Metadata = {
   title: 'TRMNL Dashboard',
   description: 'Custom e-ink dashboard for TRMNL',
-  robots: 'noindex, nofollow',  // Don't index this page
+  robots: 'noindex, nofollow',
 };
 
 export const viewport: Viewport = {
@@ -517,44 +427,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Get base URL for absolute URLs
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-  return (
-    <html lang="en">
-      <head>
-        {/* TRMNL required assets - must use absolute URLs */}
-        <link
-          rel="stylesheet"
-          href="https://usetrmnl.com/css/latest/plugins.css"
-        />
-
-        {/* Preload Inter font */}
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
-
-        {/* TRMNL plugin JS (async so it doesn't block render) */}
-        <script
-          src="https://usetrmnl.com/js/latest/plugins.js"
-          async
-        />
-      </head>
-      <body className="m-0 p-0 overflow-hidden bg-eink-white">
-        {children}
-      </body>
-    </html>
-  );
+  return <>{children}</>;
 }
 ```
 
@@ -618,8 +491,8 @@ export default function DashboardLoading() {
   return (
     <div className="trmnl-container flex items-center justify-center bg-eink-white">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-eink-black border-t-transparent mb-4 mx-auto" />
-        <p className="text-eink-lg">Loading...</p>
+        <p className="text-eink-lg font-bold">Loading...</p>
+        <p className="text-eink-sm text-eink-dark mt-2">Fetching dashboard data</p>
       </div>
     </div>
   );
@@ -645,99 +518,131 @@ export default function DashboardNotFound() {
 }
 ```
 
-### 6.9 Create Preview Mode (Development)
+### 6.9 Extract Shared Dashboard Component
 
-Create `src/app/(dashboard)/preview/page.tsx`:
+To avoid duplicating the dashboard rendering between the main page and the preview page, extract the core rendering into a shared component.
+
+Create `src/components/DashboardScreen.tsx`:
 
 ```typescript
-import { loadDashboardData } from '@/lib/dashboard/loader';
 import { renderWidgets } from '@/lib/dashboard/widget-renderer';
 import { calculateLayout, getSlotStyle } from '@/lib/dashboard/layout';
 import { AlertBanner } from '@/components/widgets';
+import { DashboardRenderData } from '@/lib/dashboard/loader';
+import { LOCATION } from '@/lib/config';
 
-// Development only - shows dashboard with device frame
+interface DashboardScreenProps {
+  data: DashboardRenderData;
+  footerLabel?: string;
+}
+
+export function DashboardScreen({ data, footerLabel = 'TRMNL Dashboard' }: DashboardScreenProps) {
+  const { context, widgets, routine, data: widgetData, meta } = data;
+  const layout = calculateLayout(widgets);
+  const renderedWidgets = renderWidgets(widgets, widgetData, routine);
+  const now = new Date();
+
+  return (
+    <div className="trmnl-container flex flex-col bg-eink-white">
+      {context.specialConditions.length > 0 && (
+        <AlertBanner conditions={context.specialConditions} />
+      )}
+
+      <header className="flex items-center justify-between px-3 py-2 border-b-2 border-eink-black">
+        <div className="flex items-center gap-4">
+          <time className="text-eink-2xl font-bold">
+            {now.toLocaleTimeString(LOCATION.locale, {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })}
+          </time>
+          <span className="text-eink-base text-eink-dark">
+            {now.toLocaleDateString(LOCATION.locale, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'short',
+            })}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 text-eink-xs text-eink-dark">
+          <span className="uppercase">{context.dayType}</span>
+          <span>•</span>
+          <span className="uppercase">{context.timeBlock}</span>
+          {meta.dataAge && (
+            <>
+              <span>•</span>
+              <span>{meta.dataAge}</span>
+            </>
+          )}
+        </div>
+      </header>
+
+      <main
+        className="flex-1 p-2 grid gap-2"
+        style={{
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateRows: 'repeat(2, 1fr)',
+        }}
+      >
+        {renderedWidgets.map((widget, index) => {
+          const widgetConfig = widgets[index];
+          const slot = widgetConfig ? layout.get(widgetConfig) : undefined;
+
+          return (
+            <div key={index} style={slot ? getSlotStyle(slot) : undefined}>
+              {widget}
+            </div>
+          );
+        })}
+
+        {renderedWidgets.length === 0 && (
+          <div className="col-span-2 row-span-2 flex items-center justify-center text-eink-dark">
+            <div className="text-center">
+              <p className="text-eink-lg mb-2">No widgets configured</p>
+              <p className="text-eink-sm">Check schedule settings</p>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="px-3 py-1 border-t border-eink-light flex justify-between text-eink-xs text-eink-dark">
+        <span>{footerLabel}</span>
+        <span>Updated {meta.renderedAt.split('T')[1].slice(0, 5)}</span>
+      </footer>
+    </div>
+  );
+}
+```
+
+### 6.10 Create Preview Mode (Development)
+
+Create `src/app/(dashboard)/preview/page.tsx` — uses the shared `DashboardScreen` component wrapped in a device frame:
+
+```typescript
+import { loadDashboardData } from '@/lib/dashboard/loader';
+import { DashboardScreen } from '@/components/DashboardScreen';
+
 export const dynamic = 'force-dynamic';
 
 export default async function PreviewPage() {
   const dashboardData = await loadDashboardData();
-  const { context, widgets, routine, data, meta } = dashboardData;
-  const layout = calculateLayout(widgets);
-  const renderedWidgets = renderWidgets(widgets, data, routine);
-  const now = new Date();
 
   return (
     <div className="min-h-screen bg-gray-800 flex items-center justify-center p-8">
-      {/* Device frame */}
       <div className="relative">
-        {/* Device info */}
         <div className="absolute -top-8 left-0 text-white text-sm">
-          TRMNL Preview • 800×480 • {context.dayType} / {context.timeBlock}
+          TRMNL Preview • 800x480 • {dashboardData.context.dayType} / {dashboardData.context.timeBlock}
         </div>
 
-        {/* Screen bezel */}
         <div className="bg-gray-900 p-4 rounded-lg shadow-2xl">
-          {/* Screen */}
-          <div className="trmnl-container flex flex-col bg-eink-white overflow-hidden">
-            {context.specialConditions.length > 0 && (
-              <AlertBanner conditions={context.specialConditions} />
-            )}
-
-            <header className="flex items-center justify-between px-3 py-2 border-b-2 border-eink-black">
-              <div className="flex items-center gap-4">
-                <time className="text-eink-2xl font-bold">
-                  {now.toLocaleTimeString('en-AU', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  })}
-                </time>
-                <span className="text-eink-base text-eink-dark">
-                  {now.toLocaleDateString('en-AU', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'short',
-                  })}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-eink-xs text-eink-dark">
-                <span className="uppercase">{context.dayType}</span>
-                <span>•</span>
-                <span className="uppercase">{context.timeBlock}</span>
-              </div>
-            </header>
-
-            <main
-              className="flex-1 p-2 grid gap-2"
-              style={{
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gridTemplateRows: 'repeat(2, 1fr)',
-              }}
-            >
-              {renderedWidgets.map((widget, index) => {
-                const widgetConfig = widgets[index];
-                const slot = widgetConfig ? layout.get(widgetConfig) : undefined;
-
-                return (
-                  <div key={index} style={slot ? getSlotStyle(slot) : undefined}>
-                    {widget}
-                  </div>
-                );
-              })}
-            </main>
-
-            <footer className="px-3 py-1 border-t border-eink-light flex justify-between text-eink-xs text-eink-dark">
-              <span>TRMNL Dashboard</span>
-              <span>Preview Mode</span>
-            </footer>
-          </div>
+          <DashboardScreen data={dashboardData} footerLabel="Preview Mode" />
         </div>
 
-        {/* Debug info */}
-        <div className="absolute -bottom-20 left-0 text-white text-xs font-mono">
-          <div>Widgets: {widgets.map(w => w.type).join(', ')}</div>
-          <div>Data age: {meta.dataAge || 'N/A'}</div>
-          <div>Conditions: {context.specialConditions.length || 'None'}</div>
+        <div className="absolute -bottom-16 left-0 text-white text-xs font-mono">
+          <div>Widgets: {dashboardData.widgets.map(w => w.type).join(', ')}</div>
+          <div>Data age: {dashboardData.meta.dataAge || 'N/A'}</div>
         </div>
       </div>
     </div>
@@ -766,8 +671,9 @@ open http://localhost:3000/preview
 - `src/lib/dashboard/loader.ts`
 - `src/lib/dashboard/widget-renderer.tsx`
 - `src/lib/dashboard/layout.ts`
-- `src/app/(dashboard)/page.tsx`
-- `src/app/(dashboard)/layout.tsx`
+- `src/components/DashboardScreen.tsx`
+- `src/app/(dashboard)/page.tsx` (updated)
+- `src/app/(dashboard)/layout.tsx` (updated)
 - `src/app/(dashboard)/error.tsx`
 - `src/app/(dashboard)/loading.tsx`
 - `src/app/(dashboard)/not-found.tsx`

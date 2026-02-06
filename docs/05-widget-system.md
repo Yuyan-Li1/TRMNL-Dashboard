@@ -321,7 +321,7 @@ export function WeatherWidget({
             <span>H: {daily[0].temperatureMax}°</span>
             <span>L: {daily[0].temperatureMin}°</span>
             {daily[0].precipitationProbability > 0 && (
-              <span>💧 {daily[0].precipitationProbability}%</span>
+              <span>Rain: {daily[0].precipitationProbability}%</span>
             )}
           </div>
         )}
@@ -552,7 +552,7 @@ function EventRow({ event, isLast }: { event: CalendarEvent; isLast: boolean }) 
         </div>
         {event.location && (
           <div className="text-eink-xs text-eink-dark truncate">
-            📍 {event.location}
+            @ {event.location}
           </div>
         )}
       </div>

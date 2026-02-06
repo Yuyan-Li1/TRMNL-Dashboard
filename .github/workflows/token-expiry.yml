@@ -1,0 +1,113 @@
+name: Token Expiry Check
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC
+    - cron: '0 9 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  check-tokens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check token expiry
+        id: tokens
+        run: |
+          response=$(curl -s "https://${{ secrets.VERCEL_URL }}/api/tokens")
+          echo "Token response: $response"
+
+          # Check for expiring tokens
+          expiring=$(echo "$response" | grep -o '"status":"expiring_soon"' || true)
+          expired=$(echo "$response" | grep -o '"status":"expired"' || true)
+
+          if [ -n "$expired" ]; then
+            echo "has_expired=true" >> $GITHUB_OUTPUT
+            echo "::error::One or more tokens have expired"
+          fi
+
+          if [ -n "$expiring" ]; then
+            echo "has_expiring=true" >> $GITHUB_OUTPUT
+            echo "::warning::One or more tokens are expiring soon"
+          fi
+
+      - name: Create issue for expired tokens
+        if: steps.tokens.outputs.has_expired == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'API Token Expired';
+            const body = `
+            ## Token Expiration Alert
+
+            One or more API tokens have expired and need to be refreshed.
+
+            ### Common Causes
+            - PSN NPSSO token (expires every ~2 months)
+            - API key invalidated
+
+            ### Resolution
+            1. Visit the [Token Health page](https://${{ secrets.VERCEL_URL }}/admin/tokens)
+            2. Follow the refresh instructions for the expired token
+            3. Update environment variables in Vercel
+            4. Redeploy if needed
+
+            ---
+            *This issue was automatically created by the token expiry check workflow.*
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'token-expired'
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['token-expired', 'urgent', 'automated']
+              });
+            }
+
+      - name: Create issue for expiring tokens
+        if: steps.tokens.outputs.has_expiring == 'true' && steps.tokens.outputs.has_expired != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'API Token Expiring Soon';
+            const body = `
+            ## Token Expiration Warning
+
+            One or more API tokens will expire soon and should be refreshed.
+
+            ### Action Required
+            1. Visit the [Token Health page](https://${{ secrets.VERCEL_URL }}/admin/tokens)
+            2. Check which tokens are marked as "expiring soon"
+            3. Follow the refresh instructions before they expire
+
+            ---
+            *This issue was automatically created by the token expiry check workflow.*
+            `;
+
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'token-expiring'
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['token-expiring', 'automated']
+              });
+            }

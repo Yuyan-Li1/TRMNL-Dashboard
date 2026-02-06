@@ -156,85 +156,18 @@ export interface Achievement {
 Create `src/lib/api/steam.ts`:
 
 ```typescript
+import SteamAPI from 'steamapi';
 import { SteamData, RecentGame } from '@/types/gaming';
 import { cacheGet, cacheSet, CACHE_TTL, CACHE_KEYS } from '@/lib/cache/redis';
 
-const STEAM_API_KEY = process.env.STEAM_API_KEY;
 const STEAM_ID = process.env.STEAM_ID;
 
-const STEAM_API_BASE = 'https://api.steampowered.com';
-
-interface SteamRecentGame {
-  appid: number;
-  name: string;
-  playtime_2weeks?: number;
-  playtime_forever: number;
-  img_icon_url: string;
-  img_logo_url?: string;
-}
-
-interface SteamPlayer {
-  steamid: string;
-  personaname: string;
-  avatarfull: string;
-  profileurl: string;
-}
-
-/**
- * Fetch recently played games from Steam
- * Rate limit: 100,000 requests/day
- */
-async function fetchRecentGames(): Promise<SteamRecentGame[]> {
-  if (!STEAM_API_KEY || !STEAM_ID) {
-    throw new Error('Steam API credentials not configured');
-  }
-
-  const url = new URL(`${STEAM_API_BASE}/IPlayerService/GetRecentlyPlayedGames/v1`);
-  url.searchParams.set('key', STEAM_API_KEY);
-  url.searchParams.set('steamid', STEAM_ID);
-  url.searchParams.set('count', '10');  // Get up to 10 recent games
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    throw new Error(`Steam API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.response?.games || [];
-}
-
-/**
- * Fetch player profile info
- */
-async function fetchPlayerInfo(): Promise<SteamPlayer | null> {
-  if (!STEAM_API_KEY || !STEAM_ID) {
-    return null;
-  }
-
-  const url = new URL(`${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2`);
-  url.searchParams.set('key', STEAM_API_KEY);
-  url.searchParams.set('steamids', STEAM_ID);
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = await response.json();
-  return data.response?.players?.[0] || null;
-}
-
-/**
- * Build game image URL
- */
-function getGameImageUrl(appId: number, hash: string): string {
-  return `https://media.steampowered.com/steamcommunity/public/images/apps/${appId}/${hash}.jpg`;
-}
+// Singleton SteamAPI instance
+const steam = new SteamAPI(process.env.STEAM_API_KEY!);
 
 /**
  * Get Steam data with caching
+ * Rate limit: 100,000 requests/day
  */
 export async function getSteamData(): Promise<SteamData> {
   // Try cache first
@@ -243,27 +176,29 @@ export async function getSteamData(): Promise<SteamData> {
     return cached;
   }
 
-  // Fetch fresh data
-  const [recentGamesRaw, playerInfo] = await Promise.all([
-    fetchRecentGames(),
-    fetchPlayerInfo(),
+  if (!STEAM_ID) {
+    throw new Error('STEAM_ID not configured');
+  }
+
+  // Fetch fresh data using steamapi package
+  const [userSummary, recentGamesRaw] = await Promise.all([
+    steam.getUserSummary(STEAM_ID),
+    steam.getUserRecentGames(STEAM_ID),
   ]);
 
   const recentGames: RecentGame[] = recentGamesRaw.map((game) => ({
     platform: 'steam' as const,
-    gameId: game.appid.toString(),
+    gameId: game.appID.toString(),
     title: game.name,
-    imageUrl: game.img_icon_url
-      ? getGameImageUrl(game.appid, game.img_icon_url)
-      : undefined,
-    playtimeRecent: game.playtime_2weeks,
-    playtimeTotal: game.playtime_forever,
+    imageUrl: game.iconURL,
+    playtimeRecent: game.playTime2,
+    playtimeTotal: game.playTime,
   }));
 
   const data: SteamData = {
-    playerId: STEAM_ID || '',
-    playerName: playerInfo?.personaname || 'Steam User',
-    avatarUrl: playerInfo?.avatarfull,
+    playerId: STEAM_ID,
+    playerName: userSummary.nickname,
+    avatarUrl: userSummary.avatar.large,
     recentGames,
     fetchedAt: new Date().toISOString(),
   };
@@ -460,6 +395,8 @@ async function getAuth(): Promise<AuthorizationPayload> {
       authExpiresAt = Date.now() + (auth.expiresIn - 60) * 1000;  // 1 minute buffer
 
       // Update database
+      // TODO: Encrypt tokens before storing in database
+      // Consider using crypto.createCipheriv with a secret from env vars
       await TokenHealth.updateOne(
         { service: 'psn' },
         {
@@ -496,6 +433,8 @@ async function getAuth(): Promise<AuthorizationPayload> {
     authExpiresAt = Date.now() + (auth.expiresIn - 60) * 1000;
 
     // Store tokens in database
+    // TODO: Encrypt tokens before storing in database
+    // Consider using crypto.createCipheriv with a secret from env vars
     await TokenHealth.updateOne(
       { service: 'psn' },
       {
