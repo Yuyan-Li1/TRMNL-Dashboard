@@ -1,3 +1,4 @@
+import { EinkIcon } from "@/components/ui/EinkIcon";
 import {
 	CalendarWidget,
 	GamingWidget,
@@ -39,6 +40,7 @@ export function renderWidget(
 	data: WidgetData,
 	routine: RoutineData | null,
 	medications: MedicationItem[],
+	opts?: { mergedMedication?: boolean },
 ): React.JSX.Element | null {
 	const size = widget.size;
 
@@ -78,18 +80,17 @@ export function renderWidget(
 					key="gaming"
 					data={data.gaming}
 					size={size as "small" | "medium" | "large"}
-					limit={size === "large" ? 5 : 3}
+					limit={size === "large" ? 5 : 4}
 				/>
 			);
 
 		case "routine": {
-			if (!routine) return null;
 			const category = (widget.config?.category as string) || "custom";
-			return (
+			const routineEl = (
 				<RoutineWidget
 					key={`routine-${category}`}
-					name={routine.name}
-					steps={routine.steps.map((step) => ({ title: step }))}
+					name={routine?.name ?? "Routine"}
+					steps={routine?.steps.map((step) => ({ title: step })) ?? []}
 					size={size as "small" | "medium" | "large"}
 					category={
 						category as
@@ -101,6 +102,33 @@ export function renderWidget(
 					}
 				/>
 			);
+
+			// When medication is merged into this cell, render a compact
+			// medication strip above the routine card
+			if (opts?.mergedMedication && medications.length > 0) {
+				return (
+					<div key="routine-medication" className="flex flex-col gap-2 h-full">
+						<div className="border-2 border-eink-black px-3 py-2 flex items-center justify-between shrink-0">
+							<div className="flex items-center gap-2">
+								<EinkIcon name="pill" size="sm" />
+								{medications.map((m) => (
+									<span key={m.name} className="text-eink-sm font-medium">
+										{m.name}
+									</span>
+								))}
+							</div>
+							{medications[0]?.time && (
+								<span className="text-eink-sm font-bold">
+									{medications[0].time}
+								</span>
+							)}
+						</div>
+						<div className="flex-1 min-h-0">{routineEl}</div>
+					</div>
+				);
+			}
+
+			return routineEl;
 		}
 
 		case "medication":
@@ -125,16 +153,44 @@ export function renderWidget(
 	}
 }
 
+export interface RenderedWidget {
+	config: WidgetDisplay;
+	element: React.JSX.Element;
+}
+
 /**
- * Render all widgets for the dashboard
+ * Get the effective widget list after merging (e.g. medication into routine).
+ * Use this for layout calculation so slots match rendered output.
+ */
+export function getEffectiveWidgets(widgets: WidgetDisplay[]): WidgetDisplay[] {
+	const hasRoutine = widgets.some((w) => w.type === "routine");
+	const hasMedication = widgets.some((w) => w.type === "medication");
+	if (hasRoutine && hasMedication) {
+		return widgets.filter((w) => w.type !== "medication");
+	}
+	return widgets;
+}
+
+/**
+ * Render all widgets for the dashboard, paired with their config.
+ * When both routine and medication are present, merges medication
+ * into the routine cell to save a grid slot.
  */
 export function renderWidgets(
 	widgets: WidgetDisplay[],
 	data: WidgetData,
 	routine: RoutineData | null,
 	medications: MedicationItem[],
-): React.JSX.Element[] {
-	return widgets
-		.map((widget) => renderWidget(widget, data, routine, medications))
-		.filter((element): element is React.JSX.Element => element !== null);
+): RenderedWidget[] {
+	const effective = getEffectiveWidgets(widgets);
+	const mergeMedIntoRoutine = effective.length < widgets.length;
+
+	return effective
+		.map((widget) => {
+			const element = renderWidget(widget, data, routine, medications, {
+				mergedMedication: widget.type === "routine" && mergeMedIntoRoutine,
+			});
+			return element ? { config: widget, element } : null;
+		})
+		.filter((entry): entry is RenderedWidget => entry !== null);
 }

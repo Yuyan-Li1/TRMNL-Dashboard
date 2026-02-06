@@ -39,7 +39,7 @@ export function GamingWidget({
 			icon={<EinkIcon name="gamepad" size="sm" />}
 			size={size}
 		>
-			<div className="flex flex-col gap-2">
+			<div className="flex flex-col gap-1">
 				{games.length === 0 ? (
 					<div className="text-eink-dark text-eink-sm">No recent games</div>
 				) : (
@@ -90,7 +90,7 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 		<div
 			className={`
         flex items-center gap-2
-        ${!isLast ? "pb-2 border-b border-eink-light" : ""}
+        ${!isLast ? "pb-1 border-b border-eink-light" : ""}
       `}
 		>
 			{/* Platform icon */}

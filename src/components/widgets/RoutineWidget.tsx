@@ -39,6 +39,11 @@ export function RoutineWidget({
 			size={size}
 		>
 			<div className="flex flex-col gap-1">
+				{displaySteps.length === 0 && (
+					<div className="text-eink-dark text-eink-sm">
+						No routine scheduled
+					</div>
+				)}
 				{displaySteps.map((step, i) => (
 					<div
 						key={step.title}
