@@ -2,11 +2,12 @@ name: Morning Data Pre-fetch
 
 on:
   schedule:
-    # Run at ~6:00 AM Sydney time (UTC+11 in summer, UTC+10 in winter)
+    # Run at ~7:40 AM Sydney time (UTC+11 in summer, UTC+10 in winter)
     # Two entries cover both AEDT and AEST — one will fire an hour
     # early/late depending on DST, but that's fine for a pre-fetch.
-    - cron: '0 19 * * 1-5'  # 6 AM AEDT / 5 AM AEST (Mon-Fri)
-    - cron: '0 20 * * 1-5'  # 7 AM AEDT / 6 AM AEST (Mon-Fri)
+    # Mon-Fri Sydney morning = Sun-Thu UTC night
+    - cron: '40 20 * * 0-4'  # 7:40 AM AEDT / 6:40 AM AEST (Mon-Fri Sydney)
+    - cron: '40 21 * * 0-4'  # 8:40 AM AEDT / 7:40 AM AEST (Mon-Fri Sydney)
 
   workflow_dispatch:
 
