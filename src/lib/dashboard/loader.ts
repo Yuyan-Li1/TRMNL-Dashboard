@@ -52,7 +52,10 @@ export async function loadDashboardData(): Promise<DashboardRenderData> {
 	]);
 
 	// Get cached data (don't fetch fresh - that's done by the refresh cron)
-	const cachedData = await cacheGet<DashboardData>(CACHE_KEYS.DASHBOARD_DATA);
+	// Fall back to non-expiring "latest" copy if TTL'd key has expired
+	const cachedData =
+		(await cacheGet<DashboardData>(CACHE_KEYS.DASHBOARD_DATA)) ??
+		(await cacheGet<DashboardData>(`${CACHE_KEYS.DASHBOARD_DATA}:latest`));
 
 	const weather =
 		cachedData?.weather || (await cacheGet<WeatherData>(CACHE_KEYS.WEATHER));
