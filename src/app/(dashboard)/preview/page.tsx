@@ -15,7 +15,7 @@ export default async function PreviewPage() {
 				</div>
 
 				<div className="bg-gray-900 p-4 rounded-lg shadow-2xl">
-					<DashboardScreen data={dashboardData} footerLabel="Preview Mode" />
+					<DashboardScreen data={dashboardData} />
 				</div>
 
 				<div className="absolute -bottom-16 left-0 text-white text-xs font-mono">
