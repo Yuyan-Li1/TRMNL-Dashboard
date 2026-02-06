@@ -1,6 +1,7 @@
 import { EinkCard } from "@/components/ui/EinkCard";
 import { EinkIcon } from "@/components/ui/EinkIcon";
 import { getTodayEvents, getUpcomingEvents } from "@/lib/api/calendar";
+import { LOCATION } from "@/lib/config";
 import type { CalendarData, CalendarEvent } from "@/types/calendar";
 
 interface CalendarWidgetProps {
@@ -99,6 +100,7 @@ function EventRow({
 							hour: "2-digit",
 							minute: "2-digit",
 							hour12: false,
+							timeZone: LOCATION.timezone,
 						})}
 					</span>
 				)}

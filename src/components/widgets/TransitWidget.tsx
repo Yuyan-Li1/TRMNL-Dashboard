@@ -1,6 +1,7 @@
 import { EinkCard } from "@/components/ui/EinkCard";
 import { EinkIcon } from "@/components/ui/EinkIcon";
 import { formatDelay } from "@/lib/api/transport";
+import { LOCATION } from "@/lib/config";
 import { TRAIN_LINES, type TransitData } from "@/types/transport";
 
 interface TransitWidgetProps {
@@ -53,6 +54,7 @@ export function TransitWidget({
 							hour: "2-digit",
 							minute: "2-digit",
 							hour12: false,
+							timeZone: LOCATION.timezone,
 						});
 
 						return (

@@ -1,5 +1,7 @@
 import { google } from "googleapis";
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
+import { LOCATION } from "@/lib/config";
+import { getNow } from "@/lib/utils/date";
 import type { CalendarData, CalendarEvent } from "@/types/calendar";
 
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
@@ -81,7 +83,8 @@ export async function getCalendarEvents(daysAhead = 7): Promise<CalendarData> {
  * Get today's events
  */
 export function getTodayEvents(calendar: CalendarData): CalendarEvent[] {
-	const today = new Date().toISOString().split("T")[0];
+	const sydneyNow = getNow();
+	const today = `${sydneyNow.getFullYear()}-${String(sydneyNow.getMonth() + 1).padStart(2, "0")}-${String(sydneyNow.getDate()).padStart(2, "0")}`;
 
 	return calendar.events.filter((event) => {
 		const eventDate = event.startTime.split("T")[0];
@@ -137,6 +140,7 @@ export function formatEventTime(event: CalendarEvent): string {
 		hour: "numeric",
 		minute: "2-digit",
 		hour12: true,
+		timeZone: LOCATION.timezone,
 	};
 
 	return `${start.toLocaleTimeString("en-AU", timeFormat)} - ${end.toLocaleTimeString("en-AU", timeFormat)}`;

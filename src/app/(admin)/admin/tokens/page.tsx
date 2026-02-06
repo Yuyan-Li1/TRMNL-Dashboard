@@ -1,4 +1,5 @@
 import { checkPSNTokenHealth } from "@/lib/api/playstation";
+import { LOCATION } from "@/lib/config";
 import { TokenHealth } from "@/lib/db/models/token";
 import { connectToDatabase } from "@/lib/db/mongodb";
 
@@ -62,7 +63,10 @@ export default async function TokensPage() {
 											<span>
 												Last checked:{" "}
 												{token.lastChecked
-													? new Date(token.lastChecked).toLocaleString()
+													? new Date(token.lastChecked).toLocaleString(
+															LOCATION.locale,
+															{ timeZone: LOCATION.timezone },
+														)
 													: "Never"}
 											</span>
 											{token.errorCount > 0 && (
@@ -98,7 +102,10 @@ export default async function TokensPage() {
 										<p className="text-sm text-gray-600">
 											NPSSO expires:{" "}
 											<span className="font-medium">
-												{new Date(psnStatus.expiresAt).toLocaleDateString()}
+												{new Date(psnStatus.expiresAt).toLocaleDateString(
+													LOCATION.locale,
+													{ timeZone: LOCATION.timezone },
+												)}
 											</span>
 										</p>
 										<p className="mt-1 text-xs text-gray-500">

@@ -29,6 +29,7 @@ export function DashboardScreen({
 		medications,
 	);
 	const now = new Date();
+	const tz = LOCATION.timezone;
 
 	return (
 		<div className="relative">
@@ -44,6 +45,7 @@ export function DashboardScreen({
 								hour: "2-digit",
 								minute: "2-digit",
 								hour12: false,
+								timeZone: tz,
 							})}
 						</time>
 						<span className="text-eink-base text-eink-dark">
@@ -51,6 +53,7 @@ export function DashboardScreen({
 								weekday: "long",
 								day: "numeric",
 								month: "short",
+								timeZone: tz,
 							})}
 						</span>
 					</div>
@@ -106,7 +109,13 @@ export function DashboardScreen({
 				<footer className="px-3 py-1 border-t border-eink-light flex justify-between text-eink-xs text-eink-dark">
 					<span>{footerLabel}</span>
 					<span>
-						Updated {meta.renderedAt.split("T")[1]?.slice(0, 5) ?? ""}
+						Updated{" "}
+						{new Date(meta.renderedAt).toLocaleTimeString(LOCATION.locale, {
+							hour: "2-digit",
+							minute: "2-digit",
+							hour12: false,
+							timeZone: tz,
+						})}
 					</span>
 				</footer>
 			</div>

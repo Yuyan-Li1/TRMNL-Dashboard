@@ -1,6 +1,7 @@
 import { EinkCard } from "@/components/ui/EinkCard";
 import { EinkIcon } from "@/components/ui/EinkIcon";
 import { shouldBringUmbrella } from "@/lib/api/weather";
+import { LOCATION } from "@/lib/config";
 import { WEATHER_CODES, type WeatherData } from "@/types/weather";
 
 interface WeatherWidgetProps {
@@ -87,6 +88,7 @@ export function WeatherWidget({
 									<div className="text-eink-xs text-eink-dark">
 										{new Date(day.date).toLocaleDateString("en-AU", {
 											weekday: "short",
+											timeZone: LOCATION.timezone,
 										})}
 									</div>
 									<div className="text-eink-sm font-bold">

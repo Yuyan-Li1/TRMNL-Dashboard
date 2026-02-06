@@ -182,7 +182,11 @@ export default function EditRoutinePage() {
 							<label className="block text-sm font-medium text-gray-700">
 								Start Time
 								<input
-									type="time"
+									type="text"
+									inputMode="numeric"
+									pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+									placeholder="HH:mm"
+									maxLength={5}
 									value={formData.timeWindow.startTime}
 									onChange={(e) =>
 										setFormData({
@@ -201,7 +205,11 @@ export default function EditRoutinePage() {
 							<label className="block text-sm font-medium text-gray-700">
 								End Time
 								<input
-									type="time"
+									type="text"
+									inputMode="numeric"
+									pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+									placeholder="HH:mm"
+									maxLength={5}
 									value={formData.timeWindow.endTime}
 									onChange={(e) =>
 										setFormData({

@@ -80,10 +80,16 @@ export function ScheduleEditor({
 				? `/api/admin/schedules/${scheduleId}`
 				: "/api/admin/schedules";
 
+			// Strip client-side _id from time blocks before sending to API
+			const payload = {
+				...formData,
+				timeBlocks: formData.timeBlocks.map(({ _id, ...block }) => block),
+			};
+
 			const response = await fetch(url, {
 				method,
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(formData),
+				body: JSON.stringify(payload),
 			});
 
 			if (!response.ok) throw new Error("Failed to save");
@@ -312,7 +318,11 @@ function TimeBlockEditor({
 						<label className="block text-xs font-medium text-gray-500">
 							Start Time
 							<input
-								type="time"
+								type="text"
+								inputMode="numeric"
+								pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+								placeholder="HH:mm"
+								maxLength={5}
 								value={block.startTime}
 								onChange={(e) =>
 									onChange({ ...block, startTime: e.target.value })
@@ -325,7 +335,11 @@ function TimeBlockEditor({
 						<label className="block text-xs font-medium text-gray-500">
 							End Time
 							<input
-								type="time"
+								type="text"
+								inputMode="numeric"
+								pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+								placeholder="HH:mm"
+								maxLength={5}
 								value={block.endTime}
 								onChange={(e) =>
 									onChange({ ...block, endTime: e.target.value })
