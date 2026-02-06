@@ -50,6 +50,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 
 /**
  * Generic cache set with TTL
+ * Also stores a non-expiring copy at `${key}:latest` so data is never lost
  */
 export async function cacheSet<T>(
 	key: string,
@@ -57,7 +58,10 @@ export async function cacheSet<T>(
 	ttlSeconds: number,
 ): Promise<void> {
 	const r = getRedis();
-	await r.setex(key, ttlSeconds, data);
+	await Promise.all([
+		r.setex(key, ttlSeconds, data),
+		r.set(`${key}:latest`, data),
+	]);
 }
 
 /**
