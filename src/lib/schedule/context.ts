@@ -174,15 +174,23 @@ async function getSpecialConditions(
 			}
 		}
 
-		// Check transit delays (only for office days in morning)
-		if (dayType === "office" && timeBlock === "morning") {
+		// Check transit delays (for office days during morning and evening commute)
+		if (
+			dayType === "office" &&
+			(timeBlock === "morning" || timeBlock === "evening")
+		) {
 			const transit = await cacheGet<TransitData>(CACHE_KEYS.TRANSIT);
 			if (transit && hasSignificantDelays(transit)) {
+				const hasCancellations = transit.journeys.some(
+					(j) => j.status === "cancelled",
+				);
 				conditions.push({
 					type: "train_delay",
 					severity: "high",
-					message: "Train delays detected",
-					data: { departures: transit.departures },
+					message: hasCancellations
+						? "Train cancellations on your commute"
+						: "Train delays detected on your commute",
+					data: { journeys: transit.journeys },
 				});
 			}
 		}

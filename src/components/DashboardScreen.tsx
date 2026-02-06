@@ -2,7 +2,8 @@ import { AlertBanner } from "@/components/widgets";
 import { LOCATION } from "@/lib/config";
 import { calculateLayout, getSlotStyle } from "@/lib/dashboard/layout";
 import type { DashboardRenderData } from "@/lib/dashboard/loader";
-import { renderWidgets } from "@/lib/dashboard/widget-renderer";
+import { renderWidget, renderWidgets } from "@/lib/dashboard/widget-renderer";
+import { WIDGET_TYPES } from "@/types";
 
 interface DashboardScreenProps {
 	data: DashboardRenderData;
@@ -28,6 +29,16 @@ export function DashboardScreen({
 		routine,
 		medications,
 	);
+
+	// Build inactive widgets (types not in the current schedule)
+	const activeTypes = new Set(widgets.map((w) => w.type));
+	const inactiveWidgets = WIDGET_TYPES.filter((t) => !activeTypes.has(t))
+		.map((type) => {
+			const display = { type, priority: 0, size: "medium" as const };
+			const element = renderWidget(display, widgetData, routine, medications);
+			return element ? { type, element } : null;
+		})
+		.filter(Boolean);
 	const now = new Date();
 	const tz = LOCATION.timezone;
 
@@ -124,6 +135,24 @@ export function DashboardScreen({
 				className="absolute pointer-events-none border-r-2 border-b-2 border-dashed border-red-400"
 				style={{ top: 0, left: 0, width: 800, height: 480 }}
 			/>
+
+			{inactiveWidgets.length > 0 && (
+				<div
+					className="mt-4 p-4 border-t-2 border-dashed border-gray-300"
+					style={{ maxWidth: 800 }}
+				>
+					<p className="text-sm text-gray-500 mb-3">
+						Inactive widgets ({context.dayType} / {context.timeBlock})
+					</p>
+					<div className="grid grid-cols-2 gap-2">
+						{inactiveWidgets.map((item) => (
+							<div key={item!.type} className="opacity-60">
+								{item!.element}
+							</div>
+						))}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

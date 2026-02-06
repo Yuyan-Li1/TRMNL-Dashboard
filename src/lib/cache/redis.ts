@@ -30,7 +30,7 @@ export const CACHE_TTL = {
 // Cache key prefixes
 export const CACHE_KEYS = {
 	WEATHER: "weather:sydney",
-	TRANSIT: "transit:lidcombe",
+	TRANSIT: "transit:commute",
 	CALENDAR: "calendar:events",
 	GAMING_STEAM: "gaming:steam",
 	GAMING_XBOX: "gaming:xbox",

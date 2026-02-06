@@ -8,10 +8,10 @@ export const LOCATION = {
 	locale: "en-AU",
 } as const;
 
-export const STATION = {
-	// Lidcombe station (change for your commute station)
-	stopId: "10101331", // Departure Monitor stop ID
-	name: "Lidcombe",
+export const COMMUTE = {
+	origin: { stopId: "10101331", name: "Lidcombe" },
+	destination: { stopId: "10101109", name: "Bondi Junction" },
+	via: { stopId: "10101101", name: "Town Hall" },
 } as const;
 
 export const TRMNL = {

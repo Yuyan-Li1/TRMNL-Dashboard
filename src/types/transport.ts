@@ -1,20 +1,31 @@
-export interface StopDeparture {
-	tripId: string;
-	routeId: string;
-	routeShortName: string; // e.g., "T1", "T2"
-	transportType: string; // e.g., "Train", "Bus"
-	headsign: string; // e.g., "City via Central"
-	scheduledTime: string; // ISO timestamp
-	estimatedTime?: string; // ISO timestamp if realtime available
-	delaySeconds: number; // Positive = late, negative = early
-	platform?: string;
+export interface CommuteLeg {
+	line: string; // "T2", "T4"
+	lineName: string; // "Inner West & Leppington"
+	origin: string; // "Lidcombe"
+	destination: string; // "Town Hall"
+	departPlanned: string; // ISO timestamp
+	departEstimated?: string;
+	arrivePlanned: string;
+	arriveEstimated?: string;
+	delaySeconds: number;
 	status: "on_time" | "delayed" | "early" | "cancelled";
+	platform?: string;
+}
+
+export interface CommuteJourney {
+	legs: CommuteLeg[];
+	totalDurationMinutes: number;
+	departureTime: string; // first leg depart
+	arrivalTime: string; // last leg arrive
+	status: "on_time" | "delayed" | "cancelled";
+	delayMinutes: number; // worst delay across legs
 }
 
 export interface TransitData {
-	stationName: string;
-	stationId: string;
-	departures: StopDeparture[];
+	origin: string;
+	destination: string;
+	direction: "to_work" | "to_home";
+	journeys: CommuteJourney[];
 	fetchedAt: string;
 }
 
