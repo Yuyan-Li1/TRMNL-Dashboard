@@ -4,7 +4,7 @@
 
 Set up the core APIs that provide essential dashboard data: weather (Open-Meteo), public transit (Transport NSW), and calendar (Google Calendar).
 
-## ⚠️ MANUAL ACTION REQUIRED
+## MANUAL ACTION REQUIRED
 
 ### 2.1 Transport NSW API Key
 
@@ -12,8 +12,7 @@ Set up the core APIs that provide essential dashboard data: weather (Open-Meteo)
 2. Create an account and verify your email
 3. Go to "My Applications" and create a new application
 4. Select the following APIs:
-   - **Public Transport - Realtime Trip Update** (GTFS-realtime)
-   - **Public Transport - Departures** (optional, for simpler queries)
+   - **Public Transport - Departures** (Departure Monitor REST API)
 5. Copy your API key
 
 **Save this value:**
@@ -27,24 +26,24 @@ TFNSW_API_KEY=your-api-key-here
 1. Go to <https://console.cloud.google.com>
 2. Create a new project called "trmnl-dashboard"
 3. Enable the **Google Calendar API**:
-   - Go to APIs & Services → Library
+   - Go to APIs & Services -> Library
    - Search for "Google Calendar API"
    - Click Enable
 4. Create a Service Account:
-   - Go to APIs & Services → Credentials
-   - Click "Create Credentials" → "Service Account"
+   - Go to APIs & Services -> Credentials
+   - Click "Create Credentials" -> "Service Account"
    - Name: `trmnl-calendar`
    - Role: None needed (we'll share the calendar directly)
    - Click "Done"
 5. Create a key for the service account:
    - Click on the service account you created
    - Go to "Keys" tab
-   - Add Key → Create new key → JSON
+   - Add Key -> Create new key -> JSON
    - Save the downloaded JSON file securely
 6. Share your calendar with the service account:
    - Open Google Calendar
    - Find the calendar you want to use
-   - Click the three dots → Settings and sharing
+   - Click the three dots -> Settings and sharing
    - Under "Share with specific people", add the service account email
    - Permission: "See all event details"
 7. Get your Calendar ID:
@@ -60,6 +59,8 @@ GOOGLE_CALENDAR_ID=your-email@gmail.com
 ```
 
 **Note:** When adding `GOOGLE_PRIVATE_KEY` to `.env.local`, keep the `\n` characters and wrap in quotes.
+
+**Note:** The `gtfs-realtime-bindings` package is **not** needed. We use the Transport NSW Departure Monitor REST API, which returns JSON directly -- no protobuf parsing required.
 
 ---
 
@@ -140,11 +141,7 @@ Create `src/lib/api/weather.ts`:
 ```typescript
 import { WeatherData, CurrentWeather, HourlyForecast, DailyForecast } from '@/types/weather';
 import { cacheGet, cacheSet, CACHE_TTL, CACHE_KEYS } from '@/lib/cache/redis';
-
-// Sydney coordinates (change for your location)
-const LATITUDE = -33.8688;
-const LONGITUDE = 151.2093;
-const TIMEZONE = 'Australia/Sydney';
+import { LOCATION } from '@/lib/config';
 
 // Open-Meteo API base URL (no auth required!)
 const BASE_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -185,9 +182,9 @@ interface OpenMeteoResponse {
  */
 async function fetchWeatherFromAPI(): Promise<WeatherData> {
   const params = new URLSearchParams({
-    latitude: LATITUDE.toString(),
-    longitude: LONGITUDE.toString(),
-    timezone: TIMEZONE,
+    latitude: LOCATION.latitude.toString(),
+    longitude: LOCATION.longitude.toString(),
+    timezone: LOCATION.timezone,
     // Current weather
     current: [
       'temperature_2m',
@@ -318,6 +315,7 @@ export interface StopDeparture {
   tripId: string;
   routeId: string;
   routeShortName: string;  // e.g., "T1", "T2"
+  transportType: string;   // e.g., "Train", "Bus"
   headsign: string;        // e.g., "City via Central"
   scheduledTime: string;   // ISO timestamp
   estimatedTime?: string;  // ISO timestamp if realtime available
@@ -351,58 +349,48 @@ export const TRAIN_LINES: Record<string, { name: string; color: string }> = {
 Create `src/lib/api/transport.ts`:
 
 ```typescript
-import { transit_realtime } from 'gtfs-realtime-bindings';
 import { TransitData, StopDeparture } from '@/types/transport';
 import { cacheGet, cacheSet, CACHE_TTL, CACHE_KEYS } from '@/lib/cache/redis';
+import { LOCATION } from '@/lib/config';
 
 const TFNSW_API_KEY = process.env.TFNSW_API_KEY;
 
-// Transport NSW API endpoints
-const GTFS_REALTIME_URL = 'https://api.transport.nsw.gov.au/v2/gtfs/realtime/sydneytrains';
-
-// Lidcombe station stop ID (change for your station)
-// Find stop IDs from GTFS static data or TfNSW documentation
-const LIDCOMBE_STOP_ID = '2148102';  // Platform 1 - City direction
-
-// Bondi Junction station stop ID (for filtering)
-const BONDI_JUNCTION_STOP_ID = '2000270';
-
-interface StaticStopTime {
-  tripId: string;
-  stopId: string;
-  arrivalTime: string;
-  departureTime: string;
-  stopSequence: number;
-}
+// Transport NSW Departure Monitor endpoint (returns JSON, no protobuf needed)
+const DEPARTURE_MONITOR_URL = 'https://api.transport.nsw.gov.au/v1/tp/departure_mon';
 
 /**
- * Fetch GTFS realtime data from Transport NSW
- * Rate limit: 60,000 requests/day
+ * Response types for the Departure Monitor API
  */
-async function fetchGTFSRealtime(): Promise<transit_realtime.FeedMessage> {
-  if (!TFNSW_API_KEY) {
-    throw new Error('TFNSW_API_KEY not configured');
-  }
+interface DepartureMonitorResponse {
+  stopEvents?: DepartureStopEvent[];
+}
 
-  const response = await fetch(GTFS_REALTIME_URL, {
-    headers: {
-      Authorization: `apikey ${TFNSW_API_KEY}`,
-      Accept: 'application/x-google-protobuf',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`TfNSW API error: ${response.status}`);
-  }
-
-  const buffer = await response.arrayBuffer();
-  return transit_realtime.FeedMessage.decode(new Uint8Array(buffer));
+interface DepartureStopEvent {
+  departureTimePlanned: string;
+  departureTimeEstimated?: string;
+  isCancelled?: boolean;
+  transportation: {
+    number: string;        // e.g., "T1"
+    name?: string;
+    destination: {
+      name: string;        // e.g., "City via Central"
+    };
+    product?: {
+      class?: number;
+      name?: string;       // e.g., "Sydney Trains"
+    };
+  };
+  location: {
+    disassembledName?: string;  // Platform name, e.g., "Platform 1"
+    id?: string;
+  };
 }
 
 /**
  * Parse delay status from seconds
  */
-function getDelayStatus(delaySeconds: number): StopDeparture['status'] {
+function getDelayStatus(delaySeconds: number, isCancelled?: boolean): StopDeparture['status'] {
+  if (isCancelled) return 'cancelled';
   if (delaySeconds <= -60) return 'early';
   if (delaySeconds >= 300) return 'delayed';  // 5+ minutes late
   return 'on_time';
@@ -419,50 +407,68 @@ export function formatDelay(delaySeconds: number): string {
 }
 
 /**
- * Get upcoming departures from a station
+ * Fetch departures from the Transport NSW Departure Monitor API
+ * Rate limit: 60,000 requests/day
  */
 async function fetchDepartures(
   stopId: string,
   limit: number = 5
 ): Promise<StopDeparture[]> {
-  const feed = await fetchGTFSRealtime();
+  if (!TFNSW_API_KEY) {
+    throw new Error('TFNSW_API_KEY not configured');
+  }
+
+  const params = new URLSearchParams({
+    outputFormat: 'rapidJSON',
+    coordOutputFormat: 'EPSG:4326',
+    mode: 'direct',
+    type_dm: 'stop',
+    name_dm: stopId,
+    departureMonitorMacro: 'true',
+    TfNSWDM: 'true',
+    version: '10.2.1.42',
+  });
+
+  const response = await fetch(`${DEPARTURE_MONITOR_URL}?${params}`, {
+    headers: {
+      Authorization: `apikey ${TFNSW_API_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`TfNSW Departure Monitor API error: ${response.status}`);
+  }
+
+  const data: DepartureMonitorResponse = await response.json();
+  const stopEvents = data.stopEvents || [];
   const departures: StopDeparture[] = [];
 
-  // Process trip updates
-  for (const entity of feed.entity) {
-    if (!entity.tripUpdate) continue;
+  for (const event of stopEvents) {
+    const plannedTime = new Date(event.departureTimePlanned);
+    const estimatedTime = event.departureTimeEstimated
+      ? new Date(event.departureTimeEstimated)
+      : undefined;
 
-    const tripUpdate = entity.tripUpdate;
-    const trip = tripUpdate.trip;
-
-    // Find stop time update for our station
-    const stopTimeUpdate = tripUpdate.stopTimeUpdate?.find(
-      (stu) => stu.stopId === stopId
-    );
-
-    if (!stopTimeUpdate) continue;
-
-    // Get delay information
-    const departure = stopTimeUpdate.departure || stopTimeUpdate.arrival;
-    if (!departure) continue;
-
-    const delaySeconds = departure.delay || 0;
-    const scheduledTime = new Date((departure.time as number) * 1000 - delaySeconds * 1000);
-    const estimatedTime = new Date((departure.time as number) * 1000);
+    // Calculate delay from planned vs estimated times
+    const delaySeconds = estimatedTime
+      ? Math.round((estimatedTime.getTime() - plannedTime.getTime()) / 1000)
+      : 0;
 
     departures.push({
-      tripId: trip?.tripId || '',
-      routeId: trip?.routeId || '',
-      routeShortName: extractLineName(trip?.routeId || ''),
-      headsign: extractHeadsign(trip?.tripId || ''),
-      scheduledTime: scheduledTime.toISOString(),
-      estimatedTime: estimatedTime.toISOString(),
+      tripId: `${event.transportation.number}-${event.departureTimePlanned}`,
+      routeId: event.transportation.number,
+      routeShortName: event.transportation.number,  // e.g., "T1"
+      transportType: event.transportation.product?.name || 'Train',
+      headsign: event.transportation.destination.name,
+      scheduledTime: plannedTime.toISOString(),
+      estimatedTime: estimatedTime?.toISOString(),
       delaySeconds,
-      status: getDelayStatus(delaySeconds),
+      platform: event.location.disassembledName,
+      status: getDelayStatus(delaySeconds, event.isCancelled),
     });
   }
 
-  // Sort by estimated time and limit results
+  // Sort by estimated/scheduled time and limit results
   return departures
     .sort((a, b) => {
       const timeA = new Date(a.estimatedTime || a.scheduledTime).getTime();
@@ -473,31 +479,10 @@ async function fetchDepartures(
 }
 
 /**
- * Extract line name from route ID
- * TfNSW route IDs follow patterns like "SYD-T1-..."
- */
-function extractLineName(routeId: string): string {
-  const match = routeId.match(/T\d/);
-  return match ? match[0] : 'Train';
-}
-
-/**
- * Extract headsign from trip ID
- * This is a simplified version - real implementation would use static GTFS data
- */
-function extractHeadsign(tripId: string): string {
-  // In production, look up from static GTFS data
-  if (tripId.includes('City') || tripId.includes('BJ')) {
-    return 'City via Central';
-  }
-  return 'Check timetable';
-}
-
-/**
  * Get transit data with caching
  */
 export async function getTransitDepartures(
-  stopId: string = LIDCOMBE_STOP_ID
+  stopId: string = LOCATION.stationId
 ): Promise<TransitData> {
   const cacheKey = `${CACHE_KEYS.TRANSIT}:${stopId}`;
 
@@ -511,7 +496,7 @@ export async function getTransitDepartures(
   const departures = await fetchDepartures(stopId);
 
   const data: TransitData = {
-    stationName: 'Lidcombe',  // Customize for your station
+    stationName: LOCATION.stationName,
     stationId: stopId,
     departures,
     fetchedAt: new Date().toISOString(),
@@ -968,13 +953,14 @@ curl -X POST http://localhost:3000/api/refresh \
 - `src/lib/api/transport.ts`
 - `src/lib/api/calendar.ts`
 - `src/lib/api/refresh.ts`
+- `src/lib/config.ts` (location constants)
 - `src/app/api/refresh/route.ts`
 - `src/app/api/health/route.ts` (updated)
 
 ## Manual Checklist
 
 - [ ] Created Transport NSW account
-- [ ] Obtained TfNSW API key
+- [ ] Obtained TfNSW API key (Departure Monitor API)
 - [ ] Created Google Cloud project
 - [ ] Enabled Google Calendar API
 - [ ] Created service account and downloaded JSON key

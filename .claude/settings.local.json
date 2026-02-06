@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm add:*)",
+      "Bash(pnpm type-check:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm fix:*)",
+      "Bash(pnpm outdated:*)",
+      "Bash(pnpm update:*)",
+      "Bash(pnpm run ci:*)",
+      "Bash(pnpm biome migrate:*)",
+      "Bash(curl:*)",
+      "Bash(source:*)",
+      "Bash(node -e:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}

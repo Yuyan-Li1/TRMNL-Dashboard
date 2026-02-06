@@ -1,9 +1,17 @@
-import type { Metadata } from "next";
-import Script from "next/script";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
 	title: "TRMNL Dashboard",
 	description: "Custom e-ink dashboard for TRMNL",
+	robots: "noindex, nofollow",
+};
+
+export const viewport: Viewport = {
+	width: 800,
+	height: 480,
+	initialScale: 1,
+	maximumScale: 1,
+	userScalable: false,
 };
 
 export default function DashboardLayout({
@@ -11,18 +19,5 @@ export default function DashboardLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	return (
-		<>
-			{/* TRMNL requires these for proper rendering */}
-			<link
-				rel="stylesheet"
-				href="https://usetrmnl.com/css/latest/plugins.css"
-			/>
-			<Script
-				src="https://usetrmnl.com/js/latest/plugins.js"
-				strategy="afterInteractive"
-			/>
-			{children}
-		</>
-	);
+	return <>{children}</>;
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Initialize a new Next.js 14 project with TypeScript, Tailwind CSS, and pnpm as the package manager.
+Initialize a new Next.js 16 project with TypeScript, React 19, Tailwind CSS 4, and pnpm as the package manager.
 
 ## Prerequisites
 
@@ -14,18 +14,13 @@ Initialize a new Next.js 14 project with TypeScript, Tailwind CSS, and pnpm as t
 ### 0.1 Create Next.js Project
 
 ```bash
-pnpm create next-app@latest trmnl-dashboard --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
+pnpm create next-app@latest trmnl-dashboard --typescript --tailwind --app --src-dir --import-alias "@/*"
 cd trmnl-dashboard
 ```
 
-When prompted:
+When prompted, accept the defaults (TypeScript, Tailwind CSS, App Router, `src/` directory).
 
-- Would you like to use TypeScript? **Yes**
-- Would you like to use ESLint? **Yes**
-- Would you like to use Tailwind CSS? **Yes**
-- Would you like to use `src/` directory? **Yes**
-- Would you like to use App Router? **Yes**
-- Would you like to customize the default import alias? **Yes** → `@/*`
+> **Note:** This project uses Next.js 16, React 19, and Tailwind CSS 4. Tailwind 4 uses CSS-based configuration (in `globals.css`) instead of the older `tailwind.config.ts` file.
 
 ### 0.2 Install Core Dependencies
 
@@ -35,9 +30,6 @@ pnpm add mongoose @upstash/redis
 
 # Google APIs
 pnpm add googleapis
-
-# Transport NSW (GTFS)
-pnpm add gtfs-realtime-bindings
 
 # Gaming APIs
 pnpm add psn-api steamapi
@@ -87,55 +79,7 @@ Update `tsconfig.json` to enable strict mode and add path aliases:
 
 ### 0.4 Configure Tailwind for E-ink
 
-Update `tailwind.config.ts` with e-ink optimized colors:
-
-```typescript
-import type { Config } from 'tailwindcss';
-
-const config: Config = {
-  content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {
-      // E-ink only has 4 shades - optimize for these
-      colors: {
-        eink: {
-          black: '#000000',
-          dark: '#555555',   // Dark gray
-          light: '#AAAAAA',  // Light gray
-          white: '#FFFFFF',
-        },
-      },
-      // TRMNL display dimensions
-      width: {
-        'trmnl': '800px',
-      },
-      height: {
-        'trmnl': '480px',
-      },
-      // Font sizes optimized for e-ink readability
-      fontSize: {
-        'eink-xs': ['12px', '16px'],
-        'eink-sm': ['14px', '20px'],
-        'eink-base': ['16px', '24px'],
-        'eink-lg': ['20px', '28px'],
-        'eink-xl': ['24px', '32px'],
-        'eink-2xl': ['32px', '40px'],
-        'eink-3xl': ['48px', '56px'],
-      },
-      fontFamily: {
-        'eink': ['Inter', 'system-ui', 'sans-serif'],
-      },
-    },
-  },
-  plugins: [],
-};
-
-export default config;
-```
+> **Tailwind CSS 4** uses CSS-based configuration instead of `tailwind.config.ts`. All e-ink theme tokens (colors, font sizes, dimensions) are defined directly in `globals.css` using `@theme` — see section 0.8 below. You do not need a `tailwind.config.ts` file.
 
 ### 0.5 Create Directory Structure
 
@@ -243,25 +187,126 @@ export const SERVICES = ['psn', 'xbox', 'steam', 'google', 'tfnsw'] as const;
 export type Service = typeof SERVICES[number];
 ```
 
-### 0.8 Create Global CSS for E-ink
+### 0.8 Create Centralized Config
 
-Update `src/app/globals.css`:
+Create `src/lib/config.ts` to keep all location/app constants in one place:
+
+```typescript
+// Centralized configuration - edit these values for your setup
+
+export const LOCATION = {
+  // Sydney coordinates (change for your city)
+  latitude: -33.8688,
+  longitude: 151.2093,
+  timezone: 'Australia/Sydney',
+  locale: 'en-AU',
+} as const;
+
+export const STATION = {
+  // Lidcombe station (change for your commute station)
+  stopId: '10101331',  // Departure Monitor stop ID
+  name: 'Lidcombe',
+} as const;
+
+export const TRMNL = {
+  width: 800,
+  height: 480,
+  refreshIntervalMinutes: 30,
+  bufferMinutes: 30,  // How early to show upcoming content
+} as const;
+```
+
+### 0.9 Create Environment Validation
+
+Create `src/lib/env.ts` to validate required env vars at startup:
+
+```typescript
+/**
+ * Validate that required environment variables are set.
+ * Call this in API routes / server components to fail fast
+ * with a clear message instead of cryptic runtime errors.
+ */
+export function validateEnv(
+  required: string[]
+): Record<string, string> {
+  const missing: string[] = [];
+  const values: Record<string, string> = {};
+
+  for (const key of required) {
+    const value = process.env[key];
+    if (!value) {
+      missing.push(key);
+    } else {
+      values[key] = value;
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}`
+    );
+  }
+
+  return values;
+}
+
+// Pre-defined groups for common checks
+export const ENV_GROUPS = {
+  database: ['MONGODB_URI'],
+  cache: ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+  transit: ['TFNSW_API_KEY'],
+  steam: ['STEAM_API_KEY', 'STEAM_ID'],
+  xbox: ['OPENXBL_API_KEY'],
+  psn: ['PSN_NPSSO'],
+  google: ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY', 'GOOGLE_CALENDAR_ID'],
+  cron: ['CRON_SECRET'],
+} as const;
+```
+
+### 0.10 Create Global CSS for E-ink
+
+Update `src/app/globals.css`. In Tailwind CSS 4, use `@import` for Tailwind and `@theme` for custom tokens:
 
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* TRMNL E-ink Display Optimization */
+/* Inter font for e-ink readability — must be before any @layer rules */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+/* TRMNL E-ink Display Theme */
+@theme {
+  /* E-ink only has 4 shades */
+  --color-eink-black: #000000;
+  --color-eink-dark: #555555;
+  --color-eink-light: #aaaaaa;
+  --color-eink-white: #ffffff;
+
+  /* TRMNL display dimensions */
+  --width-trmnl: 800px;
+  --height-trmnl: 480px;
+
+  /* Font sizes optimized for e-ink readability */
+  --font-size-eink-xs: 12px;
+  --line-height-eink-xs: 16px;
+  --font-size-eink-sm: 14px;
+  --line-height-eink-sm: 20px;
+  --font-size-eink-base: 16px;
+  --line-height-eink-base: 24px;
+  --font-size-eink-lg: 20px;
+  --line-height-eink-lg: 28px;
+  --font-size-eink-xl: 24px;
+  --line-height-eink-xl: 32px;
+  --font-size-eink-2xl: 32px;
+  --line-height-eink-2xl: 40px;
+  --font-size-eink-3xl: 48px;
+  --line-height-eink-3xl: 56px;
+}
+
 @layer base {
-  /* Import Inter font for e-ink readability */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
 
-  /* E-ink displays work best with high contrast */
   body {
     @apply bg-eink-white text-eink-black;
     -webkit-font-smoothing: antialiased;
@@ -270,18 +315,15 @@ Update `src/app/globals.css`:
 }
 
 @layer components {
-  /* E-ink card component */
   .eink-card {
     @apply border-2 border-eink-black bg-eink-white p-4;
   }
 
-  /* E-ink button */
   .eink-button {
     @apply border-2 border-eink-black bg-eink-white px-4 py-2 font-semibold;
     @apply hover:bg-eink-light active:bg-eink-dark active:text-eink-white;
   }
 
-  /* Dashboard container - exactly TRMNL dimensions */
   .trmnl-container {
     width: 800px;
     height: 480px;
@@ -290,7 +332,6 @@ Update `src/app/globals.css`:
 }
 
 @layer utilities {
-  /* High contrast text utilities */
   .text-eink-primary {
     @apply text-eink-black;
   }
@@ -303,7 +344,6 @@ Update `src/app/globals.css`:
     @apply text-eink-light;
   }
 
-  /* Border utilities for e-ink */
   .border-eink {
     @apply border-2 border-eink-black;
   }
@@ -314,7 +354,7 @@ Update `src/app/globals.css`:
 }
 ```
 
-### 0.9 Create Placeholder Dashboard Page
+### 0.11 Create Placeholder Dashboard Page
 
 Create `src/app/(dashboard)/page.tsx`:
 
@@ -335,6 +375,8 @@ export default function DashboardPage() {
 
 Create `src/app/(dashboard)/layout.tsx`:
 
+> **Important:** In Next.js App Router, only the root layout (`src/app/layout.tsx`) should contain `<html>` and `<body>` tags. Route group layouts must not duplicate them.
+
 ```typescript
 import type { Metadata } from 'next';
 
@@ -348,23 +390,13 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <html lang="en">
-      <head>
-        {/* TRMNL requires these for proper rendering */}
-        <link
-          rel="stylesheet"
-          href="https://usetrmnl.com/css/latest/plugins.css"
-        />
-        <script src="https://usetrmnl.com/js/latest/plugins.js" async />
-      </head>
-      <body className="m-0 p-0">{children}</body>
-    </html>
-  );
+  return <>{children}</>;
 }
 ```
 
-### 0.10 Add npm Scripts
+The TRMNL CSS/JS assets are loaded in the root layout (or via the dashboard page's `<head>` exports). See Step 6 for details.
+
+### 0.12 Add npm Scripts
 
 Update `package.json` scripts:
 
@@ -382,7 +414,7 @@ Update `package.json` scripts:
 }
 ```
 
-### 0.11 Verify Setup
+### 0.13 Verify Setup
 
 ```bash
 # Run type check
@@ -397,9 +429,10 @@ Open <http://localhost:3000> - you should see the placeholder dashboard.
 ## Files Created
 
 - `tsconfig.json` (modified)
-- `tailwind.config.ts` (modified)
 - `.env.example`
 - `src/types/index.ts`
+- `src/lib/config.ts`
+- `src/lib/env.ts`
 - `src/app/globals.css` (modified)
 - `src/app/(dashboard)/page.tsx`
 - `src/app/(dashboard)/layout.tsx`

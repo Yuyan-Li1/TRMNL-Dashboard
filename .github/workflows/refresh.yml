@@ -1,0 +1,43 @@
+name: Refresh Dashboard Data
+
+on:
+  # Run every 15 minutes
+  schedule:
+    - cron: '*/15 * * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger data refresh
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://${{ secrets.VERCEL_URL }}/api/refresh" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+
+          # Check if successful (200-299 range or 207)
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "Refresh successful"
+          elif [ "$http_code" -eq 207 ]; then
+            echo "Partial success (some sources failed)"
+          else
+            echo "Refresh failed with status $http_code"
+            exit 1
+          fi
+
+      - name: Log result
+        if: always()
+        run: |
+          echo "Refresh completed at $(date -u)"

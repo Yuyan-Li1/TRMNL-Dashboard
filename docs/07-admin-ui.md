@@ -15,14 +15,144 @@ Create an admin interface for managing schedules, routines, and monitoring API t
 
 ## Implementation
 
+### 7.0 Create Admin Auth Middleware
+
+The admin UI is protected using Bearer token authentication via Next.js middleware. It reuses the existing `CRON_SECRET` environment variable as the admin token.
+
+Create `src/middleware.ts` (at project root, not inside `app/`):
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  // Only protect admin routes
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
+    request.nextUrl.pathname.startsWith('/api/admin');
+
+  if (!isAdminRoute) {
+    return NextResponse.next();
+  }
+
+  // Allow access to the login page itself
+  if (request.nextUrl.pathname === '/admin/login') {
+    return NextResponse.next();
+  }
+
+  const ADMIN_TOKEN = process.env.CRON_SECRET;
+  if (!ADMIN_TOKEN) {
+    return NextResponse.json({ error: 'Server not configured' }, { status: 500 });
+  }
+
+  // Check Authorization header
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader === `Bearer ${ADMIN_TOKEN}`) {
+    return NextResponse.next();
+  }
+
+  // Check cookie (for browser sessions)
+  const tokenCookie = request.cookies.get('admin_token');
+  if (tokenCookie?.value === ADMIN_TOKEN) {
+    return NextResponse.next();
+  }
+
+  // For browser requests to /admin pages, redirect to login
+  if (!request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.redirect(new URL('/admin/login', request.url));
+  }
+
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+}
+
+export const config = {
+  matcher: ['/admin/:path*', '/api/admin/:path*'],
+};
+```
+
+Create `src/app/(admin)/admin/login/page.tsx`:
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function AdminLoginPage() {
+  const [token, setToken] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Set the token as a cookie
+    document.cookie = `admin_token=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`;
+
+    // Verify by hitting an admin endpoint
+    const res = await fetch('/api/admin/schedules', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      router.push('/admin');
+      router.refresh();
+    } else {
+      // Clear the invalid cookie
+      document.cookie = 'admin_token=; path=/; max-age=0';
+      setError('Invalid token. Please check your CRON_SECRET value.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="max-w-md w-full bg-white shadow rounded-lg p-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">TRMNL Admin</h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Enter the admin token (CRON_SECRET) to continue.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="token" className="block text-sm font-medium text-gray-700">
+              Admin Token
+            </label>
+            <input
+              id="token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              required
+              autoFocus
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+
+          <button
+            type="submit"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Sign In
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+```
+
 ### 7.1 Create Admin Layout
 
 Create `src/app/(admin)/layout.tsx`:
 
+In Next.js App Router, the root layout already provides `<html>` and `<body>` tags. The admin layout should only contain the nav and main content wrapper, using a fragment.
+
 ```typescript
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import '@/app/globals.css';
 
 export const metadata: Metadata = {
   title: 'TRMNL Admin',
@@ -35,47 +165,45 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-100 min-h-screen">
-        {/* Navigation */}
-        <nav className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <Link
-                  href="/admin"
-                  className="flex items-center px-2 text-xl font-bold text-gray-900"
-                >
-                  TRMNL Admin
-                </Link>
+    <>
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <Link
+                href="/admin"
+                className="flex items-center px-2 text-xl font-bold text-gray-900"
+              >
+                TRMNL Admin
+              </Link>
 
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <NavLink href="/admin">Dashboard</NavLink>
-                  <NavLink href="/admin/schedules">Schedules</NavLink>
-                  <NavLink href="/admin/routines">Routines</NavLink>
-                  <NavLink href="/admin/tokens">Tokens</NavLink>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <Link
-                  href="/"
-                  target="_blank"
-                  className="text-sm text-gray-500 hover:text-gray-900"
-                >
-                  View Dashboard →
-                </Link>
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <NavLink href="/admin">Dashboard</NavLink>
+                <NavLink href="/admin/schedules">Schedules</NavLink>
+                <NavLink href="/admin/routines">Routines</NavLink>
+                <NavLink href="/admin/tokens">Tokens</NavLink>
               </div>
             </div>
-          </div>
-        </nav>
 
-        {/* Main content */}
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          {children}
-        </main>
-      </body>
-    </html>
+            <div className="flex items-center">
+              <Link
+                href="/"
+                target="_blank"
+                className="text-sm text-gray-500 hover:text-gray-900"
+              >
+                View Dashboard →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {children}
+      </main>
+    </>
   );
 }
 
@@ -232,14 +360,12 @@ export default async function AdminDashboardPage() {
           >
             Preview Dashboard
           </Link>
-          <button
+          <a
+            href="/api/refresh"
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            onClick={() => {
-              // Would trigger a manual refresh
-            }}
           >
             Force Refresh
-          </button>
+          </a>
           <Link
             href="/api/health"
             target="_blank"
@@ -1021,10 +1147,12 @@ import { Schedule } from '@/lib/db/models/schedule';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   await connectToDatabase();
-  const schedule = await Schedule.findById(params.id);
+  const schedule = await Schedule.findById(id);
 
   if (!schedule) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -1035,12 +1163,13 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const body = await request.json();
 
   await connectToDatabase();
-  const schedule = await Schedule.findByIdAndUpdate(params.id, body, {
+  const schedule = await Schedule.findByIdAndUpdate(id, body, {
     new: true,
   });
 
@@ -1053,10 +1182,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   await connectToDatabase();
-  await Schedule.findByIdAndDelete(params.id);
+  await Schedule.findByIdAndDelete(id);
 
   return NextResponse.json({ success: true });
 }
@@ -1079,7 +1210,9 @@ open http://localhost:3000/admin/tokens
 
 ## Files Created
 
+- `src/middleware.ts`
 - `src/app/(admin)/layout.tsx`
+- `src/app/(admin)/admin/login/page.tsx`
 - `src/app/(admin)/admin/page.tsx`
 - `src/app/(admin)/admin/schedules/page.tsx`
 - `src/app/(admin)/admin/routines/page.tsx`
@@ -1099,11 +1232,18 @@ open http://localhost:3000/admin/tokens
 
 ## Security Note
 
-The admin UI has no authentication in this implementation. For production use, consider adding:
+The admin UI is protected by Bearer token authentication implemented in `src/middleware.ts`. It reuses the `CRON_SECRET` environment variable as the admin token. Authentication works via two mechanisms:
 
-- Basic auth via middleware
-- OAuth with Google/GitHub
-- API key protection for admin routes
+- **Authorization header**: API clients can pass `Authorization: Bearer <CRON_SECRET>` for programmatic access to `/api/admin/*` routes.
+- **Cookie-based sessions**: The login page at `/admin/login` sets an `admin_token` cookie for browser-based access to `/admin/*` pages. The cookie expires after 7 days.
+
+Unauthenticated requests to `/admin/*` pages are redirected to the login page. Unauthenticated requests to `/api/admin/*` endpoints receive a 401 JSON response.
+
+For additional security in production, consider:
+
+- Rotating `CRON_SECRET` periodically
+- Adding rate limiting to the login page
+- Using HTTPS-only cookies (set `Secure` flag in production)
 
 ## Next Step
 

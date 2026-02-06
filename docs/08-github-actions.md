@@ -15,9 +15,10 @@ Set up GitHub Actions to trigger data refresh every 15 minutes. This is a workar
 
 With GitHub Actions running every 15 minutes:
 
-- ~96 runs per day
-- ~2,880 runs per month
-- Well under the 2,000 minute limit (each run takes ~30 seconds)
+- ~96 runs per day for the refresh workflow
+- ~2,880 runs per month at ~30 seconds each = ~1,440 minutes/month
+- Add the other workflows: ~100 runs/month at ~30 seconds = ~50 minutes
+- **Total: ~1,490 minutes/month** — under the 2,000 minute free tier limit
 
 ---
 
@@ -89,9 +90,11 @@ jobs:
 
           # Check if successful (200, 206, or 207)
           if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-            echo "Refresh successful"
+            echo "✅ Refresh successful"
+          elif [ "$http_code" -eq 207 ]; then
+            echo "⚠️ Partial success (some sources failed)"
           else
-            echo "Refresh failed with status $http_code"
+            echo "❌ Refresh failed with status $http_code"
             exit 1
           fi
 
@@ -110,10 +113,11 @@ name: Morning Data Pre-fetch
 
 on:
   schedule:
-    # Run at 6:00 AM Sydney time (UTC+11 in summer, UTC+10 in winter)
-    # Using UTC time - adjust for your timezone
-    - cron: '0 19 * * 1-5'  # ~6 AM AEDT (Mon-Fri)
-    - cron: '0 20 * * 1-5'  # ~6 AM AEST (Mon-Fri, during standard time)
+    # Run at ~6:00 AM Sydney time (UTC+11 in summer, UTC+10 in winter)
+    # Two entries cover both AEDT and AEST — one will fire an hour
+    # early/late depending on DST, but that's fine for a pre-fetch.
+    - cron: '0 19 * * 1-5'  # 6 AM AEDT / 5 AM AEST (Mon-Fri)
+    - cron: '0 20 * * 1-5'  # 7 AM AEDT / 6 AM AEST (Mon-Fri)
 
   workflow_dispatch:
 
@@ -539,10 +543,7 @@ GitHub Actions provides:
 - 2,000 minutes/month for free accounts
 - 3,000 minutes/month for Pro accounts
 
-With 4 workflows running ~100 times/month each at ~30 seconds:
-
-- Estimated usage: ~200 minutes/month
-- Well under the limit
+Estimated total usage across all workflows: ~1,490 minutes/month (well under the 2,000 limit for free accounts).
 
 ## Next Step
 

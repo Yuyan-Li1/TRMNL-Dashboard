@@ -27,6 +27,7 @@ This step requires manual configuration in multiple services.
 | Build Command | `pnpm build` |
 | Output Directory | `.next` |
 | Install Command | `pnpm install` |
+| Node.js Version | 20.x |
 
 ### 9.2 Configure Environment Variables
 
@@ -177,6 +178,7 @@ open https://your-app.vercel.app
 - [ ] All environment variables configured
 - [ ] Health endpoint returns healthy status
 - [ ] Dashboard page loads correctly
+- [ ] Admin UI is protected (requires `CRON_SECRET` token to access)
 
 **GitHub Actions:**
 
