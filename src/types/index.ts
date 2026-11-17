@@ -1,1 +1,7 @@
-export type { GamingData, GamingPlatform, RecentGame } from "./gaming";
+export type {
+	Game,
+	GameTitle,
+	GamingData,
+	Platform,
+	PlatformPlay,
+} from "./gaming";
