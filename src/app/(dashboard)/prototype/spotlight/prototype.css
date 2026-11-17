@@ -86,3 +86,26 @@
 .sp-switch button:hover, .sp-switch button:focus-visible { background: rgba(255, 255, 255, 0.2); }
 .sp-switch .lbl { padding: 0 6px; min-width: 150px; text-align: center; }
 .sp-switch .sep { width: 2px; height: 20px; background: rgba(255, 255, 255, 0.4); margin: 0 6px; }
+
+/* ---------- F: layout A set in TRMNL's own pixel fonts ---------- */
+/* TRMNL12/16/21 are bitmap-style faces: use them only at their native size or
+   a whole multiple (12, 16, 21, 24, 32, 42), with smoothing off. Loaded from
+   trmnl.com for the prototype (it sends access-control-allow-origin: *). */
+@font-face { font-family: "TRMNL12"; font-weight: normal; src: url("https://trmnl.com/fonts/TRMNL12-Regular.woff2") format("woff2"); }
+@font-face { font-family: "TRMNL12"; font-weight: bold; src: url("https://trmnl.com/fonts/TRMNL12-Bold.woff2") format("woff2"); }
+@font-face { font-family: "TRMNL16"; font-weight: normal; src: url("https://trmnl.com/fonts/TRMNL16-Regular.woff2") format("woff2"); }
+@font-face { font-family: "TRMNL16"; font-weight: bold; src: url("https://trmnl.com/fonts/TRMNL16-Bold.woff2") format("woff2"); }
+@font-face { font-family: "TRMNL21"; font-weight: normal; src: url("https://trmnl.com/fonts/TRMNL21-Regular.woff2") format("woff2"); }
+@font-face { font-family: "TRMNL21"; font-weight: bold; src: url("https://trmnl.com/fonts/TRMNL21-Bold.woff2") format("woff2"); }
+.f-root { height: 100%; -webkit-font-smoothing: none; font-smooth: never; }
+.f-root .a-mode, .f-root .a-by, .f-root .a-rating, .f-root .a-reason, .f-root .a-text, .f-root .a-card .t {
+	font-family: "TRMNL16"; font-size: 16px; letter-spacing: 0;
+}
+.f-root .a-mode, .f-root .a-rating, .f-root .a-reason, .f-root .a-card .t { font-weight: bold; }
+.f-root .a-by, .f-root .a-text { font-weight: normal; }
+.f-root .a-title { font-family: "TRMNL21"; font-size: 42px; line-height: 42px; font-weight: bold; letter-spacing: 0; }
+.f-root .a-facts { font-family: "TRMNL21"; font-size: 21px; line-height: 26px; font-weight: normal; }
+.f-root .a-reason, .f-root .a-text { line-height: 20px; }
+.f-root .a-card .t { line-height: 18px; }
+.f-root .a-card .m, .f-root .a-card .d { font-family: "TRMNL12"; font-size: 12px; line-height: 15px; font-weight: normal; }
+.f-root .a-card .m { font-weight: bold; }

@@ -1,6 +1,6 @@
 // PROTOTYPE, throwaway. For the ticket "Spotlight screen on 2-bit e-ink".
 // Plan: three variants of the 800x480 media screen plus a device test card,
-// switchable via ?variant=A|B|C|T, each across ten scenes via ?scene=1..10,
+// switchable via ?variant=A|B|C|F|T, each across ten scenes via ?scene=1..10,
 // on a throwaway route because the current dashboard page is being replaced.
 // Artwork comes from: node scripts/prototype-spotlight-dither.mjs
 import { headers } from "next/headers";
@@ -16,6 +16,7 @@ const VARIANTS = [
 	{ key: "A", name: "Poster left, card rail" },
 	{ key: "B", name: "Spotlight over shelf" },
 	{ key: "C", name: "Black marquee, text list" },
+	{ key: "F", name: "Layout A in TRMNL font" },
 	{ key: "T", name: "Device test" },
 ];
 
@@ -43,6 +44,11 @@ export default async function SpotlightPrototypePage({
 				{variant === "A" && <VariantA scene={scene} base={base} />}
 				{variant === "B" && <VariantB scene={scene} base={base} />}
 				{variant === "C" && <VariantC scene={scene} base={base} />}
+				{variant === "F" && (
+					<div className="f-root">
+						<VariantA scene={scene} base={base} />
+					</div>
+				)}
 				{variant === "T" && <VariantT scene={scene} base={base} />}
 			</div>
 			<div className="sp-state">
