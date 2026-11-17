@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
 	// Only protect admin routes
 	const isAdminRoute =
 		request.nextUrl.pathname.startsWith("/admin") ||

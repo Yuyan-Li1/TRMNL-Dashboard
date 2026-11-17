@@ -148,3 +148,23 @@ describe("renderPoster", () => {
 		expect(mean(pixels)).toBeGreaterThan(0.95);
 	});
 });
+
+describe("renderPoster geometry", () => {
+	it("keeps the artwork's layout: a dark top half stays on top, a light bottom half below", async () => {
+		const width = 320;
+		const height = 480;
+		const data = Buffer.alloc(width * height, 255);
+		data.fill(0, 0, width * (height / 2));
+		const source = await sharp(data, { raw: { width, height, channels: 1 } })
+			.png()
+			.toBuffer();
+
+		const { png } = await renderPoster(source, "spotlight");
+		const { pixels } = await decode(png);
+
+		const topQuarter = pixels.subarray(0, width * (height / 4));
+		const bottomQuarter = pixels.subarray(width * (height * 0.75));
+		expect(mean(topQuarter)).toBeLessThan(0.05);
+		expect(mean(bottomQuarter)).toBeGreaterThan(0.95);
+	});
+});

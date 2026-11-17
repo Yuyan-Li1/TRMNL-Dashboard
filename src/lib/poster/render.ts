@@ -160,8 +160,13 @@ export async function renderPoster(
 		raw: { width: info.width, height: info.height, channels: 1 },
 	})
 		.sharpen({ sigma: recipe.sharpenSigma })
+		// Without this sharp hands back three channels for one-channel input.
+		.toColourspace("b-w")
 		.raw()
 		.toBuffer();
+	if (sharpened.length !== info.width * info.height) {
+		throw new Error("Poster pixels are not one channel per pixel");
+	}
 
 	const indices = dither(
 		Float32Array.from(sharpened),

@@ -152,7 +152,7 @@ src/
 │   ├── config.ts                # TRMNL screen config
 │   └── env.ts                   # Environment variable validation groups
 ├── types/                       # TypeScript type definitions
-└── middleware.ts                # Auth for /admin and /api/admin routes
+└── proxy.ts                     # Auth for /admin and /api/admin routes
 ```
 
 ### Naming Conventions
@@ -196,7 +196,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Twitch app token (`igdb:token`): until a day before it expires
 - Combined dashboard data: 15-minute TTL
 - PSN refresh token: `psn:auth`, no TTL
-- Posters: `poster:<target>:<hash of source URL>`, no TTL
+- Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
 
 ### The screen
@@ -217,7 +217,7 @@ Key ownership (from stage 5): every key the Collector writes starts with `home:`
 
 ### Auth
 
-- Admin routes protected by middleware (`src/middleware.ts`)
+- Admin routes protected by the proxy (`src/proxy.ts`)
 - Supports Bearer token (header) and cookie-based auth
 - Uses `CRON_SECRET` as the admin password
 - Browser requests without auth redirect to `/admin/login`
