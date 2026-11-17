@@ -1,0 +1,88 @@
+/* PROTOTYPE, throwaway. Only the four TRMNL greys are used inside .sp-frame. */
+.sp-page { background: #d8d2c4; min-height: 100vh; padding: 0 0 120px; }
+.sp-frame {
+	width: 800px; height: 480px; overflow: hidden; position: relative;
+	background: #fff; color: #000; font-family: "Inter", system-ui, sans-serif;
+}
+.sp-frame img { display: block; image-rendering: pixelated; }
+.sp-clamp { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.sp-bar { height: 10px; border: 2px solid currentColor; }
+.sp-bar > div { height: 100%; background: currentColor; }
+.sp-stars { display: flex; gap: 2px; }
+.sp-blocks { display: flex; gap: 4px; }
+.sp-blocks > div { width: 18px; height: 18px; border: 2px solid currentColor; position: relative; }
+.sp-blocks > div > div { position: absolute; inset: 0; background: currentColor; }
+
+/* ---------- A: poster left, rail right ---------- */
+.a-root { display: flex; height: 100%; }
+.a-main { width: 276px; padding: 18px 18px 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+.a-mode { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.a-mode span:first-child { background: #000; color: #fff; padding: 3px 9px; }
+.a-title { font-size: 32px; line-height: 35px; font-weight: 700; letter-spacing: -0.02em; -webkit-line-clamp: 3; }
+.a-by { font-size: 16px; color: #555; font-weight: 600; margin-top: -4px; }
+.a-facts { font-size: 17px; line-height: 24px; font-weight: 600; }
+.a-rating { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.a-reason { font-size: 15px; line-height: 20px; font-weight: 700; border-left: 4px solid #000; padding-left: 8px; }
+.a-text { font-size: 15px; line-height: 21px; color: #000; flex: 1; min-height: 0; overflow: hidden; }
+.a-rail { width: 204px; border-left: 2px solid #000; display: flex; flex-direction: column; }
+.a-card { flex: 1; display: flex; gap: 10px; padding: 0 10px; align-items: center; border-top: 2px solid #000; }
+.a-card:first-child { border-top: 0; }
+.a-card .m { font-size: 12px; font-weight: 700; color: #555; }
+.a-card .t { font-size: 15px; line-height: 18px; font-weight: 700; -webkit-line-clamp: 2; margin: 2px 0 4px; }
+.a-card .d { font-size: 12px; line-height: 16px; font-weight: 600; }
+
+/* ---------- B: spotlight on top, shelf below ---------- */
+.b-top { display: flex; height: 336px; }
+.b-main { flex: 1; padding: 20px 28px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.b-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; font-weight: 600; color: #555; }
+.b-title { font-family: "Newsreader", Georgia, serif; font-size: 46px; line-height: 46px; font-weight: 600; letter-spacing: -0.02em; -webkit-line-clamp: 2; }
+.b-by { font-size: 17px; font-weight: 600; }
+.b-row { display: flex; gap: 20px; align-items: flex-start; flex: 1; min-height: 0; }
+.b-score { flex: none; text-align: center; border: 2px solid #000; padding: 6px 12px 8px; }
+.b-score b { display: block; font-family: "Newsreader", Georgia, serif; font-size: 34px; line-height: 36px; font-weight: 600; }
+.b-score span { font-size: 13px; font-weight: 700; }
+.b-body { flex: 1; min-width: 0; height: 100%; overflow: hidden; }
+.b-facts { font-size: 18px; line-height: 26px; font-weight: 600; }
+.b-reason { font-size: 16px; line-height: 21px; font-weight: 700; margin-bottom: 6px; }
+.b-text { font-family: "Newsreader", Georgia, serif; font-size: 19px; line-height: 25px; }
+.b-shelf { height: 144px; border-top: 2px solid #000; display: flex; }
+.b-card { flex: 1; min-width: 0; display: flex; gap: 12px; padding: 22px 14px 0 16px; border-left: 2px solid #000; }
+.b-card:first-child { border-left: 0; }
+.b-card .m { font-size: 13px; font-weight: 700; color: #555; }
+.b-card .t { font-family: "Newsreader", Georgia, serif; font-size: 20px; line-height: 22px; font-weight: 600; -webkit-line-clamp: 2; margin: 2px 0 5px; }
+.b-card .d { font-size: 13px; line-height: 17px; font-weight: 600; }
+
+/* ---------- C: black marquee, poster right, text-only list ---------- */
+.c-root { display: flex; height: 100%; }
+.c-main { width: 480px; background: #000; color: #fff; padding: 22px 26px 0; display: flex; flex-direction: column; }
+.c-lead { font-size: 19px; font-weight: 600; color: #aaa; }
+.c-title { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-size: 66px; line-height: 66px; font-weight: 700; -webkit-line-clamp: 2; margin: 4px 0 6px; }
+.c-by { font-size: 17px; font-weight: 600; color: #aaa; }
+.c-mid { flex: 1; min-height: 0; overflow: hidden; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.c-rating { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; }
+.c-facts { font-size: 19px; line-height: 27px; font-weight: 600; }
+.c-reason { font-size: 17px; line-height: 22px; font-weight: 700; }
+.c-text { font-size: 16px; line-height: 22px; color: #fff; flex: 1; min-height: 0; overflow: hidden; }
+.c-list { margin: 10px -26px 0; }
+.c-line { display: flex; gap: 10px; align-items: baseline; height: 32px; line-height: 30px; padding: 0 26px; border-top: 2px solid #555; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.c-line .m { width: 52px; color: #aaa; flex: none; }
+.c-line .t { flex: 1; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.c-line .d { color: #aaa; flex: none; }
+
+/* ---------- T: device test ---------- */
+.t-root { padding: 16px 24px; display: flex; gap: 24px; font-size: 14px; font-weight: 600; }
+.t-sw { display: flex; flex-direction: column; gap: 8px; }
+.t-sw div { width: 48px; height: 72px; border: 2px solid #000; }
+
+/* ---------- prototype chrome (outside the frame) ---------- */
+.sp-state { font: 13px/1.5 ui-monospace, Menlo, monospace; color: #222; padding: 14px 16px; max-width: 800px; }
+.sp-switch {
+	position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+	background: #1d3fd6; color: #fff; font: 600 14px/1 system-ui, sans-serif;
+	border-radius: 999px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+	display: flex; align-items: center; gap: 4px; padding: 6px 8px; z-index: 50; white-space: nowrap;
+}
+.sp-switch button { all: unset; cursor: pointer; padding: 8px 10px; border-radius: 999px; }
+.sp-switch button:hover, .sp-switch button:focus-visible { background: rgba(255, 255, 255, 0.2); }
+.sp-switch .lbl { padding: 0 6px; min-width: 150px; text-align: center; }
+.sp-switch .sep { width: 2px; height: 20px; background: rgba(255, 255, 255, 0.4); margin: 0 6px; }
