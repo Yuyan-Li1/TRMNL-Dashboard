@@ -126,10 +126,10 @@ src/
 │       ├── tokens/              # Live PSN token check
 │       └── admin/               # Protected admin endpoints (login, refresh)
 ├── components/
-│   ├── DashboardScreen.tsx      # The 800x480 screen
-│   ├── widgets/                 # GamingWidget
+│   ├── screen/                  # The 800x480 screen: Screen, Spotlight, MediumCard,
+│   │                            # Stars, PosterImage
 │   ├── admin/                   # RefreshButton
-│   └── ui/                      # EinkCard, EinkIcon
+│   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
 │   ├── api/                     # Source clients
 │   │   ├── steam.ts, xbox.ts, playstation.ts, switch.ts   # Game sources
@@ -137,12 +137,17 @@ src/
 │   │   ├── gaming.ts            # Reads the sources, merges, adds Catalog data and posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
-│   ├── dashboard/loader.ts      # Load cached data for the page render
+│   ├── screen/                  # What the screen shows
+│   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
+│   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
+│   │   ├── games.ts             # What games contribute: candidates and the Medium card
+│   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
 │   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
 │   │   ├── png.ts               # 2-bit palette PNG encoder
 │   │   └── poster.ts            # getPoster(): fetch, render, keep in Redis
+│   ├── base-url.ts              # The dashboard's own origin, for absolute URLs
 │   ├── config.ts                # TRMNL screen config
 │   └── env.ts                   # Environment variable validation groups
 ├── types/                       # TypeScript type definitions
@@ -173,9 +178,12 @@ GitHub Actions (every 15 min)
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
 
 Dashboard page render (server-side)
-  → loadDashboardData()
+  → loadScreen()
     → Reads from Redis (TTL'd key, falls back to the :latest key)
-    → Renders the 800x480 e-ink screen
+    → Each Medium contributes its Spotlight candidates and its latest activity
+    → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated
+    → Reads the stored poster and thumbnails
+    → Renders the 800x480 screen: Spotlight poster, text column, rail of Medium cards
 ```
 
 ### Caching Strategy
@@ -188,6 +196,13 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Combined dashboard data: 15-minute TTL
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:<target>:<hash of source URL>`, 30 days
+- The previous Spotlight pick: `spotlight:previous`, no TTL
+
+### The screen
+
+The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
+
+Type utilities are in `globals.css`: `type-12`, `type-16`, `type-21` (the TRMNL pixel fonts, only at their native sizes, unsmoothed) and `type-title` (Inter Bold, the Spotlight title only).
 
 ### Posters
 

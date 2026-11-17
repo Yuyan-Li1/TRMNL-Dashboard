@@ -1,10 +1,10 @@
-import { DashboardScreen } from "@/components/DashboardScreen";
-import { loadDashboardData } from "@/lib/dashboard/loader";
+import { Screen } from "@/components/screen/Screen";
+import { loadScreen } from "@/lib/screen/load";
 
 export const dynamic = "force-dynamic";
 
 export default async function PreviewPage() {
-	const dashboardData = await loadDashboardData();
+	const view = await loadScreen();
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-gray-800 p-8">
@@ -14,11 +14,7 @@ export default async function PreviewPage() {
 				</div>
 
 				<div className="rounded-lg bg-gray-900 p-4 shadow-2xl">
-					<DashboardScreen data={dashboardData} />
-				</div>
-
-				<div className="absolute -bottom-8 left-0 font-mono text-xs text-white">
-					Refreshed: {dashboardData.refreshedAt ?? "never"}
+					<Screen view={view} />
 				</div>
 			</div>
 		</div>

@@ -33,6 +33,7 @@ export const CACHE_KEYS = {
 	IGDB_TOKEN: "igdb:token",
 	PSN_AUTH: "psn:auth",
 	DASHBOARD_DATA: "dashboard:media",
+	SPOTLIGHT_PREVIOUS: "spotlight:previous",
 } as const;
 
 /**

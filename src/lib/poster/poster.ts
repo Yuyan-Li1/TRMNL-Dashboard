@@ -21,6 +21,17 @@ function posterKey(sourceUrl: string, target: PosterTarget): string {
 }
 
 /**
+ * Read a stored poster without making one. This is what the page uses: it
+ * never fetches artwork while rendering.
+ */
+export async function readPoster(
+	sourceUrl: string,
+	target: PosterTarget,
+): Promise<Poster | null> {
+	return getRedis().get<Poster>(posterKey(sourceUrl, target));
+}
+
+/**
  * Get the dithered poster for a source image, for the Spotlight or a
  * thumbnail. Runs during the refresh, never at render time. The result is
  * kept in Redis keyed by source URL and target, so a title's poster is made

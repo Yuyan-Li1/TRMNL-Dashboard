@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { EinkIcon } from "@/components/ui/EinkIcon";
 
 export default function DashboardError({
 	error,
@@ -18,8 +17,6 @@ export default function DashboardError({
 	return (
 		<div className="trmnl-container flex items-center justify-center bg-eink-white">
 			<div className="p-8 text-center">
-				<EinkIcon name="alert" size="xl" className="mb-4" />
-
 				<h1 className="mb-2 type-21 font-bold">Dashboard Error</h1>
 
 				<p className="mb-4 type-16 text-eink-dark">

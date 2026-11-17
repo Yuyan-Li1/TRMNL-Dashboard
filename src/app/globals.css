@@ -68,6 +68,18 @@ body {
 	-webkit-font-smoothing: none;
 }
 
+/*
+ * The Spotlight's review or description fills what is left of the text
+ * column. Its height is rounded down to whole 22px lines so the last line
+ * is never cut in half; browsers without round() fall back to the full
+ * height.
+ */
+.spotlight-text {
+	height: 100%;
+	height: round(down, 100%, 22px);
+	overflow: hidden;
+}
+
 /* E-ink button */
 .eink-button {
 	border: 2px solid var(--color-eink-black);

@@ -1,14 +1,18 @@
 import { mergePlays } from "@/lib/games/titles";
 import { getPoster } from "@/lib/poster/poster";
-import type { Game, GameTitle, GamingData, PlatformPlay } from "@/types/gaming";
+import {
+	type Game,
+	type GameTitle,
+	type GamingData,
+	IN_PROGRESS_DAYS,
+	type PlatformPlay,
+} from "@/types/gaming";
 import { lookupGame } from "./igdb";
 import { getPlayStationPlays } from "./playstation";
 import { getSteamPlays } from "./steam";
 import { getSwitchPlays } from "./switch";
 import { getXboxPlays } from "./xbox";
 
-/** A game is In progress when it was played within this many days. */
-export const IN_PROGRESS_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How many Titles get Catalog data and posters on a refresh. */
 const MAX_DETAILED = 8;
