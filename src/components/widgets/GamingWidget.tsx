@@ -21,7 +21,7 @@ export function GamingWidget({
 				icon={<EinkIcon name="gamepad" size="sm" />}
 				size={size}
 			>
-				<div className="flex items-center justify-center h-full text-eink-dark">
+				<div className="flex h-full items-center justify-center text-eink-dark">
 					No gaming data
 				</div>
 			</EinkCard>
@@ -41,7 +41,7 @@ export function GamingWidget({
 		>
 			<div className="flex flex-col gap-1">
 				{games.length === 0 ? (
-					<div className="text-eink-dark text-eink-sm">No recent games</div>
+					<div className="text-eink-sm text-eink-dark">No recent games</div>
 				) : (
 					games.map((game, i) => (
 						<GameRow
@@ -88,10 +88,7 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 
 	return (
 		<div
-			className={`
-        flex items-center gap-2
-        ${!isLast ? "pb-1 border-b border-eink-light" : ""}
-      `}
+			className={`flex items-center gap-2 ${!isLast ? "border-b border-eink-light pb-1" : ""} `}
 		>
 			{/* Platform icon */}
 			<EinkIcon
@@ -101,14 +98,14 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 			/>
 
 			{/* Game info */}
-			<div className="flex-1 min-w-0">
-				<div className="text-eink-sm font-medium truncate">{game.title}</div>
+			<div className="min-w-0 flex-1">
+				<div className="text-eink-sm truncate font-medium">{game.title}</div>
 			</div>
 
 			{/* Right side: achievement bar OR secondary text */}
 			{achievementPercent !== null ? (
-				<div className="shrink-0 flex items-center gap-1">
-					<div className="w-12 h-2 border border-eink-dark">
+				<div className="flex shrink-0 items-center gap-1">
+					<div className="h-2 w-12 border border-eink-dark">
 						<div
 							className="h-full bg-eink-black"
 							style={{ width: `${achievementPercent}%` }}
@@ -118,7 +115,7 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 				</div>
 			) : (
 				secondaryText && (
-					<span className="shrink-0 text-eink-xs text-eink-dark">
+					<span className="text-eink-xs shrink-0 text-eink-dark">
 						{secondaryText}
 					</span>
 				)

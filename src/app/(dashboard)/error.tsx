@@ -17,17 +17,17 @@ export default function DashboardError({
 
 	return (
 		<div className="trmnl-container flex items-center justify-center bg-eink-white">
-			<div className="text-center p-8">
+			<div className="p-8 text-center">
 				<EinkIcon name="alert" size="xl" className="mb-4" />
 
-				<h1 className="text-eink-xl font-bold mb-2">Dashboard Error</h1>
+				<h1 className="text-eink-xl mb-2 font-bold">Dashboard Error</h1>
 
-				<p className="text-eink-base text-eink-dark mb-4">
+				<p className="text-eink-base mb-4 text-eink-dark">
 					Something went wrong loading the dashboard.
 				</p>
 
 				{process.env.NODE_ENV === "development" && (
-					<pre className="text-eink-xs text-left bg-eink-light p-2 mb-4 max-w-md overflow-auto">
+					<pre className="text-eink-xs mb-4 max-w-md overflow-auto bg-eink-light p-2 text-left">
 						{error.message}
 					</pre>
 				)}

@@ -59,7 +59,7 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 					<AlertBanner conditions={context.specialConditions} />
 				)}
 
-				<header className="flex items-center justify-between px-3 py-2 border-b-2 border-eink-black">
+				<header className="flex items-center justify-between border-b-2 border-eink-black px-3 py-2">
 					<div className="flex items-center gap-4">
 						<time className="text-eink-2xl font-bold">
 							{now.toLocaleTimeString(LOCATION.locale, {
@@ -79,7 +79,7 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 						</span>
 					</div>
 
-					<div className="flex items-center gap-2 text-eink-xs text-eink-dark">
+					<div className="text-eink-xs flex items-center gap-2 text-eink-dark">
 						<span className="uppercase">{context.dayType}</span>
 						<span>|</span>
 						<span className="uppercase">{context.timeBlock}</span>
@@ -93,7 +93,7 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 				</header>
 
 				<main
-					className="flex-1 min-h-0 overflow-hidden p-2 grid gap-2"
+					className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2"
 					style={{
 						gridTemplateColumns: "repeat(2, 1fr)",
 						gridTemplateRows: "repeat(2, 1fr)",
@@ -125,16 +125,16 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 			</div>
 			{/* Debug border: shows TRMNL 800x480 right/bottom edge */}
 			<div
-				className="absolute pointer-events-none border-r-2 border-b-2 border-dashed border-red-400"
+				className="pointer-events-none absolute border-r-2 border-b-2 border-dashed border-red-400"
 				style={{ top: 0, left: 0, width: 800, height: 480 }}
 			/>
 
 			{inactiveWidgets.length > 0 && (
 				<div
-					className="mt-4 p-4 border-t-2 border-dashed border-gray-300"
+					className="mt-4 border-t-2 border-dashed border-gray-300 p-4"
 					style={{ maxWidth: 800 }}
 				>
-					<p className="text-sm text-gray-500 mb-3">
+					<p className="mb-3 text-sm text-gray-500">
 						Inactive widgets ({context.dayType} / {context.timeBlock})
 					</p>
 					<div className="grid grid-cols-2 gap-2">

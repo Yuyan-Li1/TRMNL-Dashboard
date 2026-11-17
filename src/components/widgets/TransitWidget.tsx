@@ -45,7 +45,7 @@ export function TransitWidget({ data, size = "medium" }: TransitWidgetProps) {
 				icon={<EinkIcon name="train" size="sm" />}
 				size={size}
 			>
-				<div className="flex items-center justify-center h-full text-eink-dark">
+				<div className="flex h-full items-center justify-center text-eink-dark">
 					No commute data
 				</div>
 			</EinkCard>
@@ -65,7 +65,7 @@ export function TransitWidget({ data, size = "medium" }: TransitWidgetProps) {
 			<div className="flex flex-col gap-1">
 				{/* Disruption banner when delays ≥ 10 min or cancellations */}
 				{hasDisruptions && (
-					<div className="bg-eink-black text-eink-white px-2 py-1 text-eink-xs font-bold mb-1">
+					<div className="text-eink-xs mb-1 bg-eink-black px-2 py-1 font-bold text-eink-white">
 						{data.journeys.some((j) => j.status === "cancelled")
 							? "CANCELLATIONS — check alternatives"
 							: "MAJOR DELAYS — expect disruptions"}
@@ -73,7 +73,7 @@ export function TransitWidget({ data, size = "medium" }: TransitWidgetProps) {
 				)}
 
 				{data.journeys.length === 0 ? (
-					<div className="text-eink-dark text-eink-sm">No journeys found</div>
+					<div className="text-eink-sm text-eink-dark">No journeys found</div>
 				) : (
 					data.journeys.map((journey, i) => (
 						<JourneyRow
@@ -105,11 +105,7 @@ function JourneyRow({
 
 	return (
 		<div
-			className={`
-				flex items-center justify-between py-1
-				${!isLast ? "border-b border-eink-light" : ""}
-				${isCancelled ? "opacity-60" : ""}
-			`}
+			className={`flex items-center justify-between py-1 ${!isLast ? "border-b border-eink-light" : ""} ${isCancelled ? "opacity-60" : ""} `}
 		>
 			<div className="flex items-center gap-2">
 				{/* Departure time */}
@@ -128,7 +124,7 @@ function JourneyRow({
 
 				{/* Status badges */}
 				{isCancelled && (
-					<span className="text-eink-xs bg-eink-black text-eink-white px-1 font-bold">
+					<span className="text-eink-xs bg-eink-black px-1 font-bold text-eink-white">
 						CANC
 					</span>
 				)}

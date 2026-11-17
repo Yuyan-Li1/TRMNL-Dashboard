@@ -43,7 +43,7 @@ export default async function TokensPage() {
 		<div className="space-y-6">
 			<h1 className="text-2xl font-bold text-gray-900">Token Health</h1>
 
-			<div className="bg-white shadow overflow-hidden sm:rounded-lg">
+			<div className="overflow-hidden bg-white shadow sm:rounded-lg">
 				<ul className="divide-y divide-gray-200">
 					{tokens.map((token) => {
 						const info = serviceInfo[token.service];
@@ -98,7 +98,7 @@ export default async function TokensPage() {
 
 								{/* PSN-specific info */}
 								{isPSN && psnStatus?.expiresAt && (
-									<div className="mt-3 p-3 bg-gray-50 rounded-md">
+									<div className="mt-3 rounded-md bg-gray-50 p-3">
 										<p className="text-sm text-gray-600">
 											NPSSO expires:{" "}
 											<span className="font-medium">
@@ -121,13 +121,13 @@ export default async function TokensPage() {
 			</div>
 
 			{/* Refresh instructions */}
-			<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+			<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
 				<h3 className="text-sm font-medium text-blue-800">
 					Token Refresh Instructions
 				</h3>
 				<div className="mt-2 text-sm text-blue-700">
 					<p className="font-medium">PSN (PlayStation):</p>
-					<ol className="list-decimal ml-4 mt-1 space-y-1">
+					<ol className="mt-1 ml-4 list-decimal space-y-1">
 						<li>
 							Sign in at{" "}
 							<a
@@ -152,7 +152,7 @@ export default async function TokensPage() {
 						</li>
 						<li>Copy the NPSSO token from the JSON response</li>
 						<li>
-							Update <code className="bg-blue-100 px-1 rounded">PSN_NPSSO</code>{" "}
+							Update <code className="rounded bg-blue-100 px-1">PSN_NPSSO</code>{" "}
 							in Vercel environment variables
 						</li>
 						<li>Redeploy or wait for next refresh cycle</li>
@@ -173,7 +173,7 @@ function StatusBadge({ status }: { status: string }) {
 
 	return (
 		<span
-			className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+			className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
 				colors[status] || "bg-gray-100 text-gray-800"
 			}`}
 		>

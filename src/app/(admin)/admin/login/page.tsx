@@ -33,10 +33,10 @@ export default function AdminLoginPage() {
 	};
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gray-100">
-			<div className="max-w-md w-full bg-white shadow rounded-lg p-8">
-				<h1 className="text-2xl font-bold text-gray-900 mb-2">TRMNL Admin</h1>
-				<p className="text-sm text-gray-500 mb-6">
+		<div className="flex min-h-screen items-center justify-center bg-gray-100">
+			<div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
+				<h1 className="mb-2 text-2xl font-bold text-gray-900">TRMNL Admin</h1>
+				<p className="mb-6 text-sm text-gray-500">
 					Enter the admin token (CRON_SECRET) to continue.
 				</p>
 
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
 
 					<button
 						type="submit"
-						className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+						className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
 					>
 						Sign In
 					</button>

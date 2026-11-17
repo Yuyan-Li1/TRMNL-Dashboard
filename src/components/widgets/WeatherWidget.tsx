@@ -22,7 +22,7 @@ export function WeatherWidget({
 				icon={<EinkIcon name="cloud" size="sm" />}
 				size={size}
 			>
-				<div className="flex items-center justify-center h-full text-eink-dark">
+				<div className="flex h-full items-center justify-center text-eink-dark">
 					No weather data
 				</div>
 			</EinkCard>
@@ -42,9 +42,9 @@ export function WeatherWidget({
 			icon={<EinkIcon name="sun" size="sm" />}
 			size={size}
 		>
-			<div className="flex flex-col h-full">
+			<div className="flex h-full flex-col">
 				{/* Current conditions */}
-				<div className="flex items-center justify-between mb-2">
+				<div className="mb-2 flex items-center justify-between">
 					<div className="flex items-center gap-3">
 						<EinkIcon name={weatherInfo.icon} size="xl" />
 						<div>
@@ -55,7 +55,7 @@ export function WeatherWidget({
 								Feels {current.apparentTemperature}&deg;
 							</div>
 						</div>
-						<div className="text-eink-base text-eink-dark ml-1">
+						<div className="text-eink-base ml-1 text-eink-dark">
 							{weatherInfo.description}
 						</div>
 					</div>
@@ -70,7 +70,7 @@ export function WeatherWidget({
 
 				{/* Today's high/low */}
 				{daily[0] && (
-					<div className="flex gap-4 text-eink-sm text-eink-dark">
+					<div className="text-eink-sm flex gap-4 text-eink-dark">
 						<span>H: {daily[0].temperatureMax}&deg;</span>
 						<span>L: {daily[0].temperatureMin}&deg;</span>
 						{daily[0].precipitationProbability > 0 && (
@@ -81,7 +81,7 @@ export function WeatherWidget({
 
 				{/* 3-day forecast (if space) */}
 				{showForecast && size !== "small" && (
-					<div className="mt-auto pt-2 border-t-2 border-eink-light">
+					<div className="mt-auto border-t-2 border-eink-light pt-2">
 						<div className="flex justify-between">
 							{daily.slice(1, 4).map((day) => (
 								<div key={day.date} className="text-center">

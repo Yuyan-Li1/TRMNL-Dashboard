@@ -143,8 +143,8 @@ export default function EditRoutinePage() {
 			</h1>
 
 			<form onSubmit={handleSubmit} className="space-y-6">
-				<div className="bg-white shadow rounded-lg p-6">
-					<h2 className="text-lg font-medium text-gray-900 mb-4">Details</h2>
+				<div className="rounded-lg bg-white p-6 shadow">
+					<h2 className="mb-4 text-lg font-medium text-gray-900">Details</h2>
 					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div>
 							<label className="block text-sm font-medium text-gray-700">
@@ -250,14 +250,14 @@ export default function EditRoutinePage() {
 
 					{formData.recurrence.type === "weekly" && (
 						<div className="mt-4">
-							<span className="block text-sm font-medium text-gray-700 mb-2">
+							<span className="mb-2 block text-sm font-medium text-gray-700">
 								Days
 							</span>
 							<div className="flex flex-wrap gap-2">
 								{dayOptions.map((day) => (
 									<label
 										key={day.value}
-										className={`inline-flex items-center px-3 py-1 rounded-full text-sm cursor-pointer ${
+										className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-sm ${
 											formData.recurrence.daysOfWeek?.includes(day.value)
 												? "bg-indigo-100 text-indigo-800"
 												: "bg-gray-100 text-gray-600"
@@ -306,8 +306,8 @@ export default function EditRoutinePage() {
 					</div>
 				</div>
 
-				<div className="bg-white shadow rounded-lg p-6">
-					<div className="flex justify-between items-center mb-4">
+				<div className="rounded-lg bg-white p-6 shadow">
+					<div className="mb-4 flex items-center justify-between">
 						<h2 className="text-lg font-medium text-gray-900">Steps</h2>
 						<button
 							type="button"
@@ -320,8 +320,8 @@ export default function EditRoutinePage() {
 
 					<div className="space-y-4">
 						{formData.steps.map((step, index) => (
-							<div key={step.order} className="border rounded-lg p-4">
-								<div className="flex justify-between items-center mb-3">
+							<div key={step.order} className="rounded-lg border p-4">
+								<div className="mb-3 flex items-center justify-between">
 									<div className="flex items-center gap-2">
 										<span className="text-xs font-medium text-gray-500">
 											Step {index + 1}
@@ -331,7 +331,7 @@ export default function EditRoutinePage() {
 												type="button"
 												onClick={() => moveStep(index, "up")}
 												disabled={index === 0}
-												className="px-1.5 py-0.5 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+												className="rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
 											>
 												&uarr;
 											</button>
@@ -339,7 +339,7 @@ export default function EditRoutinePage() {
 												type="button"
 												onClick={() => moveStep(index, "down")}
 												disabled={index === formData.steps.length - 1}
-												className="px-1.5 py-0.5 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+												className="rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
 											>
 												&darr;
 											</button>
@@ -348,7 +348,7 @@ export default function EditRoutinePage() {
 									<button
 										type="button"
 										onClick={() => removeStep(index)}
-										className="text-red-600 hover:text-red-500 text-xs"
+										className="text-xs text-red-600 hover:text-red-500"
 									>
 										Remove
 									</button>
@@ -392,7 +392,7 @@ export default function EditRoutinePage() {
 						))}
 
 						{formData.steps.length === 0 && (
-							<p className="text-gray-500 text-sm">
+							<p className="text-sm text-gray-500">
 								No steps. Add one to build the routine.
 							</p>
 						)}
@@ -403,14 +403,14 @@ export default function EditRoutinePage() {
 					<button
 						type="button"
 						onClick={() => router.back()}
-						className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+						className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
 						disabled={saving}
-						className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+						className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
 					>
 						{saving ? "Saving..." : "Save Routine"}
 					</button>

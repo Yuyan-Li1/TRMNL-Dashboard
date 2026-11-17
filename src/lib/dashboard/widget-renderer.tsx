@@ -107,8 +107,8 @@ export function renderWidget(
 			// medication strip above the routine card
 			if (opts?.mergedMedication && medications.length > 0) {
 				return (
-					<div key="routine-medication" className="flex flex-col gap-2 h-full">
-						<div className="border-2 border-eink-black px-3 py-2 flex items-center justify-between shrink-0">
+					<div key="routine-medication" className="flex h-full flex-col gap-2">
+						<div className="flex shrink-0 items-center justify-between border-2 border-eink-black px-3 py-2">
 							<div className="flex items-center gap-2">
 								<EinkIcon name="pill" size="sm" />
 								{medications.map((m) => (
@@ -123,7 +123,7 @@ export function renderWidget(
 								</span>
 							)}
 						</div>
-						<div className="flex-1 min-h-0">{routineEl}</div>
+						<div className="min-h-0 flex-1">{routineEl}</div>
 					</div>
 				);
 			}

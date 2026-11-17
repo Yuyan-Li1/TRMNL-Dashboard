@@ -12,14 +12,7 @@ interface EinkGridProps {
 export function EinkGrid({ children, className = "" }: EinkGridProps) {
 	return (
 		<div
-			className={`
-        w-[800px] h-[480px]
-        bg-eink-white
-        p-[10px]
-        grid grid-cols-2 gap-[10px]
-        auto-rows-min
-        ${className}
-      `}
+			className={`grid h-[480px] w-[800px] auto-rows-min grid-cols-2 gap-[10px] bg-eink-white p-[10px] ${className} `}
 		>
 			{children}
 		</div>

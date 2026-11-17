@@ -40,41 +40,31 @@ export function RoutineWidget({
 		>
 			<div className="flex flex-col gap-1">
 				{displaySteps.length === 0 && (
-					<div className="text-eink-dark text-eink-sm">
+					<div className="text-eink-sm text-eink-dark">
 						No routine scheduled
 					</div>
 				)}
 				{displaySteps.map((step, i) => (
 					<div
 						key={step.title}
-						className={`
-              flex items-start gap-2
-              ${i < displaySteps.length - 1 ? "pb-1" : ""}
-            `}
+						className={`flex items-start gap-2 ${i < displaySteps.length - 1 ? "pb-1" : ""} `}
 					>
 						{/* Step number or checkbox */}
 						<div
-							className={`
-                w-5 h-5 flex items-center justify-center shrink-0
-                border-2 border-eink-black text-eink-xs font-bold
-                ${step.completed ? "bg-eink-black text-eink-white" : ""}
-              `}
+							className={`text-eink-xs flex h-5 w-5 shrink-0 items-center justify-center border-2 border-eink-black font-bold ${step.completed ? "bg-eink-black text-eink-white" : ""} `}
 						>
 							{step.completed ? "X" : i + 1}
 						</div>
 
 						{/* Step content */}
-						<div className="flex-1 min-w-0">
+						<div className="min-w-0 flex-1">
 							<div
-								className={`
-                  text-eink-sm
-                  ${step.completed ? "line-through text-eink-dark" : ""}
-                `}
+								className={`text-eink-sm ${step.completed ? "text-eink-dark line-through" : ""} `}
 							>
 								{step.title}
 							</div>
 							{step.description && size !== "small" && (
-								<div className="text-eink-xs text-eink-dark truncate">
+								<div className="text-eink-xs truncate text-eink-dark">
 									{step.description}
 								</div>
 							)}
@@ -82,7 +72,7 @@ export function RoutineWidget({
 
 						{/* Duration */}
 						{step.duration && size !== "small" && (
-							<div className="text-eink-xs text-eink-dark shrink-0">
+							<div className="text-eink-xs shrink-0 text-eink-dark">
 								{step.duration}m
 							</div>
 						)}
@@ -90,7 +80,7 @@ export function RoutineWidget({
 				))}
 
 				{steps.length > displaySteps.length && (
-					<div className="text-eink-xs text-eink-dark mt-1">
+					<div className="text-eink-xs mt-1 text-eink-dark">
 						+{steps.length - displaySteps.length} more steps
 					</div>
 				)}
