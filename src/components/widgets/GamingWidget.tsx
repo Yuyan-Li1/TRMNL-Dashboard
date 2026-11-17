@@ -41,7 +41,7 @@ export function GamingWidget({
 		>
 			<div className="flex flex-col gap-1">
 				{games.length === 0 ? (
-					<div className="text-eink-sm text-eink-dark">No recent games</div>
+					<div className="type-16 text-eink-dark">No recent games</div>
 				) : (
 					games.map((game, i) => (
 						<GameRow
@@ -88,7 +88,7 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 
 	return (
 		<div
-			className={`flex items-center gap-2 ${!isLast ? "border-b border-eink-light pb-1" : ""} `}
+			className={`flex items-center gap-2 ${!isLast ? "border-b-2 border-eink-light pb-1" : ""} `}
 		>
 			{/* Platform icon */}
 			<EinkIcon
@@ -99,23 +99,23 @@ function GameRow({ game, isLast }: { game: RecentGame; isLast: boolean }) {
 
 			{/* Game info */}
 			<div className="min-w-0 flex-1">
-				<div className="text-eink-sm truncate font-medium">{game.title}</div>
+				<div className="truncate type-16">{game.title}</div>
 			</div>
 
 			{/* Right side: achievement bar OR secondary text */}
 			{achievementPercent !== null ? (
 				<div className="flex shrink-0 items-center gap-1">
-					<div className="h-2 w-12 border border-eink-dark">
+					<div className="h-3 w-12 border-2 border-eink-dark">
 						<div
 							className="h-full bg-eink-black"
 							style={{ width: `${achievementPercent}%` }}
 						/>
 					</div>
-					<span className="text-eink-xs">{achievementPercent}%</span>
+					<span className="type-12">{achievementPercent}%</span>
 				</div>
 			) : (
 				secondaryText && (
-					<span className="text-eink-xs shrink-0 text-eink-dark">
+					<span className="shrink-0 type-12 text-eink-dark">
 						{secondaryText}
 					</span>
 				)

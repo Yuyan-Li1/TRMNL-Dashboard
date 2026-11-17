@@ -38,7 +38,7 @@ export function EinkCard({
 				<div className="mb-2 flex shrink-0 items-center gap-2 border-b-2 border-eink-dark pb-2">
 					{icon && <span className="text-eink-black">{icon}</span>}
 					{title && (
-						<h3 className="text-eink-sm font-bold tracking-wide text-eink-black uppercase">
+						<h3 className="type-16 font-bold tracking-wide text-eink-black uppercase">
 							{title}
 						</h3>
 					)}
