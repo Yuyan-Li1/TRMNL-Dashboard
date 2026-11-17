@@ -9,16 +9,19 @@ Researched 2026-11-17. Throwaway research branch, not for merge. Builds on `docs
 - **[DOC]** stated in official documentation or a first-party article (URL given; fetched 2026-11-17).
 - **[SRC]** read from source code (repo, path, commit given).
 - **[RAN]** observed by running code locally on 2026-11-17 (sharp 0.35.5, libvips 8.18.7, Node 22.20). Nothing was run on the device.
+- **[DEVICE]** reported by the owner from the physical device on 2026-11-17 (four preparations of one poster at 188x282, and a close look at white areas). I did not see the device.
 - **[INFER]** my reasoning from the facts above; no source states it.
 - **[UNVERIFIED]** could not be established from a primary source.
 
 ## Short answer
 
 1. **Nobody publishes measured grey levels for this panel.** TRMNL, Good Display and every community project found treat 2-bit as the evenly spaced values `#000 / #555 / #AAA / #FFF`. The firmware makes the two greys by timing voltage pushes, hand-tuned, with no reflectance target; TRMNL's own engineer writes that the greys are "not guaranteed to be linear". The phone measurement in the brief (0 / 32 / 107 / 255) is the only data there is for this device.
-2. **Two separate things darken the poster today.** (a) Dithering assumes the greys sit at 85 and 170 when the panel shows something near 32 and 107, so every tone below light grey is rendered far too dark. (b) In sharp, `.gamma(1.6)` is not a shadow lift: on its own it is a tone-neutral round trip, and combined with a parameterless `.sharpen()` it **darkened** mid-tones in my test (128 became 85). Check this first; it may be most of the problem.
-3. **Recommended pipeline:** resize, greyscale, percentile stretch, adaptive gamma towards a target mean (as a lookup table in JS, not `sharp.gamma`), sigma-form sharpen, then serpentine Floyd-Steinberg **in linear light against the panel's measured levels**, writing the PNG with the unchanged `#000/#555/#AAA/#FFF` palette. Starting values are in section 6.
-4. **Method:** keep Floyd-Steinberg, add serpentine scanning. Atkinson is the wrong choice for this problem because it discards a quarter of the error, which is documented to lose detail in very dark and very light areas.
-5. **Thumbnails:** same levels and tone curve, computed per thumbnail from the source image, with a slightly higher target mean and reduced error diffusion. No source covers this; it is inference to test on the device.
+2. **Two separate things darken the poster today.** (a) Dithering assumes the greys sit at 85 and 170 when the panel shows something near 32 and 107, so every tone below light grey is rendered far too dark. (b) In sharp, `.gamma(1.6)` is not a shadow lift: on its own it is a tone-neutral round trip, and combined with a parameterless `.sharpen()` it **darkened** mid-tones in my test (128 became 85).
+3. **The device has since settled the main choice (section 6).** A strong adaptive gamma with the ordinary evenly spaced levels looked best. Dithering against the panel's levels with no lift was still too dark, and panel levels plus a lift plus CLAHE was flat and grey. The lift and the panel-level correction are two ways of making the same compensation; use one, not both.
+4. **Recommended pipeline:** resize, greyscale, percentile stretch, adaptive gamma to a target mean of 0.5 (as a lookup table in JS, not `sharp.gamma`), sigma-form sharpen, serpentine Floyd-Steinberg to the even levels 0/85/170/255, 4-colour palette PNG. No CLAHE. Starting values are in section 7.
+5. **Method:** keep Floyd-Steinberg, add serpentine scanning. Atkinson is the wrong choice for this problem because it discards a quarter of the error, which is documented to lose detail in very dark and very light areas.
+6. **Thumbnails:** same tone curve and levels, computed per thumbnail from the source image, with reduced error diffusion. No source covers this; it is inference to test on the device.
+7. **Grey specks in white areas** are ghosting from the previous image, not pixels in the image (owner's finding, section 8).
 
 ## 1. What the four grey levels actually look like
 
@@ -84,7 +87,7 @@ Treating the measured swatch values as sRGB-encoded and converting (my arithmeti
   - epaper-dithering: palette entries have a measured `appearance` and a `nominal`; "Using measured values produces much better dithering results". [SRC] files cited above
   - Pimoroni Inky: `set_image` quantises against a blend of an ideal palette and a `SATURATED_PALETTE` of realistic panel colours (black is `[57, 48, 57]`), default blend 0.5. [SRC] `pimoroni/inky` `inky/inky_uc8159.py` lines 25-50, 190-200, 398 at `a426485`
 - All of these are colour panels. No project was found doing it for a 2-bit grey panel, but the reasoning does not depend on colour. [INFER]
-- **Recommendation: yes, dither against the panel's measured levels and keep writing the nominal palette.** [INFER]
+- On paper this argues for dithering against measured levels. On the device it was not enough alone and over-corrected when combined with a tone lift (section 6), so it is no longer the default. [DEVICE] / [INFER]
 
 ### Working space
 
@@ -98,7 +101,7 @@ Treating the measured swatch values as sRGB-encoded and converting (my arithmeti
   - esp32-photoframe and epdoptimize do not document the diffusion space. [UNVERIFIED]
 - In my simulation with the measured levels, linear-light diffusion reproduced every flat input tone exactly on the modelled panel, and encoded-space diffusion came out 5 to 20 values lighter in the mid-tones. Both are far better than the current evenly spaced levels. [RAN] (simulation only)
 - Perceptual lightness (L*) is the right space for deciding how to lift shadows, but the wrong space for diffusing error: the eye averages light from neighbouring dots, and that average is linear. [INFER]
-- **Recommendation: diffuse in linear light, with nearest-level selection in the same space.** Keep the space switchable; if dark areas look too sparse or noisy on the device, encoded-space diffusion against the same measured levels is the fallback and errs on the light side. [INFER]
+- Linear light is the principled space when the levels are trusted. The preparation that looked best on the device used evenly spaced levels, whose assumed spacing is already wrong for this panel, so linear-light accuracy buys nothing there; keep the existing encoded-space loop as the default and leave linear as a switch for any panel-level trial. [INFER]
 
 ### A limit no pipeline removes
 
@@ -142,10 +145,9 @@ Running a 0-255 ramp through sharp 0.35.5: [RAN]
 ### Proposal
 
 - **Percentile clip.** sharp's `normalise` defaults to the 1st and 99th luminance percentiles. [DOC] sharp API. On a dark poster the lit subject can be under 1% of the frame, so a 99th percentile white point would blow it out; start at `lower: 0.5, upper: 99.5`. [INFER]
-- **Adaptive gamma towards a target mean.** After the stretch, take the mean `m` of the encoded image (0-1) and apply `v ^ e` with `e = ln(target) / ln(m)`, clamped. Target 0.45, clamp `e` to 0.5-1.1. A poster with mean 0.15 gets the full 0.5; a mid-tone cover with mean 0.4 gets about 0.87 and is barely touched. The lower clamp stops near-black posters turning into grey noise. [INFER]
-- **Local contrast (optional, start off).** `sharp.clahe({ width, height, maxSlope })`, `maxSlope` default 3, 0 disables limiting. [DOC] sharp API. If the gamma lift leaves shadows flat, try `{ width: 96, height: 96, maxSlope: 2 }` after the lift. CLAHE also amplifies film grain and JPEG blocks in shadows, which error diffusion then renders as noise, so keep the slope low. [INFER]
+- **Adaptive gamma towards a target mean.** After the stretch, take the mean `m` of the encoded image (0-1) and apply `v ^ e` with `e = ln(target) / ln(m)`, clamped. The device-tested values are target 0.5 with `e` between 1/2.6 and 1 (the owner's "gamma 1.0-2.6", brighten only); Perfect Days hit the 2.6 limit and looked best balanced of the four. [DEVICE] A mid-tone cover with mean 0.4 gets about 0.76 and is lifted only mildly. [INFER]
+- **Local contrast: leave off.** `sharp.clahe({ width, height, maxSlope })`, `maxSlope` default 3, 0 disables limiting. [DOC] sharp API. On the device, CLAHE with 47 px tiles and slope 3 gave the most shadow detail but a flat grey picture and weak title lettering. [DEVICE] CLAHE equalises large uniform regions and flat graphic shapes, which is what poster lettering is. If more shadow detail is ever wanted, try a low slope (1.5-2) with larger tiles on top of the default, and judge the title first. [INFER]
 - **Sharpen** with the sigma form (`sharpen({ sigma: 0.8 })`), after the tone curve. [INFER], and see the table above for why not the parameterless form next to `gamma`.
-- **No separate black-point lift.** With measured levels and linear diffusion, a tone renders at its intended place between panel black and panel white, so the lift is carried by the gamma step alone. [INFER]
 
 ## 4. Which dithering method
 
@@ -160,30 +162,52 @@ Running a 0-255 ramp through sharp 0.35.5: [RAN]
 E-ink-specific points:
 
 - An image containing grey always gets a full refresh, and fast refresh is 1-bit only. [DOC] (earlier note, fast refresh article). So dither noise does not accumulate as ghosting between frames on a 2-bit poster. [INFER]
-- Neighbour disturbance at boundaries between grey shades (custom-luts blog) argues for fewer isolated mid-grey pixels in a different-grey field. With measured levels this largely takes care of itself: dark grey is only chosen in deep shadow and the bulk of a lifted image is a light grey and white mix. If black and dark-grey mixes still look muddy, try removing dark grey from the level list (three-level dither). [INFER]
+- Neighbour disturbance at boundaries between grey shades (custom-luts blog) argues for fewer isolated mid-grey pixels in a different-grey field. A strong gamma lift moves most of the picture into light grey and white mixes, which the panel separates well. If black and dark-grey mixes still look muddy, try removing dark grey from the level list (three-level dither). [INFER]
 - Clamp the working value to 0-1 before quantising so diffused error cannot run away in long dark runs. [INFER]; epaper-dithering clamps the same way [SRC] `algorithms.rs` lines 89-91
 
 ## 5. Thumbnails (64x96)
 
-No source addresses images this small on e-ink; everything here is inference to check on the device. [INFER]
+No source addresses images this small on e-ink, and the device test was at 188x282 only; everything here is inference to check on the device. [INFER]
 
 - Generate each thumbnail from the source image with its own resize, stretch and adaptive gamma. Never downscale the dithered poster.
-- Use the same measured levels and linear-light diffusion; the tone error from wrong levels is independent of size.
-- At 6,144 pixels, diffusion noise competes with the picture. Pass on only part of the error (`diffusion: 0.75`, which is Atkinson's fraction) to trade some shadow accuracy for a cleaner image, and compare against plain nearest-level quantisation with no diffusion.
-- Aim a little lighter (target mean 0.5) and sharpen with a smaller sigma (0.6); skip CLAHE, whose tiles would be most of the image.
+- Use the same levels and target mean as the poster, so a thumbnail and its poster read as the same picture.
+- At 6,144 pixels, diffusion noise competes with the picture. Pass on only part of the error (`diffusion: 0.75`, which is Atkinson's fraction) for a cleaner image, and compare against plain nearest-level quantisation with no diffusion.
+- Sharpen with a smaller sigma (0.6). No CLAHE.
 - Subjects only read at this size if they are large in frame; a centre-weighted crop may matter more than any dither setting.
 
-## 6. Recommended pipeline
+## 6. Device results and what they change
 
-Ordered steps with starting values. The code below ran end to end on a synthetic dark test image and produced a 2-bit PNG containing only 0/85/170/255 (about 18 KB at 320x480, under 1 KB at 64x96). [RAN] How it looks on the panel is untested.
+The owner ran Perfect Days at 188x282 through four preparations, all Floyd-Steinberg. [DEVICE]
+
+| # | Preparation | Result on the panel |
+| --- | --- | --- |
+| 1 | normalise + gamma 1.6, even levels | Lower half near-solid black |
+| 2 | normalise + adaptive gamma (mean to 0.5, clamp 1.0-2.6, reached 2.6), even levels 0/85/170/255 | Room detail visible, contrast kept; best balanced |
+| 3 | no gamma, panel levels 0/40/110/255 | Still too dark |
+| 4 | CLAHE (47 px tiles, maxSlope 3) + adaptive gamma (target 0.45) + panel levels | Most detail, but flat and grey; title lettering loses punch |
+
+How I read this: [INFER]
+
+- **3 shows that faithful reproduction is not the goal.** Panel-level dithering only makes the panel show the tones the file asks for. A dark poster reproduced faithfully on a 10:1 reflective panel is still a dark poster. The shadows have to be lifted, whichever levels are used. My first draft's "no separate lift needed" was wrong.
+- **2 and 4 show the two corrections are the same correction.** Dithering to even levels on this panel darkens everything below light grey; a strong gamma undoes that. Dithering to panel levels removes the darkening instead. Doing both (4) lifts twice, and CLAHE flattens what is left. The flat result in 4 cannot be split between CLAHE and the double lift from this test alone.
+- **1 fits the sharp finding in section 3:** `gamma(1.6)` in that chain gave no lift, or a darkening.
+- **So the default is preparation 2.** It is the simplest, it keeps the existing dither loop and palette, and it is the only one judged good on the device. It also does not depend on the rough phone measurement.
+- The exponent hit its limit on this poster, so the mean never reached 0.5. Whether a looser limit (3.0) helps or washes out blacks is a one-image test.
+- Untested and worth one trial each, in this order: preparation 2 with serpentine scanning; preparation 2 at the real 320x480; panel levels with a mild lift and no CLAHE (target mean about 0.35), which sits between 3 and 4 and would show whether panel levels have anything to offer over 2.
+- One poster at one size is thin evidence. Check a mid-tone cover and a light poster with the same settings before fixing them; the brighten-only clamp should leave those nearly untouched.
+
+## 7. Recommended pipeline
+
+Ordered steps with starting values, following preparation 2 above. The code below ran end to end on a synthetic dark test image and produced a 2-bit PNG containing only 0/85/170/255 (about 17 KB at 320x480, under 1 KB at 64x96). [RAN]
 
 1. **Resize** to exact pixels, cover crop, Lanczos3.
 2. **Greyscale**, then **normalise** with `lower: 0.5, upper: 99.5`.
-3. **Adaptive gamma** as a 256-entry lookup table: target mean 0.45, exponent clamped to 0.5-1.1. Do not use `sharp.gamma()` for this.
-4. **Optional CLAHE** `{ width: 96, height: 96, maxSlope: 2 }` (start off).
-5. **Sharpen** `sharpen({ sigma: 0.8 })`.
-6. **Dither**: serpentine Floyd-Steinberg, full error, in linear light, against panel levels `[0, 32, 107, 255]` (sRGB-encoded as measured).
-7. **Encode**: map level index to `0/85/170/255`, write a 4-colour palette PNG, display 1:1 as now.
+3. **Adaptive gamma** as a 256-entry lookup table: target mean 0.5, exponent clamped to 1/2.6-1 (brighten only). Do not use `sharp.gamma()` for this.
+4. **Sharpen** `sharpen({ sigma: 0.8 })`. No CLAHE.
+5. **Dither**: serpentine Floyd-Steinberg, full error, on encoded values, to the even levels `[0, 85, 170, 255]`.
+6. **Encode**: write a 4-colour palette PNG, display 1:1 as now.
+
+`panelLevels`, `linear` and `clahe` stay in the options only so the trials in section 6 can be run without new code.
 
 ```ts
 import sharp from "sharp";
@@ -191,7 +215,7 @@ import sharp from "sharp";
 interface PosterOptions {
   width: number;
   height: number;
-  /** Panel grey levels as sRGB-encoded 0-255, black to white (measured, to tune). */
+  /** Levels to dither against, sRGB-encoded 0-255, black to white. Even spacing by default. */
   panelLevels: [number, number, number, number];
   /** Target mean of the tone-mapped image, sRGB-encoded 0-1. */
   targetMean: number;
@@ -204,6 +228,8 @@ interface PosterOptions {
   sharpenSigma: number;
   /** Fraction of the quantisation error passed on (1 = Floyd-Steinberg). */
   diffusion: number;
+  /** Diffuse in linear light (true) or on sRGB-encoded values (false). */
+  linear: boolean;
 }
 
 const OUTPUT_LEVELS = [0, 85, 170, 255] as const; // what the PNG carries: #000 #555 #aaa #fff
@@ -237,11 +263,12 @@ async function preparePoster(input: Buffer, o: PosterOptions): Promise<Buffer> {
   if (o.clahe) stage = stage.clahe(o.clahe);
   const grey = await stage.sharpen({ sigma: o.sharpenSigma }).toColourspace("b-w").raw().toBuffer();
 
-  // Serpentine Floyd-Steinberg in linear light against the panel's levels.
+  // Serpentine Floyd-Steinberg against the configured levels.
   const { width: w, height: h } = o;
-  const levels = o.panelLevels.map(srgbToLinear);
+  const toWork = o.linear ? srgbToLinear : (v: number): number => v / 255;
+  const levels = o.panelLevels.map(toWork);
   const work = new Float32Array(w * h);
-  for (let i = 0; i < work.length; i++) work[i] = srgbToLinear(grey[i]);
+  for (let i = 0; i < work.length; i++) work[i] = toWork(grey[i]);
   const out = Buffer.alloc(w * h);
   for (let y = 0; y < h; y++) {
     const dir = y % 2 === 0 ? 1 : -1;
@@ -272,22 +299,22 @@ async function preparePoster(input: Buffer, o: PosterOptions): Promise<Buffer> {
 const POSTER: PosterOptions = {
   width: 320,
   height: 480,
-  panelLevels: [0, 32, 107, 255],
-  targetMean: 0.45,
-  minExponent: 0.5,
-  maxExponent: 1.1,
+  panelLevels: [0, 85, 170, 255],
+  targetMean: 0.5,
+  minExponent: 1 / 2.6,
+  maxExponent: 1,
   clipLow: 0.5,
   clipHigh: 99.5,
   clahe: null,
   sharpenSigma: 0.8,
   diffusion: 1,
+  linear: false,
 };
 
 const THUMBNAIL: PosterOptions = {
   ...POSTER,
   width: 64,
   height: 96,
-  targetMean: 0.5,
   sharpenSigma: 0.6,
   diffusion: 0.75,
 };
@@ -302,17 +329,27 @@ Notes on the code:
 
 In rough order of effect:
 
-1. **`panelLevels[1]` and `panelLevels[2]`** (dark and light grey; start 32 and 107, plausible ranges 25-60 and 95-140). Raising them makes the output darker, lowering them lighter. Re-measure first, and judge with dithered 50/50 patches of adjacent levels next to flat swatches, at the real refresh interval.
-2. **`targetMean`** (0.40-0.55) and **`minExponent`** (0.4-0.7): how hard dark posters are lifted.
-3. **Diffusion space**: linear (default) or encoded, if shadows look too sparse.
+1. **`targetMean`** (0.45-0.55) and **`minExponent`** (1/3 to 1/2): how hard dark posters are lifted. Check a mid-tone and a light poster at the same settings.
+2. **Serpentine on or off**, and the result at the real 320x480.
+3. **`panelLevels` with a mild lift** (for example `[0, 40, 110, 255]`, `targetMean` 0.35, `linear: true`): one trial against the default. Judge with the title lettering.
 4. **Dropping dark grey** (three levels) if black and dark-grey mixes look muddy.
-5. **`clahe`** off, or `maxSlope` 2-3 with windows of 64-128 px.
-6. **`clipLow` / `clipHigh`** (0.5/99.5, up to 2/98 for flat scans).
-7. **`sharpenSigma`** (0.5-1.2).
-8. **Kernel**: Floyd-Steinberg, then Burkes or Sierra if worms show in flat dark areas.
-9. **Thumbnail `diffusion`** (0, 0.75, 1) and `targetMean`.
+5. **`clipLow` / `clipHigh`** (0.5/99.5, up to 2/98 for flat scans).
+6. **`sharpenSigma`** (0.5-1.2).
+7. **Kernel**: Floyd-Steinberg, then Burkes or Sierra if worms show in flat dark areas.
+8. **Thumbnail `diffusion`** (0, 0.75, 1).
+9. **`clahe`**: off. Only revisit with slope 1.5-2 and tiles of 96 px or more.
 
-Re-check after any change to the device's temperature profile, firmware, or refresh interval, since each can move the greys (section 1).
+Compare candidates on a freshly fully refreshed screen (section 8), and re-check after any change to the device's temperature profile, firmware, or refresh interval, since each can move the greys (section 1).
+
+## 8. Grey specks in white areas
+
+- The owner looked closely at the scattered grey pixels in pure `#fff` areas and found they are ghosting, leftover shadows of the previous image, not pixels in the image. [DEVICE] I stopped looking at TRMNL's conversion for this.
+- TRMNL documents ghosting as a property of fast refresh: "it's necessary to do a normal refresh every once in a while, due to an effect called ghosting", which "can leave the screen muddy, gray, or unclear until a normal refresh occurs". [DOC] <https://help.trmnl.com/en/articles/12512481-what-is-fast-refresh>
+- Firmware 1.8.18 "changed the refresh tables", and "On many OGs the fast refresh now leaves a clearer outline of the previous screen than it used to". The fix TRMNL lists first is Device settings > Firmware > **Full Refresh When the Screen Changes**: "The device does a full refresh each time a new image arrives." Otherwise the full black-and-white flash happens every 8th wake. Temperature profiles "do not fix the 1.8.18 ghosting". [DOC] <https://help.trmnl.com/en/articles/12566040-tuning-a-washed-out-display>
+- For this device the catch is that an image containing grey "always draws with a full refresh", so on a grey palette "these switches change little". [DOC] same article. The firmware agrees: a 2-bit image sets `REFRESH_FULL` ("4gray mode must be full refresh"). [SRC] `trmnl-firmware` `src/png_render.cpp` line 635 at `d5b610b`
+- So the ghosting seen here survives what TRMNL calls a full refresh in 2-bit mode. TRMNL's engineer describes the fast grey waveform as one that skips the clearing step, with a slower variant that adds one black and white wipe, and warns that a table which does not wipe fully may leave ghosting over repeated updates. [DOC] <https://trmnl.com/blog/custom-luts> Which variant 1.8.18 uses on a 30-minute interval I did not trace. [UNVERIFIED]
+- What is available to try, none of it confirmed to remove ghosting in 2-bit: turn on Full Refresh When the Screen Changes anyway; try temperature profiles A and B, which select different grey waveform tables (section 1) and will also shift the greys; update past 1.8.18, since the article says the firmware is still being tuned. Enable Maximum Compatibility gives a clean full refresh on every wake but sends 1-bit images, which gives up the four greys. [DOC] washed-out article for the settings; [INFER] for the expectation
+- Ghosting also lays the previous frame faintly over dark artwork, so it affects poster comparisons, not only white areas. [INFER]
 
 ## What could not be verified
 
@@ -320,10 +357,12 @@ Re-check after any change to the device's temperature profile, firmware, or refr
 - Which waveform table this device uses (default, profile A or profile B), and whether the hosted TRMNL service changes it over time. The tables were read at firmware 1.8.18's pinned library commit, but I did not trace which table a 30-minute refresh selects, nor the fast variant `epd75_old_gray_init_fast`.
 - How the panel averages dithered mixes of adjacent greys (neighbour disturbance). First-party text says the effect exists; its size is unknown. The E Ink patent material was seen only as search summaries.
 - Whether the gamma and sharpen interaction applies to this project: it depends on the installed sharp version and on which `sharpen` form the current code calls. Reproduced only on sharp 0.35.5.
-- The adaptive gamma target, the clamp, CLAHE settings and all thumbnail advice are inference with starting values, not practice documented by any surveyed project.
+- The adaptive gamma values rest on one poster at 188x282 on the device; no surveyed project documents the technique. Serpentine scanning, the 320x480 size and all thumbnail advice are untested on the device.
+- Why preparation 4 looked flat: CLAHE and the double lift were changed together.
+- Whether any setting removes the 2-bit ghosting on firmware 1.8.18.
 - That ImageMagick's Floyd-Steinberg diffuses in encoded space, and the diffusion space of esp32-photoframe and epdoptimize.
 - Inkplate and Kindle screensaver tooling were not examined. A Raspberry Pi frame project surfaced in search (saturation, contrast and gamma 0.9 defaults, Atkinson) but was not read at source and is not relied on.
-- Nothing was run on the device. Every "looks" claim is a prediction.
+- I ran nothing on the device. Every "looks" claim not marked [DEVICE] is a prediction.
 
 ## Sources
 
@@ -333,6 +372,7 @@ TRMNL
 - Blog, Bending ePaper To Our Will with Custom LUTs: <https://trmnl.com/blog/custom-luts>
 - Blog, No more flicker: <https://trmnl.com/blog/no-more-flicker>
 - Tuning a washed-out display: <https://help.trmnl.com/en/articles/12566040-tuning-a-washed-out-display>
+- What is fast refresh: <https://help.trmnl.com/en/articles/12512481-what-is-fast-refresh>
 - `usetrmnl/trmnl-firmware` at `d5b610b` (main) and tag `v1.8.18` (`4ffa33a`): `src/board_config.cpp`, `src/png_render.cpp`, `src/color_reduce.cpp`, `src/display.cpp`, `platformio.ini`
 - `usetrmnl/trmnl-home-assistant` at `6451b0c`: `trmnl-ha/ha-trmnl/lib/dithering.ts`, `lib/dithering/floyd-steinberg-strategy.ts`
 - `usetrmnl/trmnl-framework` at `07a0b39`: `app/assets/stylesheets/framework/config/_tokens.scss`
