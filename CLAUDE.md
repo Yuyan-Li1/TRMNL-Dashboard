@@ -93,6 +93,7 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 - **PSN**: Rate limited (use caching aggressively)
 - **Nintendo**: unofficial; data updates once a day, fetch at most hourly
 - **IGDB**: 4 requests/second
+- **TMDB**: about 40 requests/second; attribution required
 - **Letterboxd**: public RSS feed, no key; fetch at most hourly
 
 ## Code Style Guidelines
@@ -128,7 +129,7 @@ src/
 │       └── admin/               # Protected admin endpoints (login, refresh)
 ├── components/
 │   ├── screen/                  # The 800x480 screen: Screen, Spotlight, MediumCard,
-│   │                            # Stars, PosterImage
+│   │                            # Stars, PosterImage, TmdbAttribution
 │   ├── admin/                   # RefreshButton
 │   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
@@ -137,7 +138,8 @@ src/
 │   │   ├── igdb.ts              # IGDB, the Catalog for games
 │   │   ├── gaming.ts            # Reads the sources, merges, adds Catalog data and posters
 │   │   ├── letterboxd.ts        # The owner's Letterboxd diary feed, the Source for movies
-│   │   ├── movies.ts            # Reads the diary
+│   │   ├── tmdb.ts              # TMDB, the Catalog for movies
+│   │   ├── movies.ts            # Reads the diary, adds Catalog data and posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── screen/                  # What the screen shows
@@ -147,6 +149,7 @@ src/
 │   │   ├── format.ts            # "3 hours ago", "42 hours"
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
+│   ├── movies/diary.ts          # Days since a movie was watched, in the owner's time zone
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
 │   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
 │   │   ├── png.ts               # 2-bit palette PNG encoder
@@ -178,6 +181,7 @@ GitHub Actions (every 15 min)
     → refreshAllData() fetches every source
       → Games: Steam, Xbox, PSN and Switch plays merged into one Title per game
       → Movies: the diary entries in the owner's Letterboxd feed
+      → TMDB adds the director, year, overview, rating and poster for recently watched movies
       → IGDB adds the description, rating and cover for recently played Titles
       → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
@@ -198,11 +202,14 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Each game source's plays (`plays:<source>`): 1-hour TTL
 - The Letterboxd diary (`diary:letterboxd`): 1-hour TTL
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
+- TMDB lookups (`tmdb:movie:<TMDB id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires
-- Combined dashboard data: 15-minute TTL
+- Combined dashboard data: 15-minute TTL; its `:latest` copy expires after 150 days (see TMDB below)
 - PSN refresh token: `psn:auth`, no TTL
-- Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
+- Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
+
+**TMDB's terms**: its data may not be kept longer than 6 months. A lookup is reused for 30 days and anything made from it (a poster, the dashboard data's `:latest` copy) expires 150 days after it is written (`CACHE_TTL.TMDB_LOOKUP`, `CACHE_TTL.TMDB_DERIVED`). The attribution notice and logo (`TmdbAttribution`) are on the dashboard page below the 800x480 area the device captures. TMDB data is never given to an LLM.
 
 ### The screen
 
@@ -280,6 +287,9 @@ NINTENDO_SESSION_TOKEN=       # Manual: expires 2028-11-16
 # Letterboxd
 LETTERBOXD_USERNAME=          # The owner's public profile name
 
+# TMDB
+TMDB_API_KEY=                 # The API key or the API read access token
+
 # IGDB (through a Twitch application)
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
@@ -326,7 +336,7 @@ PSN NPSSO expires every ~2 months. To refresh:
 
 These require manual action and cannot be automated:
 
-1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB)
+1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB), TMDB
 2. **Token Retrieval**: PSN NPSSO and the Nintendo session token (manual browser login required)
 3. **Environment Variables**: Must be added to the Vercel dashboard
 4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets

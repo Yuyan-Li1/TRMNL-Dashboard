@@ -18,9 +18,24 @@ export interface DiaryEntry {
 	imageUrl?: string;
 }
 
+/** A diary entry with what the Catalog and the poster pipeline added. */
+export interface Movie extends DiaryEntry {
+	/** The Catalog's release year */
+	releaseYear?: number;
+	director?: string;
+	/** The Catalog description (TMDB overview) */
+	overview?: string;
+	/** The Catalog's public rating, converted to five stars */
+	publicRating?: number;
+	/** Source URL of the artwork with a stored Spotlight poster */
+	posterUrl?: string;
+	/** Source URL of the artwork with a stored thumbnail */
+	thumbnailUrl?: string;
+}
+
 export interface MoviesData {
 	/** Most recently watched first */
-	movies: DiaryEntry[];
+	movies: Movie[];
 	errors: string[];
 	fetchedAt: string;
 }
