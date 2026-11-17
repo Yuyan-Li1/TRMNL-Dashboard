@@ -109,3 +109,14 @@
 .f-root .a-card .t { line-height: 18px; }
 .f-root .a-card .m, .f-root .a-card .d { font-family: "TRMNL12"; font-size: 12px; line-height: 15px; font-weight: normal; }
 .f-root .a-card .m { font-weight: bold; }
+
+/* ---------- G: as F, but the title in smoothed Inter ---------- */
+.g-root .a-title {
+	font-family: "Inter", system-ui, sans-serif; font-size: 32px; line-height: 35px; letter-spacing: -0.02em;
+	-webkit-font-smoothing: antialiased; font-smooth: auto;
+}
+
+/* ---------- P: poster tuning test ---------- */
+.p-root { display: flex; gap: 8px; padding: 12px 12px 0; font-family: "TRMNL16"; font-size: 16px; line-height: 20px; -webkit-font-smoothing: none; }
+.p-root > div { width: 188px; }
+.p-root > div > div { margin-top: 8px; }

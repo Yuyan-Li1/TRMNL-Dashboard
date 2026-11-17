@@ -274,3 +274,19 @@ export function VariantT({ base }: Props): ReactElement {
 		</div>
 	);
 }
+
+/* P: poster tuning test. Four preparations of one poster, for the device. */
+export function VariantP({ scene, base }: Props): ReactElement {
+	const slug = ["perfect-days", "dune-2", "silksong", "piranesi"].includes(scene.art) ? scene.art : "perfect-days";
+	const labels = ["1 First test", "2 Adaptive gamma", "3 Panel levels", "4 Local contrast, gamma, panel levels"];
+	return (
+		<div className="p-root">
+			{labels.map((label, i) => (
+				<div key={label}>
+					<img src={`${base}/prototype/spotlight/${slug}-tune${i + 1}.png`} width={188} height={282} alt="" loading="eager" />
+					<div>{label}</div>
+				</div>
+			))}
+		</div>
+	);
+}

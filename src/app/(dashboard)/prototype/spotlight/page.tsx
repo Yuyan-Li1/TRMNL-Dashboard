@@ -1,6 +1,6 @@
 // PROTOTYPE, throwaway. For the ticket "Spotlight screen on 2-bit e-ink".
 // Plan: three variants of the 800x480 media screen plus a device test card,
-// switchable via ?variant=A|B|C|F|T, each across ten scenes via ?scene=1..10,
+// switchable via ?variant=A|B|C|F|G|P|T, each across ten scenes via ?scene=1..10,
 // on a throwaway route because the current dashboard page is being replaced.
 // Artwork comes from: node scripts/prototype-spotlight-dither.mjs
 import { headers } from "next/headers";
@@ -8,7 +8,7 @@ import type { ReactElement } from "react";
 import { SCENES } from "./data";
 import { PrototypeSwitcher } from "./PrototypeSwitcher";
 import "./prototype.css";
-import { VariantA, VariantB, VariantC, VariantT } from "./variants";
+import { VariantA, VariantB, VariantC, VariantP, VariantT } from "./variants";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,8 @@ const VARIANTS = [
 	{ key: "B", name: "Spotlight over shelf" },
 	{ key: "C", name: "Black marquee, text list" },
 	{ key: "F", name: "Layout A in TRMNL font" },
+	{ key: "G", name: "TRMNL font, smooth title" },
+	{ key: "P", name: "Poster tuning test" },
 	{ key: "T", name: "Device test" },
 ];
 
@@ -49,6 +51,12 @@ export default async function SpotlightPrototypePage({
 						<VariantA scene={scene} base={base} />
 					</div>
 				)}
+				{variant === "G" && (
+					<div className="f-root g-root">
+						<VariantA scene={scene} base={base} />
+					</div>
+				)}
+				{variant === "P" && <VariantP scene={scene} base={base} />}
 				{variant === "T" && <VariantT scene={scene} base={base} />}
 			</div>
 			<div className="sp-state">

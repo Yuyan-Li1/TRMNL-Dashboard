@@ -35,6 +35,7 @@ export const SCENES: Scene[] = [
 		byline: "Steam",
 		lead: "You're playing",
 		facts: ["Played 3 hours ago", "42 hours in total"],
+		text: "Explore a vast, haunted kingdom as the lethal hunter Hornet, and climb to its peak to uncover the mysteries of a land ruled by silk and song.",
 	},
 	{
 		name: "In progress, show (caught up)",
@@ -46,6 +47,7 @@ export const SCENES: Scene[] = [
 		lead: "You're watching",
 		facts: ["Caught up at episode 7 of 9", "Next episode Friday"],
 		progress: 7 / 9,
+		text: "The most miserable person on Earth must save the world from happiness.",
 	},
 	{
 		name: "In progress, book",
@@ -57,6 +59,7 @@ export const SCENES: Scene[] = [
 		lead: "You're reading",
 		facts: ["Page 212 of 476", "Updated yesterday"],
 		progress: 212 / 476,
+		text: "Ryland Grace is the sole survivor on a desperate, last-chance mission, and if he fails, humanity and the Earth itself will perish.",
 	},
 	{
 		name: "Finished, movie",
