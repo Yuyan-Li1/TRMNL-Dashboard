@@ -57,9 +57,7 @@ jobs:
             The dashboard health check failed at ${new Date().toISOString()}.
 
             Please check:
-            - MongoDB connection
             - Redis connection
-            - API credentials
 
             [View Health Endpoint](https://${{ secrets.VERCEL_URL }}/api/health)
             `;

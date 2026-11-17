@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-This is a custom TRMNL e-ink dashboard built with Next.js, TypeScript, and hosted on Vercel (Hobby plan). The dashboard displays different content based on day type (office/WFH/weekend) and time of day. Location is Sydney, Australia.
+A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
+
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stage 1 (games) is the current stage; movies, shows and books arrive in later stages.
 
 ## Tech Stack
 
@@ -11,8 +13,7 @@ This is a custom TRMNL e-ink dashboard built with Next.js, TypeScript, and hoste
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript (strict mode)
 - **React**: 19 (with React Compiler enabled)
-- **Database**: MongoDB Atlas (free tier, via Mongoose)
-- **Cache**: Upstash Redis
+- **Store**: Upstash Redis, the only store Vercel reads
 - **Styling**: Tailwind CSS 4 (e-ink optimized)
 - **Formatter**: Oxfmt
 - **Linter**: Oxlint
@@ -50,6 +51,8 @@ gh stack up / down / top / bottom
 
 Agents run in a non-interactive terminal: use `gh stack submit --auto --open`, then set each PR's title and body with `gh pr edit <number> --title "..." --body "..."`. `gh stack sync` never opens PRs; only `submit` does.
 
+**Run the CI gates locally before pushing.** `pnpm run ci` (lint, format check, type check, build; plain `pnpm ci` is pnpm's clean install, not this script) must pass before `gh stack submit`, `gh stack sync` or any `git push`.
+
 Branch naming: `kebab-case` descriptive names (e.g. `stale-cache-fallback`, `add-weather-alerts`).
 
 ## Issue Tracker (wayfinder)
@@ -67,12 +70,14 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 
 ### TRMNL Display Constraints
 
+- **Device**: TRMNL OG, firmware 1.8.18, "4 grays 2 bit" palette, Screenshot plugin pointed at the dashboard URL
 - **Viewport**: 800 x 480 pixels (landscape), configured in `src/lib/config.ts`
-- **Color depth**: 2-bit grayscale (black, white, light gray, dark gray)
+- **Color depth**: 2-bit grayscale: `#000`, `#555`, `#aaa`, `#fff`
 - **Render time**: Page must fully render within 5 seconds
+- **Screen image**: under 90,000 bytes
 - **Refresh interval**: 15 minutes (set on the TRMNL device)
-- **URLs**: All CSS/JS/images must use absolute URLs
-- No gradients, no thin lines under 2px, no anti-aliased graphics
+- **URLs**: All CSS/JS/images/fonts must use absolute URLs
+- No gradients, no lines thinner than 2px
 
 ### Vercel Hobby Plan Limits
 
@@ -83,12 +88,9 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 
 ### Free Tier API Limits
 
-- **Open-Meteo**: 10,000 requests/day (no auth required)
-- **Transport NSW**: 60,000 requests/day
 - **Steam**: 100,000 requests/day
 - **OpenXBL**: 150 requests/hour
 - **PSN**: Rate limited (use caching aggressively)
-- **Google Calendar**: Essentially unlimited for personal use
 
 ## Code Style Guidelines
 
@@ -96,18 +98,17 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 
 ```typescript
 // Use explicit return types
-async function getWeather(): Promise<WeatherData> {}
+async function getGamingData(): Promise<GamingData> {}
 
 // Use interface over type for objects
-interface WidgetConfig {
-	id: string;
-	type: WidgetType;
-	priority: number;
+interface RecentGame {
+	gameId: string;
+	title: string;
 }
 
 // Use const assertions for constants
-const DAY_TYPES = ["office", "wfh", "weekend"] as const;
-type DayType = (typeof DAY_TYPES)[number];
+const GAMING_PLATFORMS = ["steam", "xbox", "playstation"] as const;
+type GamingPlatform = (typeof GAMING_PLATFORMS)[number];
 ```
 
 ### File Organization
@@ -116,51 +117,27 @@ type DayType = (typeof DAY_TYPES)[number];
 src/
 ├── app/
 │   ├── (dashboard)/             # TRMNL-facing routes (/, /preview)
-│   ├── (admin)/admin/           # Admin UI (schedules, routines, tokens, login)
-│   └── api/                     # API routes
-│       ├── health/              # Health check
-│       ├── schedule/            # Schedule context
+│   ├── (admin)/admin/           # Admin UI (login, manual refresh)
+│   └── api/
+│       ├── health/              # Redis health check
 │       ├── refresh/             # Cron-triggered data refresh
-│       ├── tokens/              # Token health status
-│       └── admin/               # Protected admin endpoints
-│           ├── login/
-│           ├── refresh/
-│           ├── schedules/[id]/
-│           └── routines/[id]/
+│       ├── tokens/              # Live PSN token check
+│       └── admin/               # Protected admin endpoints (login, refresh)
 ├── components/
-│   ├── widgets/                 # WeatherWidget, TransitWidget, CalendarWidget,
-│   │                            # GamingWidget, RoutineWidget, MedicationWidget,
-│   │                            # AlertBanner
-│   ├── admin/                   # ScheduleEditor, RefreshButton
-│   └── ui/                      # EinkCard, EinkGrid, EinkIcon
+│   ├── DashboardScreen.tsx      # The 800x480 screen
+│   ├── widgets/                 # GamingWidget
+│   ├── admin/                   # RefreshButton
+│   └── ui/                      # EinkCard, EinkIcon
 ├── lib/
-│   ├── api/                     # External API clients
-│   │   ├── weather.ts           # Open-Meteo
-│   │   ├── transport.ts         # Transport NSW (Trip Planner API)
-│   │   ├── calendar.ts          # Google Calendar
-│   │   ├── steam.ts             # Steam API
-│   │   ├── xbox.ts              # OpenXBL
-│   │   ├── playstation.ts       # PSN (NPSSO token)
-│   │   ├── gaming.ts            # Gaming aggregator (all platforms)
+│   ├── api/                     # Source clients
+│   │   ├── steam.ts, xbox.ts, playstation.ts
+│   │   ├── gaming.ts            # Combines the game sources
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
-│   ├── dashboard/
-│   │   ├── loader.ts            # Load cached data for dashboard render
-│   │   └── layout.ts            # Widget layout calculation (2x2 grid)
-│   ├── db/
-│   │   ├── mongodb.ts           # Connection setup
-│   │   ├── seed.ts              # Database seeding (run via pnpm db:seed)
-│   │   └── models/              # Schedule, Routine, Token schemas
-│   ├── schedule/
-│   │   ├── context.ts           # Current schedule context + special conditions
-│   │   ├── timing.ts            # Time block calculations
-│   │   └── widgets.ts           # Widget selection for context
-│   ├── config.ts                # Location (Sydney), commute (Lidcombe→Bondi Jct), TRMNL config
-│   ├── env.ts                   # Environment variable validation groups
-│   └── utils/date.ts            # Date utilities
+│   ├── dashboard/loader.ts      # Load cached data for the page render
+│   ├── config.ts                # TRMNL screen config
+│   └── env.ts                   # Environment variable validation groups
 ├── types/                       # TypeScript type definitions
-│   ├── index.ts                 # Core types (DayType, TimeBlock, WidgetType)
-│   ├── schedule.ts, weather.ts, calendar.ts, gaming.ts, transport.ts
 └── middleware.ts                # Auth for /admin and /api/admin routes
 ```
 
@@ -176,52 +153,29 @@ src/
 
 ### Data Flow
 
-The dashboard uses a **cache-first architecture**. The dashboard page never fetches data directly from APIs.
+The dashboard is **cache-first**. The page never calls a source or Catalog while rendering.
 
 ```
 GitHub Actions (every 15 min)
   → POST /api/refresh (with CRON_SECRET)
-    → refreshAllData() fetches all APIs in parallel (Promise.allSettled)
-    → Transit: uses Trip Planner API for commute journeys
-      → Direction auto-detected: before 2 PM = to_work, after = to_home
-      → Lidcombe → Bondi Junction (morning) / reverse (evening)
-    → Stores combined result in Redis (TTL'd + non-expiring fallback)
+    → refreshAllData() fetches every source
+    → Stores the combined result in Redis (TTL'd + non-expiring fallback)
 
 Dashboard page render (server-side)
   → loadDashboardData()
-    → Reads from Redis cache (TTL'd key, falls back to :latest key)
-    → Determines schedule context (day type, time block)
-    → Selects widgets for context
-    → Renders 800x480 e-ink layout
+    → Reads from Redis (TTL'd key, falls back to the :latest key)
+    → Renders the 800x480 e-ink screen
 ```
 
 ### Caching Strategy
 
 Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expiring `:latest` key as fallback, so data is stale but never missing.
 
-- Weather: 15-minute TTL
-- Transit: 5-minute TTL
-- Calendar: 10-minute TTL
-- Gaming: 1-hour TTL
-- Token health: 5-minute TTL
+- Each game source: 1-hour TTL
 - Combined dashboard data: 15-minute TTL
+- PSN refresh token: `psn:auth`, no TTL
 
-### Schedule System
-
-The schedule determines which widgets appear based on:
-
-1. **Day type**: office, wfh, weekend
-2. **Time block**: morning, workday, evening, night
-3. **Special conditions**: rain (>30% precip), train delays/cancellations (>10 min delay or cancelled journeys, checked morning+evening on office days), meeting soon (<30 min), extreme temp (>35C or <10C)
-
-### Widget System
-
-Each widget:
-
-1. Accepts data prop (can be `null`)
-2. Shows graceful fallback if data is unavailable
-3. Respects e-ink display constraints (high contrast, no animations)
-4. Is selected and prioritized by the schedule system
+Key ownership (from stage 5): every key the Collector writes starts with `home:`. Vercel never writes under it.
 
 ### Auth
 
@@ -234,12 +188,13 @@ Each widget:
 
 ### Automation (require `VERCEL_URL` and `CRON_SECRET` repo secrets)
 
-| Workflow               | Schedule                 | Purpose                                                           |
-| ---------------------- | ------------------------ | ----------------------------------------------------------------- |
-| `refresh.yml`          | Every 15 min             | Main data refresh via `/api/refresh`                              |
-| `morning-prefetch.yml` | 7:40 AM Sydney (Mon-Fri) | Pre-cache morning data (runs twice with 30s gap)                  |
-| `health-check.yml`     | Every 6 hours            | Check MongoDB/Redis connectivity, creates GitHub issue on failure |
-| `token-expiry.yml`     | Daily 9 AM UTC           | Check token health, creates GitHub issue for expired tokens       |
+| Workflow           | Schedule       | Purpose                                                      |
+| ------------------ | -------------- | ------------------------------------------------------------ |
+| `refresh.yml`      | Every 15 min   | Main data refresh via `/api/refresh`                         |
+| `health-check.yml` | Every 6 hours  | Check Redis connectivity, creates GitHub issue on failure    |
+| `token-expiry.yml` | Daily 9 AM UTC | Check the PSN token, creates GitHub issue when it is expired |
+
+The two issue workflows are replaced by Telegram Alerts in stage 4.
 
 ### CI
 
@@ -257,19 +212,13 @@ Each widget:
 
 ## Environment Variables
 
-### Vercel Environment Variables
-
 ```
-# Database & Cache
-MONGODB_URI=
+# Cache
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
 # Auth / Cron
 CRON_SECRET=
-
-# Transport NSW
-TFNSW_API_KEY=
 
 # Steam
 STEAM_API_KEY=
@@ -281,16 +230,11 @@ OPENXBL_API_KEY=
 # PlayStation
 PSN_NPSSO=                    # Manual: expires every ~2 months
 
-# Google Calendar
-GOOGLE_CLIENT_EMAIL=
-GOOGLE_PRIVATE_KEY=
-GOOGLE_CALENDAR_ID=
-
 # Client-side
 NEXT_PUBLIC_APP_URL=
 ```
 
-Env var validation is centralized in `src/lib/env.ts` with grouped checks.
+Env var validation is centralized in `src/lib/env.ts` with grouped checks. `.env.local` is blocked to agents by a deny rule: the owner adds every secret by hand, locally and in Vercel.
 
 ## Commands
 
@@ -301,8 +245,7 @@ pnpm lint             # Run Oxlint
 pnpm format           # Run Oxfmt check
 pnpm fix              # Run Oxfmt and write changes
 pnpm type-check       # TypeScript type check
-pnpm ci               # Full CI pipeline (lint + format + type-check + build)
-pnpm db:seed          # Seed MongoDB with default schedules/routines
+pnpm run ci           # Full CI pipeline (lint + format + type-check + build)
 pnpm clean            # Remove .next and node_modules
 ```
 
@@ -310,9 +253,9 @@ pnpm clean            # Remove .next and node_modules
 
 ### Dashboard Shows No Data
 
-1. **GitHub Actions disabled** — GitHub disables cron workflows after 60 days of repo inactivity. Check Actions tab and re-enable.
-2. **`VERCEL_URL` secret missing** — The refresh workflow needs this repo secret set to the dashboard hostname.
-3. **Redis expired** — If cron hasn't run, TTL'd keys expire. The `:latest` fallback keys should prevent total data loss. Trigger a manual refresh from admin.
+1. **GitHub Actions disabled**: GitHub disables cron workflows after 60 days of repo inactivity. Check the Actions tab and re-enable.
+2. **`VERCEL_URL` secret missing**: the refresh workflow needs this repo secret set to the dashboard hostname.
+3. **Redis expired**: if cron hasn't run, TTL'd keys expire. The `:latest` fallback keys should prevent total data loss. Trigger a manual refresh from admin.
 
 ### PSN Token Expired
 
@@ -324,25 +267,11 @@ PSN NPSSO expires every ~2 months. To refresh:
 4. Update `PSN_NPSSO` in Vercel environment variables
 5. Redeploy or wait for next refresh cycle
 
-### MongoDB Connection Issues
-
-- Ensure IP whitelist includes `0.0.0.0/0` for Vercel serverless
-- Check connection string format includes `retryWrites=true&w=majority`
-- MongoDB Atlas free tier can pause after extended inactivity
-
-### Transport NSW Issues
-
-- **403 Errors**: API key may have expired; regenerate at opendata.transport.nsw.gov.au
-- Ensure correct header format: `Authorization: apikey YOUR_KEY`
-- **API used**: Trip Planner (`/v1/tp/trip`), not Departure Monitor. Returns commute journeys (Lidcombe ↔ Bondi Junction) with legs, durations, and realtime delays.
-- **Stop IDs**: Lidcombe `10101331`, Town Hall `10101101`, Bondi Junction `10101109` (configured in `COMMUTE` constant in `src/lib/config.ts`)
-
 ## Manual Breakpoints
 
 These require manual action and cannot be automated:
 
-1. **Account Registration**: MongoDB Atlas, Upstash, Transport NSW, Steam, OpenXBL
+1. **Account Registration**: Upstash, Steam, OpenXBL
 2. **Token Retrieval**: PSN NPSSO (manual browser login required)
-3. **Google Cloud Setup**: Service account creation and calendar sharing
-4. **Environment Variables**: Must be added to Vercel dashboard
-5. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets
+3. **Environment Variables**: Must be added to the Vercel dashboard
+4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets

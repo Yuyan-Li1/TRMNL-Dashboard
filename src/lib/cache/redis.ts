@@ -20,22 +20,16 @@ export function getRedis(): Redis {
 
 // Cache TTL constants (in seconds)
 export const CACHE_TTL = {
-	WEATHER: 15 * 60, // 15 minutes
-	TRANSIT: 5 * 60, // 5 minutes
-	CALENDAR: 10 * 60, // 10 minutes
 	GAMING: 60 * 60, // 1 hour
-	TOKEN_HEALTH: 5 * 60, // 5 minutes
+	DASHBOARD_DATA: 15 * 60, // 15 minutes
 } as const;
 
 // Cache key prefixes
 export const CACHE_KEYS = {
-	WEATHER: "weather:sydney",
-	TRANSIT: "transit:commute",
-	CALENDAR: "calendar:events",
 	GAMING_STEAM: "gaming:steam",
 	GAMING_XBOX: "gaming:xbox",
 	GAMING_PSN: "gaming:psn",
-	TOKEN_HEALTH: "tokens:health",
+	PSN_AUTH: "psn:auth",
 	DASHBOARD_DATA: "dashboard:data",
 } as const;
 

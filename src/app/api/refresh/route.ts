@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { refreshCoreData } from "@/lib/api/refresh";
+import { refreshAllData } from "@/lib/api/refresh";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 		});
 
-		const data = await refreshCoreData();
+		const data = await refreshAllData();
 		const duration = Date.now() - startTime;
 
 		const hasErrors = data.errors.length > 0;
@@ -47,9 +47,6 @@ export async function POST(request: NextRequest) {
 		console.log(
 			[
 				`Refresh completed in ${duration}ms`,
-				`  Weather:  ${data.weather ? "OK" : "FAILED"}`,
-				`  Transit:  ${data.transit ? "OK" : "FAILED"}`,
-				`  Calendar: ${data.calendar ? "OK" : "FAILED"}`,
 				`  Gaming:   ${data.gaming ? `OK (${gamingCount} games)` : "FAILED"}`,
 				...(data.errors.length > 0
 					? [`  Errors: ${data.errors.join(", ")}`]
@@ -64,9 +61,6 @@ export async function POST(request: NextRequest) {
 				duration: `${duration}ms`,
 				errors: data.errors,
 				summary: {
-					weather: data.weather ? "OK" : "FAILED",
-					transit: data.transit ? "OK" : "FAILED",
-					calendar: data.calendar ? "OK" : "FAILED",
 					gaming: data.gaming ? `OK (${gamingCount} games)` : "FAILED",
 				},
 			},

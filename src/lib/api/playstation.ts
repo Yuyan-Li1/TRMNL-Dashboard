@@ -8,128 +8,78 @@ import {
 	getUserTitles,
 	getUserTrophyProfileSummary,
 } from "psn-api";
-import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
-import { TokenHealth } from "@/lib/db/models/token";
-import { connectToDatabase } from "@/lib/db/mongodb";
+import {
+	CACHE_KEYS,
+	CACHE_TTL,
+	cacheGet,
+	cacheSet,
+	getRedis,
+} from "@/lib/cache/redis";
 import type { PlayStationData, RecentGame } from "@/types/gaming";
 
 // Token cache (in-memory for the current process)
 let cachedAuth: AuthorizationPayload | null = null;
 let authExpiresAt = 0;
 
+const NPSSO_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
+
+interface StoredPsnAuth {
+	refreshToken: string;
+	/** When the NPSSO in `PSN_NPSSO` is expected to stop working. */
+	npssoExpiresAt?: string;
+}
+
+function remember(authResponse: AuthTokensResponse): AuthorizationPayload {
+	cachedAuth = { accessToken: authResponse.accessToken };
+	authExpiresAt = Date.now() + (authResponse.expiresIn - 60) * 1000;
+	return cachedAuth;
+}
+
 /**
- * Get valid PSN authentication
- * Handles token refresh and database storage
+ * Get valid PSN authentication.
+ * The refresh token is kept in Redis; the NPSSO is the fallback.
  */
 async function getAuth(): Promise<AuthorizationPayload> {
-	// Check in-memory cache first
 	if (cachedAuth && Date.now() < authExpiresAt) {
 		return cachedAuth;
 	}
 
-	// Try to get stored refresh token from database
-	await connectToDatabase();
-	const tokenRecord = await TokenHealth.findOne({ service: "psn" });
+	const redis = getRedis();
+	const stored = await redis.get<StoredPsnAuth>(CACHE_KEYS.PSN_AUTH);
 
-	if (tokenRecord?.refreshToken) {
+	if (stored?.refreshToken) {
 		try {
-			// Try to use refresh token
-			const authResponse: AuthTokensResponse =
-				await exchangeRefreshTokenForAuthTokens(tokenRecord.refreshToken);
-
-			// Build the authorization payload (only accessToken is needed for API calls)
-			const auth: AuthorizationPayload = {
-				accessToken: authResponse.accessToken,
-			};
-
-			// Update cached values
-			cachedAuth = auth;
-			authExpiresAt = Date.now() + (authResponse.expiresIn - 60) * 1000; // 1 minute buffer
-
-			// Update database
-			// TODO: Encrypt tokens before storing in database
-			// Consider using crypto.createCipheriv with a secret from env vars
-			await TokenHealth.updateOne(
-				{ service: "psn" },
-				{
-					$set: {
-						status: "healthy",
-						lastChecked: new Date(),
-						lastSuccess: new Date(),
-						accessToken: authResponse.accessToken,
-						refreshToken: authResponse.refreshToken,
-						accessTokenExpiresAt: new Date(authExpiresAt),
-						errorCount: 0,
-						errorMessage: undefined,
-					},
-				},
+			const authResponse = await exchangeRefreshTokenForAuthTokens(
+				stored.refreshToken,
 			);
-
-			return auth;
+			await redis.set(CACHE_KEYS.PSN_AUTH, {
+				...stored,
+				refreshToken: authResponse.refreshToken,
+			} satisfies StoredPsnAuth);
+			return remember(authResponse);
 		} catch (error) {
 			console.error("Refresh token failed, falling back to NPSSO:", error);
 		}
 	}
 
-	// Fall back to NPSSO authentication
 	const npsso = process.env.PSN_NPSSO;
 	if (!npsso) {
 		throw new Error("PSN_NPSSO not configured");
 	}
 
+	let authResponse: AuthTokensResponse;
 	try {
 		const accessCode = await exchangeNpssoForAccessCode(npsso);
-		const authResponse: AuthTokensResponse =
-			await exchangeAccessCodeForAuthTokens(accessCode);
-
-		// Build the authorization payload
-		const auth: AuthorizationPayload = {
-			accessToken: authResponse.accessToken,
-		};
-
-		// Update cached values
-		cachedAuth = auth;
-		authExpiresAt = Date.now() + (authResponse.expiresIn - 60) * 1000;
-
-		// Store tokens in database
-		// TODO: Encrypt tokens before storing in database
-		// Consider using crypto.createCipheriv with a secret from env vars
-		await TokenHealth.updateOne(
-			{ service: "psn" },
-			{
-				$set: {
-					status: "healthy",
-					lastChecked: new Date(),
-					lastSuccess: new Date(),
-					accessToken: authResponse.accessToken,
-					refreshToken: authResponse.refreshToken,
-					accessTokenExpiresAt: new Date(authExpiresAt),
-					// NPSSO expires in ~2 months
-					expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-					errorCount: 0,
-					errorMessage: undefined,
-				},
-			},
-			{ upsert: true },
-		);
-
-		return auth;
-	} catch (error) {
-		// Update token health to reflect failure
-		await TokenHealth.updateOne(
-			{ service: "psn" },
-			{
-				$set: {
-					status: "expired",
-					lastChecked: new Date(),
-					errorMessage: String(error),
-				},
-				$inc: { errorCount: 1 },
-			},
-		);
-
+		authResponse = await exchangeAccessCodeForAuthTokens(accessCode);
+	} catch {
 		throw new Error("PSN authentication failed - NPSSO may be expired");
 	}
+
+	await redis.set(CACHE_KEYS.PSN_AUTH, {
+		refreshToken: authResponse.refreshToken,
+		npssoExpiresAt: new Date(Date.now() + NPSSO_LIFETIME_MS).toISOString(),
+	} satisfies StoredPsnAuth);
+	return remember(authResponse);
 }
 
 /**
@@ -206,48 +156,36 @@ export async function getPlayStationData(): Promise<PlayStationData> {
 	return data;
 }
 
-/**
- * Check if PSN token needs refresh
- */
-export async function checkPSNTokenHealth(): Promise<{
+export interface PsnTokenHealth {
 	status: "healthy" | "expiring_soon" | "expired";
-	expiresAt?: Date;
+	expiresAt?: string;
 	message?: string;
-}> {
-	await connectToDatabase();
-	const tokenRecord = await TokenHealth.findOne({ service: "psn" });
+}
 
-	if (!tokenRecord) {
-		return { status: "expired", message: "No PSN token stored" };
+/**
+ * Live check of the PSN token: authenticate now and report the result.
+ */
+export async function checkPSNTokenHealth(): Promise<PsnTokenHealth> {
+	try {
+		await getAuth();
+	} catch (error) {
+		return { status: "expired", message: String(error) };
 	}
 
-	if (tokenRecord.status === "expired") {
-		return {
-			status: "expired",
-			message: tokenRecord.errorMessage || "Token expired",
-		};
-	}
-
-	if (tokenRecord.expiresAt) {
+	const stored = await getRedis().get<StoredPsnAuth>(CACHE_KEYS.PSN_AUTH);
+	const expiresAt = stored?.npssoExpiresAt;
+	if (expiresAt) {
 		const daysUntilExpiry = Math.floor(
-			(tokenRecord.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+			(new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
 		);
-
-		if (daysUntilExpiry <= 0) {
-			return { status: "expired", expiresAt: tokenRecord.expiresAt };
-		}
-
 		if (daysUntilExpiry <= 7) {
 			return {
 				status: "expiring_soon",
-				expiresAt: tokenRecord.expiresAt,
+				expiresAt,
 				message: `NPSSO expires in ${daysUntilExpiry} days`,
 			};
 		}
 	}
 
-	return {
-		status: "healthy",
-		expiresAt: tokenRecord.expiresAt || undefined,
-	};
+	return { status: "healthy", expiresAt };
 }

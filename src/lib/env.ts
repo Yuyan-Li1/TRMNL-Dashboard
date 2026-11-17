@@ -27,12 +27,9 @@ export function validateEnv(required: string[]): Record<string, string> {
 
 // Pre-defined groups for common checks
 export const ENV_GROUPS = {
-	database: ["MONGODB_URI"],
 	cache: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
-	transit: ["TFNSW_API_KEY"],
 	steam: ["STEAM_API_KEY", "STEAM_ID"],
 	xbox: ["OPENXBL_API_KEY"],
 	psn: ["PSN_NPSSO"],
-	google: ["GOOGLE_CLIENT_EMAIL", "GOOGLE_PRIVATE_KEY", "GOOGLE_CALENDAR_ID"],
 	cron: ["CRON_SECRET"],
 } as const;

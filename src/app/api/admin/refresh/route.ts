@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { refreshCoreData } from "@/lib/api/refresh";
+import { refreshAllData } from "@/lib/api/refresh";
 
 /**
  * POST /api/admin/refresh
@@ -9,7 +9,7 @@ export async function POST() {
 	const startTime = Date.now();
 
 	try {
-		const data = await refreshCoreData();
+		const data = await refreshAllData();
 		const duration = Date.now() - startTime;
 
 		return NextResponse.json({
@@ -18,9 +18,6 @@ export async function POST() {
 			duration: `${duration}ms`,
 			errors: data.errors,
 			summary: {
-				weather: data.weather ? "OK" : "FAILED",
-				transit: data.transit ? "OK" : "FAILED",
-				calendar: data.calendar ? "OK" : "FAILED",
 				gaming: data.gaming ? "OK" : "FAILED",
 			},
 		});
