@@ -1,256 +1,81 @@
-# TRMNL Custom Dashboard - Implementation Plan
+# TRMNL Dashboard
 
-A modular, schedule-aware e-ink dashboard for TRMNL displays built with Next.js 14, TypeScript, MongoDB, and Vercel.
+A personal dashboard for a [TRMNL](https://trmnl.com) e-ink display: an 800x480 page in four greys, rendered by Next.js on Vercel and captured by the device every 15 minutes.
 
-## 🎯 Project Goal
+## Status
 
-Create a personal dashboard that displays context-aware information on a TRMNL e-ink display:
+The dashboard is being rebuilt.
 
-- **Office days**: Morning routine, weather, train delays (Lidcombe → Bondi Junction)
-- **WFH days**: Medication reminders, calendar events
-- **Weekends**: Gaming stats (PlayStation, Xbox, Steam)
-- **All days**: Night skincare routine on rotating schedule
+- **Today** it is a schedule-aware display: weather, Sydney train times, calendar, routines and recent games, chosen by day type (office, work from home, weekend) and time of day.
+- **It is becoming** a media-only display of what the owner is playing, watching and reading: one large Spotlight with artwork, and a small card for each other medium (game, movie, show, book).
 
-## 📋 Implementation Steps
+The rebuild is fully specified in [`docs/spec/media-dashboard/`](./docs/spec/media-dashboard/README.md) and is delivered in eight stages, each leaving a working device:
 
-| Step | File                                                              | Description                          | Manual Actions Required         |
-| ---- | ----------------------------------------------------------------- | ------------------------------------ | ------------------------------- |
-| 0    | [00-project-setup.md](./docs/00-project-setup.md)                 | Initialize Next.js project with pnpm | None                            |
-| 1    | [01-database-setup.md](./docs/01-database-setup.md)               | MongoDB Atlas + Upstash Redis setup  | ⚠️ Account creation, env vars   |
-| 2    | [02-core-api-integrations.md](./docs/02-core-api-integrations.md) | Weather, Transit, Calendar APIs      | ⚠️ API key registration         |
-| 3    | [03-gaming-integrations.md](./docs/03-gaming-integrations.md)     | Steam, Xbox, PlayStation APIs        | ⚠️ API keys, PSN token          |
-| 4    | [04-schedule-system.md](./docs/04-schedule-system.md)             | Day type and time block logic        | None                            |
-| 5    | [05-widget-system.md](./docs/05-widget-system.md)                 | E-ink optimized widget components    | None                            |
-| 6    | [06-dashboard-renderer.md](./docs/06-dashboard-renderer.md)       | TRMNL-compatible page rendering      | None                            |
-| 7    | [07-admin-ui.md](./docs/07-admin-ui.md)                           | Schedule and routine management UI   | None                            |
-| 8    | [08-github-actions.md](./docs/08-github-actions.md)               | Scheduled data refresh               | ⚠️ GitHub secrets setup         |
-| 9    | [09-deployment.md](./docs/09-deployment.md)                       | Vercel deployment and TRMNL config   | ⚠️ Vercel env vars, TRMNL setup |
+| #   | Stage                                                                                              | What the device gains                               |
+| --- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | [New screen with games](./docs/spec/media-dashboard/01-new-screen-with-games.md)                   | The new screen; games from Steam, Xbox, PSN, Switch |
+| 2   | [Movies](./docs/spec/media-dashboard/02-movies.md)                                                 | Movies from Letterboxd                              |
+| 3   | [Shows](./docs/spec/media-dashboard/03-shows.md)                                                   | Shows from Trakt                                    |
+| 4   | [Alerts and status strip](./docs/spec/media-dashboard/04-alerts-and-status-strip.md)               | Telegram alerts when a source breaks                |
+| 5   | [Collector and books](./docs/spec/media-dashboard/05-collector-and-books.md)                       | Books from Goodreads, read by a home server         |
+| 6   | [Consumed set and Catalog picks](./docs/spec/media-dashboard/06-consumed-set-and-catalog-picks.md) | Recommendations from TMDB and IGDB                  |
+| 7   | [Friend activity](./docs/spec/media-dashboard/07-friend-activity.md)                               | Friends' Letterboxd ratings and reviews             |
+| 8   | [LLM picks](./docs/spec/media-dashboard/08-llm-picks.md)                                           | Recommendations written against the owner's taste   |
 
-## 🛠 Tech Stack
+No stage has shipped yet. The `docs/00` to `docs/09` files are the original build plan for today's dashboard and are removed in stage 1.
+
+## How it works
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                        TRMNL Device                         │
-│                    (Screenshots webpage)                    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Vercel (Hobby)                         │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                   Next.js 14 App                     │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │   │
-│  │  │  Dashboard  │  │   Admin UI  │  │  API Routes │  │   │
-│  │  │   (TRMNL)   │  │   (Web)     │  │  (Refresh)  │  │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌─────────────┐      ┌─────────────┐      ┌─────────────────┐
-│   MongoDB   │      │   Upstash   │      │  External APIs  │
-│   Atlas     │      │    Redis    │      │                 │
-│  (Config)   │      │   (Cache)   │      │  • Open-Meteo   │
-│             │      │             │      │  • TfNSW        │
-└─────────────┘      └─────────────┘      │  • Google Cal   │
-                                          │  • Steam        │
-                                          │  • OpenXBL      │
-                                          │  • PSN          │
-                                          └─────────────────┘
-         ▲
-         │
-┌─────────────────┐
-│  GitHub Actions │
-│  (Cron trigger) │
-│  Every 15 min   │
-└─────────────────┘
+GitHub Actions (every 15 min)
+  → POST /api/refresh
+    → fetches every source in parallel
+    → writes the result to Redis (a TTL'd key plus a non-expiring fallback)
+
+TRMNL device (every 15 min)
+  → screenshots the dashboard page
+    → the page reads only from Redis, never from a source
 ```
 
-## 🔑 Required Accounts & API Keys
+The page is cache-first, so a failing source leaves stale data on screen instead of a blank panel.
 
-### Free Account Registration Required
+## Tech stack
 
-| Service       | URL                                     | What You Get         |
-| ------------- | --------------------------------------- | -------------------- |
-| MongoDB Atlas | <https://www.mongodb.com/cloud/atlas>   | Connection string    |
-| Upstash       | <https://upstash.com>                   | Redis URL + Token    |
-| Transport NSW | <https://opendata.transport.nsw.gov.au> | API key              |
-| Steam         | <https://steamcommunity.com/dev/apikey> | API key              |
-| OpenXBL       | <https://xbl.io>                        | API key              |
-| Google Cloud  | <https://console.cloud.google.com>      | Service account JSON |
+- Next.js 16 (App Router), React 19, TypeScript
+- Tailwind CSS 4
+- Upstash Redis for the cache; MongoDB Atlas for schedules and routines (removed in stage 1)
+- Vercel Hobby for hosting, GitHub Actions for the 15-minute refresh
+- oxfmt for formatting, Oxlint for linting
+- pnpm
 
-### Manual Token Retrieval
-
-| Service   | Method                                                                          |
-| --------- | ------------------------------------------------------------------------------- |
-| PSN NPSSO | Login to PlayStation.com → Visit <https://ca.account.sony.com/api/v1/ssocookie> |
-
-## 📁 Final Project Structure
-
-```text
-trmnl-dashboard/
-├── .github/
-│   └── workflows/
-│       └── refresh.yml          # Cron job (every 15 min)
-├── src/
-│   ├── app/
-│   │   ├── (dashboard)/
-│   │   │   ├── page.tsx         # Main TRMNL page
-│   │   │   └── layout.tsx
-│   │   ├── (admin)/
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx         # Admin dashboard
-│   │   │   ├── schedules/
-│   │   │   ├── routines/
-│   │   │   └── tokens/          # Token health status
-│   │   └── api/
-│   │       ├── refresh/
-│   │       │   └── route.ts     # GitHub Actions endpoint
-│   │       ├── schedule/
-│   │       │   └── route.ts
-│   │       └── health/
-│   │           └── route.ts     # Token health check
-│   ├── components/
-│   │   ├── widgets/
-│   │   │   ├── WeatherWidget.tsx
-│   │   │   ├── TransitWidget.tsx
-│   │   │   ├── CalendarWidget.tsx
-│   │   │   ├── GamingWidget.tsx
-│   │   │   ├── RoutineWidget.tsx
-│   │   │   └── MedicationWidget.tsx
-│   │   ├── admin/
-│   │   │   ├── ScheduleEditor.tsx
-│   │   │   ├── RoutineEditor.tsx
-│   │   │   └── TokenStatus.tsx
-│   │   └── ui/
-│   │       ├── EinkCard.tsx
-│   │       ├── EinkIcon.tsx
-│   │       └── EinkGrid.tsx
-│   ├── lib/
-│   │   ├── api/
-│   │   │   ├── weather.ts
-│   │   │   ├── transport.ts
-│   │   │   ├── calendar.ts
-│   │   │   ├── steam.ts
-│   │   │   ├── xbox.ts
-│   │   │   └── playstation.ts
-│   │   ├── db/
-│   │   │   ├── mongodb.ts
-│   │   │   ├── models/
-│   │   │   │   ├── schedule.ts
-│   │   │   │   ├── routine.ts
-│   │   │   │   └── token.ts
-│   │   │   └── queries/
-│   │   ├── cache/
-│   │   │   └── redis.ts
-│   │   ├── schedule/
-│   │   │   ├── context.ts       # Day type + time block
-│   │   │   ├── widgets.ts       # Widget visibility rules
-│   │   │   └── timing.ts        # Refresh interval buffer
-│   │   └── utils/
-│   │       ├── date.ts
-│   │       └── format.ts
-│   └── types/
-│       ├── weather.ts
-│       ├── transport.ts
-│       ├── gaming.ts
-│       ├── schedule.ts
-│       └── widget.ts
-├── public/
-│   └── icons/                   # E-ink optimized SVG icons
-├── CLAUDE.md
-├── package.json
-├── pnpm-lock.yaml
-├── tailwind.config.ts
-├── tsconfig.json
-└── .env.example
-```
-
-## ⏱ Estimated Timeline
-
-| Phase          | Steps | Time Estimate   |
-| -------------- | ----- | --------------- |
-| Foundation     | 0-1   | 2-3 hours       |
-| Core APIs      | 2-3   | 4-5 hours       |
-| Dashboard      | 4-6   | 4-5 hours       |
-| Admin & Polish | 7-9   | 3-4 hours       |
-| **Total**      |       | **13-17 hours** |
-
-## 🔄 Refresh Schedule Logic
-
-The dashboard must account for TRMNL's refresh interval (recommended: 30 min for battery life). Content must appear **at least one interval before** it's needed:
-
-```text
-Example: Wake up at 7:50 AM, 30-min refresh interval
-
-7:20 AM - Dashboard shows morning routine (buffer time)
-7:50 AM - Next refresh still shows morning routine
-8:20 AM - Transition to workday content
-```
-
-This is handled by the `timing.ts` module which calculates display windows with configurable buffer.
-
-## 🎮 Gaming Stats Display Logic
-
-On weekends (and optionally WFH evenings), show recently played games across all platforms:
-
-1. Fetch recent games from each platform
-2. Combine and sort by last played timestamp
-3. Display top 3-5 games with platform icon, title, and playtime
-4. Show trophy/achievement progress if available
-
-## 🚨 Token Health Monitoring
-
-The admin UI includes a token health page showing:
-
-- **PSN**: Token expiration estimate, "Refresh needed" warning
-- **Xbox**: API key status
-- **Steam**: API key status
-- **Google**: Service account status
-- **Transport NSW**: API key status
-
-PSN tokens are tracked in MongoDB with:
-
-```typescript
-interface TokenHealth {
-	service: "psn" | "xbox" | "steam" | "google" | "tfnsw";
-	status: "healthy" | "expiring_soon" | "expired" | "error";
-	lastChecked: Date;
-	expiresAt?: Date; // For PSN access/refresh tokens
-	errorMessage?: string;
-}
-```
-
-## 🚀 Quick Start (After Implementation)
+## Getting started
 
 ```bash
-# Clone and install
-git clone <your-repo>
-cd trmnl-dashboard
 pnpm install
-
-# Copy environment template
-cp .env.example .env.local
-
-# Fill in your API keys (see step 1-3 docs)
-
-# Run development server
+cp .env.example .env.local   # then fill in the values
 pnpm dev
-
-# Open http://localhost:3000 for dashboard
-# Open http://localhost:3000/admin for admin UI
 ```
 
-## 📖 Documentation Index
+- Dashboard: <http://localhost:3000>
+- Admin: <http://localhost:3000/admin> (the password is `CRON_SECRET`)
 
-- [CLAUDE.md](./CLAUDE.md) - AI agent instructions and code style
-- [Step 0: Project Setup](./docs/00-project-setup.md)
-- [Step 1: Database Setup](./docs/01-database-setup.md)
-- [Step 2: Core API Integrations](./docs/02-core-api-integrations.md)
-- [Step 3: Gaming Integrations](./docs/03-gaming-integrations.md)
-- [Step 4: Schedule System](./docs/04-schedule-system.md)
-- [Step 5: Widget System](./docs/05-widget-system.md)
-- [Step 6: Dashboard Renderer](./docs/06-dashboard-renderer.md)
-- [Step 7: Admin UI](./docs/07-admin-ui.md)
-- [Step 8: GitHub Actions](./docs/08-github-actions.md)
-- [Step 9: Deployment](./docs/09-deployment.md)
+The environment variables, the accounts they come from and the common failures are documented in [`CLAUDE.md`](./CLAUDE.md).
+
+## Commands
+
+```bash
+pnpm dev          # development server
+pnpm build        # production build
+pnpm lint         # Oxlint
+pnpm format       # oxfmt, check only
+pnpm fix          # oxfmt, write changes
+pnpm type-check   # TypeScript
+pnpm ci           # lint, format, type-check and build
+```
+
+## Documentation
+
+- [`docs/spec/media-dashboard/`](./docs/spec/media-dashboard/README.md): the staged spec for the rebuild
+- [`GLOSSARY.md`](./GLOSSARY.md): the domain terms the spec uses
+- [`CLAUDE.md`](./CLAUDE.md): architecture, constraints, environment variables and workflow for the current code
+- `.scratch/media-dashboard/`: the decision tickets behind the spec
