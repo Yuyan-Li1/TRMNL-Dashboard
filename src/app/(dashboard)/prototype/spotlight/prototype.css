@@ -1,5 +1,7 @@
 /* PROTOTYPE, throwaway. Only the four TRMNL greys are used inside .sp-frame. */
-.sp-page { background: #d8d2c4; min-height: 100vh; padding: 0 0 120px; }
+/* Pure white around the frame: TRMNL may sample outside 800x480. The frame edge is a shadow, drawn outside the captured area. */
+.sp-page { background: #fff; min-height: 100vh; padding: 0 0 120px; }
+.sp-frame { box-shadow: 0 0 0 2px #1d3fd6; }
 .sp-frame {
 	width: 800px; height: 480px; overflow: hidden; position: relative;
 	background: #fff; color: #000; font-family: "Inter", system-ui, sans-serif;
