@@ -4,9 +4,7 @@ import {
 	exchangeAccessCodeForAuthTokens,
 	exchangeNpssoForAccessCode,
 	exchangeRefreshTokenForAuthTokens,
-	getProfileFromAccountId,
-	getUserTitles,
-	getUserTrophyProfileSummary,
+	getUserPlayedGames,
 } from "psn-api";
 import {
 	CACHE_KEYS,
@@ -15,11 +13,14 @@ import {
 	cacheSet,
 	getRedis,
 } from "@/lib/cache/redis";
-import type { PlayStationData, RecentGame } from "@/types/gaming";
+import type { PlatformPlay } from "@/types/gaming";
 
 // Token cache (in-memory for the current process)
 let cachedAuth: AuthorizationPayload | null = null;
 let authExpiresAt = 0;
+
+/** Most recently played first, so the first page holds everything recent. */
+const PLAYED_GAMES_LIMIT = 100;
 
 const NPSSO_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -82,78 +83,47 @@ async function getAuth(): Promise<AuthorizationPayload> {
 	return remember(authResponse);
 }
 
+/** Parse an ISO 8601 duration such as "PT228H56M33S" into whole minutes. */
+export function parsePlayDuration(duration: string): number | undefined {
+	const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(
+		duration,
+	);
+	if (!match) {
+		return undefined;
+	}
+	const [, hours = "0", minutes = "0"] = match;
+	return Number(hours) * 60 + Number(minutes);
+}
+
 /**
- * Get PlayStation data with caching
+ * Every PlayStation game the owner has played, with last played date and
+ * play time. Cached for an hour.
  */
-export async function getPlayStationData(): Promise<PlayStationData> {
-	// Try cache first
-	const cached = await cacheGet<PlayStationData>(CACHE_KEYS.GAMING_PSN);
+export async function getPlayStationPlays(): Promise<PlatformPlay[]> {
+	const cached = await cacheGet<PlatformPlay[]>(CACHE_KEYS.GAMING_PSN);
 	if (cached) {
 		return cached;
 	}
 
-	// Get authentication
 	const auth = await getAuth();
+	const response = await getUserPlayedGames(auth, "me", {
+		limit: PLAYED_GAMES_LIMIT,
+		offset: 0,
+	});
 
-	// Fetch trophy summary and recent games first (these accept "me")
-	const [trophySummary, titlesResponse] = await Promise.all([
-		getUserTrophyProfileSummary(auth, "me"),
-		getUserTitles(auth, "me", {
-			limit: 10,
-			offset: 0,
-		}),
-	]);
-
-	// Now fetch profile using the real account ID from trophy summary
-	let avatarUrl: string | undefined;
-	let onlineId = "PSN User";
-	try {
-		const profile = await getProfileFromAccountId(
-			auth,
-			trophySummary.accountId,
-		);
-		avatarUrl = profile.avatars?.[0]?.url;
-		onlineId = profile.onlineId;
-	} catch {
-		// Profile fetch is non-critical, continue without it
-	}
-
-	const recentGames: RecentGame[] = (titlesResponse.trophyTitles || []).map(
-		(title) => ({
+	const plays: PlatformPlay[] = (response.titles ?? [])
+		// The rest are apps such as Netflix and Plex
+		.filter((title) => title.category?.includes("game"))
+		.map((title) => ({
 			platform: "playstation" as const,
-			gameId: title.npCommunicationId,
-			title: title.trophyTitleName,
-			imageUrl: title.trophyTitleIconUrl,
-			lastPlayed: title.lastUpdatedDateTime,
-			achievementsEarned: title.earnedTrophies
-				? title.earnedTrophies.bronze +
-					title.earnedTrophies.silver +
-					title.earnedTrophies.gold +
-					title.earnedTrophies.platinum
-				: undefined,
-			achievementsTotal: title.definedTrophies
-				? title.definedTrophies.bronze +
-					title.definedTrophies.silver +
-					title.definedTrophies.gold +
-					title.definedTrophies.platinum
-				: undefined,
-		}),
-	);
+			name: title.name,
+			lastPlayedAt: title.lastPlayedDateTime,
+			minutesPlayed: parsePlayDuration(title.playDuration ?? ""),
+			imageUrl: title.imageUrl,
+		}));
 
-	const data: PlayStationData = {
-		onlineId,
-		accountId: trophySummary.accountId,
-		avatarUrl,
-		trophyLevel: Number.parseInt(trophySummary.trophyLevel, 10) || 1,
-		trophyProgress: trophySummary.progress || 0,
-		recentGames,
-		fetchedAt: new Date().toISOString(),
-	};
-
-	// Cache for 1 hour
-	await cacheSet(CACHE_KEYS.GAMING_PSN, data, CACHE_TTL.GAMING);
-
-	return data;
+	await cacheSet(CACHE_KEYS.GAMING_PSN, plays, CACHE_TTL.GAMING);
+	return plays;
 }
 
 export interface PsnTokenHealth {

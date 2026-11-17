@@ -1,6 +1,6 @@
 import SteamAPI from "steamapi";
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
-import type { RecentGame, SteamData } from "@/types/gaming";
+import type { PlatformPlay } from "@/types/gaming";
 
 // Lazy singleton SteamAPI instance — avoids reading env at module level
 let steamInstance: SteamAPI | null = null;
@@ -16,13 +16,18 @@ function getSteamClient(): SteamAPI {
 	return steamInstance;
 }
 
+/** Steam's portrait library artwork, the Platform's own image for a game. */
+function libraryImageUrl(appId: string): string {
+	return `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900_2x.jpg`;
+}
+
 /**
- * Get Steam data with caching
+ * Every Steam game the owner has played, with last played date and total
+ * play time. Cached for an hour.
  * Rate limit: 100,000 requests/day
  */
-export async function getSteamData(): Promise<SteamData> {
-	// Try cache first
-	const cached = await cacheGet<SteamData>(CACHE_KEYS.GAMING_STEAM);
+export async function getSteamPlays(): Promise<PlatformPlay[]> {
+	const cached = await cacheGet<PlatformPlay[]>(CACHE_KEYS.GAMING_STEAM);
 	if (cached) {
 		return cached;
 	}
@@ -32,34 +37,27 @@ export async function getSteamData(): Promise<SteamData> {
 		throw new Error("STEAM_ID not configured");
 	}
 
-	const steam = getSteamClient();
+	// The owned-games call is used because it alone carries the last played
+	// date; the recently-played call does not.
+	const owned = await getSteamClient().getUserOwnedGames(steamId, {
+		includeAppInfo: true,
+		includeFreeGames: true,
+	});
 
-	// Fetch fresh data using steamapi package
-	const [userSummary, recentGamesRaw] = await Promise.all([
-		steam.getUserSummary(steamId),
-		steam.getUserRecentGames(steamId),
-	]);
+	const plays: PlatformPlay[] = owned
+		.filter((entry) => entry.minutes > 0 && entry.lastPlayedAt)
+		.map((entry) => {
+			const appId = entry.game.id.toString();
+			return {
+				platform: "steam" as const,
+				name: "name" in entry.game ? entry.game.name : appId,
+				lastPlayedAt: entry.lastPlayedAt?.toISOString(),
+				minutesPlayed: entry.minutes,
+				imageUrl: libraryImageUrl(appId),
+				steamAppId: appId,
+			};
+		});
 
-	const recentGames: RecentGame[] = recentGamesRaw.map((entry) => ({
-		platform: "steam" as const,
-		gameId: entry.game.id.toString(),
-		title: entry.game.name,
-		imageUrl: entry.game.iconURL,
-		lastPlayed: entry.lastPlayedAt?.toISOString(),
-		playtimeRecent: entry.recentMinutes,
-		playtimeTotal: entry.minutes,
-	}));
-
-	const data: SteamData = {
-		playerId: steamId,
-		playerName: userSummary.nickname,
-		avatarUrl: userSummary.avatar.large,
-		recentGames,
-		fetchedAt: new Date().toISOString(),
-	};
-
-	// Cache for 1 hour
-	await cacheSet(CACHE_KEYS.GAMING_STEAM, data, CACHE_TTL.GAMING);
-
-	return data;
+	await cacheSet(CACHE_KEYS.GAMING_STEAM, plays, CACHE_TTL.GAMING);
+	return plays;
 }

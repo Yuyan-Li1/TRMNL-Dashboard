@@ -1,74 +1,63 @@
-// Platform identifiers
-export const GAMING_PLATFORMS = ["steam", "xbox", "playstation"] as const;
-export type GamingPlatform = (typeof GAMING_PLATFORMS)[number];
+/** The systems a game can be played on. */
+export const PLATFORMS = [
+	"steam",
+	"xbox",
+	"playstation",
+	"switch",
+	"switch2",
+] as const;
+export type Platform = (typeof PLATFORMS)[number];
 
-// Individual game with playtime info
-export interface RecentGame {
-	platform: GamingPlatform;
-	gameId: string;
-	title: string;
+export const PLATFORM_NAMES: Record<Platform, string> = {
+	steam: "Steam",
+	xbox: "Xbox",
+	playstation: "PlayStation",
+	switch: "Switch",
+	switch2: "Switch 2",
+};
+
+/** One source's record of one game, as the source names it. */
+export interface PlatformPlay {
+	platform: Platform;
+	name: string;
+	/** ISO timestamp */
+	lastPlayedAt?: string;
+	minutesPlayed?: number;
+	/** The Platform's own image for the game */
 	imageUrl?: string;
-	lastPlayed?: string; // ISO timestamp
-	playtimeRecent?: number; // Minutes played in last 2 weeks
-	playtimeTotal?: number; // Total minutes played
-	achievementsEarned?: number;
-	achievementsTotal?: number;
+	/** Steam app id, for matching the game in IGDB */
+	steamAppId?: string;
 }
 
-// Platform-specific data
-export interface SteamData {
-	playerId: string;
-	playerName: string;
-	avatarUrl?: string;
-	recentGames: RecentGame[];
-	fetchedAt: string;
+/** A game as one Title, however many Platforms it was played on. */
+export interface GameTitle {
+	/** The cleaned name reduced to its matching form */
+	id: string;
+	name: string;
+	/** The Platform it was most recently played on */
+	platform: Platform;
+	lastPlayedAt?: string;
+	/** Summed over every Platform that reports play time */
+	minutesPlayed?: number;
+	imageUrl?: string;
+	steamAppId?: string;
 }
 
-export interface XboxData {
-	gamertag: string;
-	gamerScore: number;
-	avatarUrl?: string;
-	recentGames: RecentGame[];
-	fetchedAt: string;
+/** A game Title with what the Catalog and the poster pipeline added. */
+export interface Game extends GameTitle {
+	/** The Catalog description (IGDB summary) */
+	description?: string;
+	/** The Catalog's public rating, converted to five stars */
+	publicRating?: number;
+	/** Source URL of the artwork with a stored Spotlight poster */
+	posterUrl?: string;
+	/** Source URL of the artwork with a stored thumbnail */
+	thumbnailUrl?: string;
 }
 
-export interface PlayStationData {
-	onlineId: string;
-	accountId: string;
-	avatarUrl?: string;
-	trophyLevel: number;
-	trophyProgress: number;
-	recentGames: RecentGame[];
-	fetchedAt: string;
-}
-
-// Combined gaming data
 export interface GamingData {
-	steam: SteamData | null;
-	xbox: XboxData | null;
-	playstation: PlayStationData | null;
-	allRecentGames: RecentGame[]; // Combined and sorted
+	/** Most recently played first */
+	games: Game[];
 	errors: string[];
 	fetchedAt: string;
-}
-
-// Trophy/Achievement types
-export interface Trophy {
-	trophyId: string;
-	name: string;
-	description?: string;
-	type: "platinum" | "gold" | "silver" | "bronze";
-	earned: boolean;
-	earnedAt?: string;
-	rarity?: number; // Percentage of players who earned it
-}
-
-export interface Achievement {
-	achievementId: string;
-	name: string;
-	description?: string;
-	gamerscore?: number; // Xbox only
-	earned: boolean;
-	earnedAt?: string;
-	rarity?: number;
 }

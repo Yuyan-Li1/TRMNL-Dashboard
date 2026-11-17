@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
 		const hasErrors = data.errors.length > 0;
 
-		const gamingCount = data.gaming?.allRecentGames.length ?? 0;
+		const gamingCount = data.gaming?.games.length ?? 0;
 		console.log(
 			[
 				`Refresh completed in ${duration}ms`,

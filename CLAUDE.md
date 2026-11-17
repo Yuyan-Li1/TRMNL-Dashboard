@@ -91,6 +91,8 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 - **Steam**: 100,000 requests/day
 - **OpenXBL**: 150 requests/hour
 - **PSN**: Rate limited (use caching aggressively)
+- **Nintendo**: unofficial; data updates once a day, fetch at most hourly
+- **IGDB**: 4 requests/second
 
 ## Code Style Guidelines
 
@@ -130,11 +132,13 @@ src/
 │   └── ui/                      # EinkCard, EinkIcon
 ├── lib/
 │   ├── api/                     # Source clients
-│   │   ├── steam.ts, xbox.ts, playstation.ts
-│   │   ├── gaming.ts            # Combines the game sources
+│   │   ├── steam.ts, xbox.ts, playstation.ts, switch.ts   # Game sources
+│   │   ├── igdb.ts              # IGDB, the Catalog for games
+│   │   ├── gaming.ts            # Reads the sources, merges, adds Catalog data and posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── dashboard/loader.ts      # Load cached data for the page render
+│   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
 │   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
 │   │   ├── png.ts               # 2-bit palette PNG encoder
@@ -163,6 +167,9 @@ The dashboard is **cache-first**. The page never calls a source or Catalog while
 GitHub Actions (every 15 min)
   → POST /api/refresh (with CRON_SECRET)
     → refreshAllData() fetches every source
+      → Games: Steam, Xbox, PSN and Switch plays merged into one Title per game
+      → IGDB adds the description, rating and cover for recently played Titles
+      → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
 
 Dashboard page render (server-side)
@@ -175,7 +182,9 @@ Dashboard page render (server-side)
 
 Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expiring `:latest` key as fallback, so data is stale but never missing.
 
-- Each game source: 1-hour TTL
+- Each game source's plays (`plays:<source>`): 1-hour TTL
+- IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
+- Twitch app token (`igdb:token`): until a day before it expires
 - Combined dashboard data: 15-minute TTL
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:<target>:<hash of source URL>`, 30 days
@@ -244,6 +253,13 @@ OPENXBL_API_KEY=
 # PlayStation
 PSN_NPSSO=                    # Manual: expires every ~2 months
 
+# Nintendo Switch
+NINTENDO_SESSION_TOKEN=       # Manual: expires 2028-11-16
+
+# IGDB (through a Twitch application)
+TWITCH_CLIENT_ID=
+TWITCH_CLIENT_SECRET=
+
 # Client-side
 NEXT_PUBLIC_APP_URL=
 ```
@@ -286,7 +302,7 @@ PSN NPSSO expires every ~2 months. To refresh:
 
 These require manual action and cannot be automated:
 
-1. **Account Registration**: Upstash, Steam, OpenXBL
-2. **Token Retrieval**: PSN NPSSO (manual browser login required)
+1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB)
+2. **Token Retrieval**: PSN NPSSO and the Nintendo session token (manual browser login required)
 3. **Environment Variables**: Must be added to the Vercel dashboard
 4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets

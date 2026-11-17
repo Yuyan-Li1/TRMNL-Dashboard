@@ -26,11 +26,13 @@ export const CACHE_TTL = {
 
 // Cache key prefixes
 export const CACHE_KEYS = {
-	GAMING_STEAM: "gaming:steam",
-	GAMING_XBOX: "gaming:xbox",
-	GAMING_PSN: "gaming:psn",
+	GAMING_STEAM: "plays:steam",
+	GAMING_XBOX: "plays:xbox",
+	GAMING_PSN: "plays:psn",
+	GAMING_SWITCH: "plays:switch",
+	IGDB_TOKEN: "igdb:token",
 	PSN_AUTH: "psn:auth",
-	DASHBOARD_DATA: "dashboard:data",
+	DASHBOARD_DATA: "dashboard:media",
 } as const;
 
 /**

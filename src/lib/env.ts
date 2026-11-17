@@ -31,5 +31,7 @@ export const ENV_GROUPS = {
 	steam: ["STEAM_API_KEY", "STEAM_ID"],
 	xbox: ["OPENXBL_API_KEY"],
 	psn: ["PSN_NPSSO"],
+	nintendo: ["NINTENDO_SESSION_TOKEN"],
+	igdb: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
 	cron: ["CRON_SECRET"],
 } as const;
