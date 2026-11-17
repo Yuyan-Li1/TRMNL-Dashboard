@@ -42,17 +42,15 @@ jobs:
             const body = `
             ## Token Expiration Alert
 
-            One or more API tokens have expired and need to be refreshed.
-
-            ### Common Causes
-            - PSN NPSSO token (expires every ~2 months)
-            - API key invalidated
+                        The PSN NPSSO token has expired (it lasts about 2 months).
 
             ### Resolution
-            1. Visit the [Token Health page](https://${{ secrets.VERCEL_URL }}/admin/tokens)
-            2. Follow the refresh instructions for the expired token
-            3. Update environment variables in Vercel
-            4. Redeploy if needed
+            1. Sign in at https://www.playstation.com
+            2. Visit https://ca.account.sony.com/api/v1/ssocookie and copy the npsso value
+            3. Update `PSN_NPSSO` in the Vercel environment variables
+            4. Redeploy
+
+            [Token status](https://${{ secrets.VERCEL_URL }}/api/tokens)
 
             ---
             *This issue was automatically created by the token expiry check workflow.*
@@ -84,12 +82,15 @@ jobs:
             const body = `
             ## Token Expiration Warning
 
-            One or more API tokens will expire soon and should be refreshed.
+            The PSN NPSSO token will expire soon and should be refreshed.
 
             ### Action Required
-            1. Visit the [Token Health page](https://${{ secrets.VERCEL_URL }}/admin/tokens)
-            2. Check which tokens are marked as "expiring soon"
-            3. Follow the refresh instructions before they expire
+            1. Sign in at https://www.playstation.com
+            2. Visit https://ca.account.sony.com/api/v1/ssocookie and copy the npsso value
+            3. Update `PSN_NPSSO` in the Vercel environment variables
+            4. Redeploy
+
+            [Token status](https://${{ secrets.VERCEL_URL }}/api/tokens)
 
             ---
             *This issue was automatically created by the token expiry check workflow.*

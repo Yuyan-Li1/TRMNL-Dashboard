@@ -11,7 +11,7 @@
 	"arrowParens": "always",
 	"bracketSameLine": false,
 	"bracketSpacing": true,
-	"ignorePatterns": ["**/.next", "**/node_modules", "**/.claude", "docs/0*.md"],
+	"ignorePatterns": ["**/.next", "**/node_modules", "**/.claude"],
 	"sortImports": {
 		"newlinesBetween": false
 	},
