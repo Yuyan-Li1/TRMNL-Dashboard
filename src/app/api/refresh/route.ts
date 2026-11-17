@@ -44,10 +44,12 @@ export async function POST(request: NextRequest) {
 		const hasErrors = data.errors.length > 0;
 
 		const gamingCount = data.gaming?.games.length ?? 0;
+		const moviesCount = data.movies?.movies.length ?? 0;
 		console.log(
 			[
 				`Refresh completed in ${duration}ms`,
 				`  Gaming:   ${data.gaming ? `OK (${gamingCount} games)` : "FAILED"}`,
+				`  Movies:   ${data.movies ? `OK (${moviesCount} diary entries)` : "FAILED"}`,
 				...(data.errors.length > 0
 					? [`  Errors: ${data.errors.join(", ")}`]
 					: []),
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
 				errors: data.errors,
 				summary: {
 					gaming: data.gaming ? `OK (${gamingCount} games)` : "FAILED",
+					movies: data.movies ? `OK (${moviesCount} diary entries)` : "FAILED",
 				},
 			},
 			{

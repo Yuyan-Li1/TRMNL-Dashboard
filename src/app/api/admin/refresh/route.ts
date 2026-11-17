@@ -19,6 +19,7 @@ export async function POST() {
 			errors: data.errors,
 			summary: {
 				gaming: data.gaming ? "OK" : "FAILED",
+				movies: data.movies ? "OK" : "FAILED",
 			},
 		});
 	} catch (error) {

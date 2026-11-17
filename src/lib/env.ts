@@ -32,6 +32,7 @@ export const ENV_GROUPS = {
 	xbox: ["OPENXBL_API_KEY"],
 	psn: ["PSN_NPSSO"],
 	nintendo: ["NINTENDO_SESSION_TOKEN"],
+	letterboxd: ["LETTERBOXD_USERNAME"],
 	igdb: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
 	cron: ["CRON_SECRET"],
 } as const;

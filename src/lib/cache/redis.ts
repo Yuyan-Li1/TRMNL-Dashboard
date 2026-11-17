@@ -21,6 +21,7 @@ export function getRedis(): Redis {
 // Cache TTL constants (in seconds)
 export const CACHE_TTL = {
 	GAMING: 60 * 60, // 1 hour
+	MOVIES: 60 * 60, // 1 hour
 	DASHBOARD_DATA: 15 * 60, // 15 minutes
 } as const;
 
@@ -30,6 +31,7 @@ export const CACHE_KEYS = {
 	GAMING_XBOX: "plays:xbox",
 	GAMING_PSN: "plays:psn",
 	GAMING_SWITCH: "plays:switch",
+	MOVIES_LETTERBOXD: "diary:letterboxd",
 	IGDB_TOKEN: "igdb:token",
 	PSN_AUTH: "psn:auth",
 	DASHBOARD_DATA: "dashboard:media",
