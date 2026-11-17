@@ -19,6 +19,7 @@ const VARIANTS = [
 	{ key: "F", name: "Layout A in TRMNL font" },
 	{ key: "G", name: "TRMNL font, smooth title" },
 	{ key: "P", name: "Poster tuning test" },
+	{ key: "Q", name: "Poster tuning, round 2" },
 	{ key: "T", name: "Device test" },
 ];
 
@@ -57,6 +58,7 @@ export default async function SpotlightPrototypePage({
 					</div>
 				)}
 				{variant === "P" && <VariantP scene={scene} base={base} />}
+				{variant === "Q" && <VariantP scene={scene} base={base} round={2} />}
 				{variant === "T" && <VariantT scene={scene} base={base} />}
 			</div>
 			<div className="sp-state">

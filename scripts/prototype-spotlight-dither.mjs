@@ -178,6 +178,64 @@ for (const slug of ["perfect-days", "dune-2", "silksong", "piranesi"]) {
 	console.log(slug, "tunings written; adaptive gammas", a2.g.toFixed(2), a4.g.toFixed(2));
 }
 
+// ---- Tuning round 2 (variant Q): the research pipeline. ----
+// See docs/research/dark-artwork-on-2-bit-panel.md on branch
+// research/dark-artwork-on-2-bit-panel.
+const PANEL2 = [0, 32, 107, 255];
+const toLin = (v) => {
+	const c = Math.max(0, Math.min(1, v / 255));
+	return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+
+// Serpentine Floyd-Steinberg in linear light against the given levels.
+function ditherLinear(px, w, h, levels) {
+	const lv = levels.map(toLin);
+	const f = Float32Array.from(px, toLin);
+	const out = Buffer.alloc(w * h);
+	for (let y = 0; y < h; y++) {
+		const dir = y % 2 === 0 ? 1 : -1;
+		for (let n = 0; n < w; n++) {
+			const x = dir === 1 ? n : w - 1 - n;
+			const i = y * w + x;
+			let k = 0;
+			for (let m = 1; m < 4; m++) if (Math.abs(f[i] - lv[m]) < Math.abs(f[i] - lv[k])) k = m;
+			const e = f[i] - lv[k];
+			out[i] = LEVELS[k];
+			const ahead = x + dir;
+			const behind = x - dir;
+			if (ahead >= 0 && ahead < w) f[i + dir] += (e * 7) / 16;
+			if (y + 1 < h) {
+				if (behind >= 0 && behind < w) f[i + w - dir] += (e * 3) / 16;
+				f[i + w] += (e * 5) / 16;
+				if (ahead >= 0 && ahead < w) f[i + w + dir] += (e * 1) / 16;
+			}
+		}
+	}
+	return out;
+}
+
+for (const slug of ["perfect-days", "dune-2", "silksong", "piranesi"]) {
+	const res = await fetch(ART[slug], { headers: { "User-Agent": UA } });
+	const src = Buffer.from(await res.arrayBuffer());
+	const prep = (clahe) => {
+		let img = sharp(src)
+			.resize(TW, TH, { fit: "cover", position: "attention" })
+			.greyscale()
+			.normalise({ lower: 0.5, upper: 99.5 });
+		if (clahe) img = img.clahe({ width: 96, height: 96, maxSlope: 2 });
+		return img.sharpen({ sigma: 0.8 }).raw().toBuffer();
+	};
+	const plain = await prep(false);
+	const ref = adaptiveGamma(await (await base(src, TW, TH)).sharpen({ sigma: 0.8 }).raw().toBuffer(), 0.5).px;
+	const lifted = adaptiveGamma(plain, 0.45).px;
+	const liftedLocal = adaptiveGamma(await prep(true), 0.45).px;
+	await png(ditherTo(ref, TW, TH, LEVELS), TW, TH, `${slug}-q1.png`); // round 1's version 2
+	await png(ditherLinear(lifted, TW, TH, LEVELS), TW, TH, `${slug}-q2.png`); // linear light, even levels
+	await png(ditherLinear(lifted, TW, TH, PANEL2), TW, TH, `${slug}-q3.png`); // linear light, panel levels
+	await png(ditherLinear(liftedLocal, TW, TH, PANEL2), TW, TH, `${slug}-q4.png`); // + mild local contrast
+	console.log(slug, "round 2 written");
+}
+
 await writeFile(
 	path.resolve("src/app/(dashboard)/prototype/spotlight/thumbs.json"),
 	`${JSON.stringify(thumbs, null, "\t")}\n`,
