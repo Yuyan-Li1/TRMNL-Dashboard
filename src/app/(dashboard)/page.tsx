@@ -5,6 +5,6 @@ import { loadScreen } from "@/lib/screen/load";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function DashboardPage() {
+export default async function DashboardPage(): Promise<React.JSX.Element> {
 	return <Screen view={await loadScreen()} />;
 }

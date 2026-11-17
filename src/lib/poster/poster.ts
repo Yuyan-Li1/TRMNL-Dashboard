@@ -11,8 +11,6 @@ export interface Poster {
 	dataUri: string;
 }
 
-/** A stored poster is rebuilt after this long even if its source is unchanged. */
-const POSTER_TTL_SECONDS = 30 * 24 * 60 * 60;
 const FETCH_TIMEOUT_MS = 10_000;
 
 function posterKey(sourceUrl: string, target: PosterTarget): string {
@@ -65,6 +63,6 @@ export async function getPoster(
 		height: rendered.height,
 		dataUri: `data:image/png;base64,${rendered.png.toString("base64")}`,
 	};
-	await redis.set(key, poster, { ex: POSTER_TTL_SECONDS });
+	await redis.set(key, poster);
 	return poster;
 }

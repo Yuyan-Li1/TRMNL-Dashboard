@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Game } from "@/types/gaming";
-import { formatHours, formatWhen, gamesContent } from "./games";
+import { formatHours, formatWhen } from "./format";
+import { gamesContent } from "./games";
 
 const NOW = new Date("2026-11-17T12:00:00Z");
 

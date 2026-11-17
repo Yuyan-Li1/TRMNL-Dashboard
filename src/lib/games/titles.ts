@@ -1,4 +1,9 @@
-import type { GameTitle, PlatformPlay } from "@/types/gaming";
+import { DAY_MS } from "@/lib/time";
+import {
+	type GameTitle,
+	IN_PROGRESS_DAYS,
+	type PlatformPlay,
+} from "@/types/gaming";
 
 const ROMAN_NUMERAL = /^[IVXLCDM]+$/;
 
@@ -42,7 +47,7 @@ export function cleanGameName(name: string): string {
 }
 
 /** The form of a cleaned name that two Platforms' spellings agree on. */
-function matchKey(cleanedName: string): string {
+export function matchKey(cleanedName: string): string {
 	return cleanedName
 		.normalize("NFKD")
 		.toLowerCase()
@@ -51,6 +56,18 @@ function matchKey(cleanedName: string): string {
 
 function playedAt(play: { lastPlayedAt?: string }): number {
 	return play.lastPlayedAt ? new Date(play.lastPlayedAt).getTime() : 0;
+}
+
+/** A game is In progress when it was played in the last 14 days. */
+export function isInProgress(
+	title: { lastPlayedAt?: string },
+	now: Date,
+): boolean {
+	return (
+		title.lastPlayedAt !== undefined &&
+		now.getTime() - new Date(title.lastPlayedAt).getTime() <=
+			IN_PROGRESS_DAYS * DAY_MS
+	);
 }
 
 /**

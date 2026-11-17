@@ -1,4 +1,5 @@
 import { CACHE_KEYS, getRedis } from "@/lib/cache/redis";
+import { matchKey } from "@/lib/games/titles";
 import type { GameTitle } from "@/types/gaming";
 
 /**
@@ -7,8 +8,8 @@ import type { GameTitle } from "@/types/gaming";
  * Rate limit: 4 requests per second.
  */
 const TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token";
-const IGDB_GAMES_URL = "https://api.igdb.com/v4/games";
-const FIELDS = "fields name,cover.image_id,summary,total_rating;";
+const IGDB_URL = "https://api.igdb.com/v4";
+const GAME_FIELDS = ["name", "cover.image_id", "summary", "total_rating"];
 /** IGDB's id for Steam among its external game sources. */
 const STEAM_SOURCE_ID = 1;
 /** Renew the token this long before Twitch expires it. */
@@ -87,17 +88,18 @@ async function getCredentials(): Promise<Credentials> {
 
 let lastRequestAt = 0;
 
-async function query(
+async function query<T>(
 	credentials: Credentials,
+	endpoint: "games" | "external_games",
 	body: string,
-): Promise<IgdbGame[]> {
+): Promise<T[]> {
 	const wait = lastRequestAt + REQUEST_SPACING_MS - Date.now();
 	if (wait > 0) {
 		await new Promise((resolve) => setTimeout(resolve, wait));
 	}
 	lastRequestAt = Date.now();
 
-	const response = await fetch(IGDB_GAMES_URL, {
+	const response = await fetch(`${IGDB_URL}/${endpoint}`, {
 		method: "POST",
 		headers: {
 			"Client-ID": credentials.clientId,
@@ -113,14 +115,7 @@ async function query(
 	if (!response.ok) {
 		throw new Error(`IGDB request failed: ${response.status}`);
 	}
-	return (await response.json()) as IgdbGame[];
-}
-
-function nameKey(name: string): string {
-	return name
-		.normalize("NFKD")
-		.toLowerCase()
-		.replace(/[^\p{L}\p{N}]/gu, "");
+	return (await response.json()) as T[];
 }
 
 /**
@@ -131,8 +126,8 @@ export function pickByName(
 	results: IgdbGame[],
 	name: string,
 ): IgdbGame | undefined {
-	const wanted = nameKey(name);
-	return results.find((result) => nameKey(result.name) === wanted);
+	const wanted = matchKey(name);
+	return results.find((result) => matchKey(result.name) === wanted);
 }
 
 /** Convert IGDB's 0-100 rating to five stars in half-star steps. */
@@ -160,12 +155,15 @@ async function findGame(
 ): Promise<IgdbGame | undefined> {
 	if (title.steamAppId) {
 		try {
-			const bySteamId = await query(
+			// Asked of the external-games table so the app id and the Steam
+			// source are matched on the same row
+			const bySteamId = await query<{ game?: IgdbGame }>(
 				credentials,
-				`${FIELDS} where external_games.uid = "${title.steamAppId}" & external_games.external_game_source = ${STEAM_SOURCE_ID}; limit 1;`,
+				"external_games",
+				`fields ${GAME_FIELDS.map((field) => `game.${field}`).join(",")}; where uid = "${title.steamAppId}" & external_game_source = ${STEAM_SOURCE_ID}; limit 1;`,
 			);
-			if (bySteamId[0]) {
-				return bySteamId[0];
+			if (bySteamId[0]?.game?.name) {
+				return bySteamId[0].game;
 			}
 		} catch (error) {
 			console.warn(`IGDB Steam id lookup failed for ${title.name}:`, error);
@@ -173,9 +171,10 @@ async function findGame(
 	}
 
 	const escaped = title.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-	const byName = await query(
+	const byName = await query<IgdbGame>(
 		credentials,
-		`${FIELDS} search "${escaped}"; limit 10;`,
+		"games",
+		`fields ${GAME_FIELDS.join(",")}; search "${escaped}"; limit 10;`,
 	);
 	return pickByName(byName, title.name);
 }

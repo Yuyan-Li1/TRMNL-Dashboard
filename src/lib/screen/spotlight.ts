@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/time";
 import type { Mode, SpotlightCandidate } from "./types";
 
 /** How often each Mode takes the Spotlight, out of 100. */
@@ -7,8 +8,6 @@ export const MODE_SHARES: Record<Mode, number> = {
 	"Friend activity": 20,
 	Recommendation: 20,
 };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface PickSpotlightInput {
 	/** Titles inside their eligibility window, each with artwork */
@@ -63,13 +62,13 @@ export function pickSpotlight({
 	}
 
 	const others = eligible.filter((candidate) => candidate.id !== previousId);
-	const pool = others.length > 0 ? others : eligible;
+	const choices = others.length > 0 ? others : eligible;
 
-	const modes = [...new Set(pool.map((candidate) => candidate.mode))];
+	const modes = [...new Set(choices.map((candidate) => candidate.mode))];
 	const mode = weightedPick(modes, (each) => MODE_SHARES[each], random);
 
 	return weightedPick(
-		pool.filter((candidate) => candidate.mode === mode),
+		choices.filter((candidate) => candidate.mode === mode),
 		(candidate) => {
 			const days =
 				Math.max(0, now.getTime() - activityTime(candidate)) / DAY_MS;

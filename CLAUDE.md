@@ -141,6 +141,7 @@ src/
 │   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
 │   │   ├── games.ts             # What games contribute: candidates and the Medium card
+│   │   ├── format.ts            # "3 hours ago", "42 hours"
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
@@ -195,7 +196,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Twitch app token (`igdb:token`): until a day before it expires
 - Combined dashboard data: 15-minute TTL
 - PSN refresh token: `psn:auth`, no TTL
-- Posters: `poster:<target>:<hash of source URL>`, 30 days
+- Posters: `poster:<target>:<hash of source URL>`, no TTL
 - The previous Spotlight pick: `spotlight:previous`, no TTL
 
 ### The screen

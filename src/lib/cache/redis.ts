@@ -46,6 +46,19 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 }
 
 /**
+ * The non-expiring copy `cacheSet` keeps beside a key: stale but never
+ * missing.
+ */
+export async function cacheGetLatest<T>(key: string): Promise<T | null> {
+	return cacheGet<T>(`${key}:latest`);
+}
+
+/** The fresh value, or the non-expiring copy once the TTL'd key has expired. */
+export async function cacheGetOrLatest<T>(key: string): Promise<T | null> {
+	return (await cacheGet<T>(key)) ?? (await cacheGetLatest<T>(key));
+}
+
+/**
  * Generic cache set with TTL
  * Also stores a non-expiring copy at `${key}:latest` so data is never lost
  */

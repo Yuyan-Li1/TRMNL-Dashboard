@@ -1,4 +1,4 @@
-import { formatWhen } from "@/lib/screen/games";
+import { formatWhen } from "@/lib/screen/format";
 import { MEDIUM_NAMES, type MediumCardView } from "@/lib/screen/types";
 import { PosterImage } from "./PosterImage";
 import { Stars } from "./Stars";

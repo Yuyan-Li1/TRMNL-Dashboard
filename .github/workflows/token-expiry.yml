@@ -42,7 +42,7 @@ jobs:
             const body = `
             ## Token Expiration Alert
 
-                        The PSN NPSSO token has expired (it lasts about 2 months).
+            The PSN NPSSO token has expired (it lasts about 2 months).
 
             ### Resolution
             1. Sign in at https://www.playstation.com

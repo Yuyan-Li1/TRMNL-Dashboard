@@ -1,7 +1,7 @@
 import type { Poster } from "@/lib/poster/poster";
 
-export const MEDIUMS = ["game", "movie", "show", "book"] as const;
-export type Medium = (typeof MEDIUMS)[number];
+export const MEDIA = ["game", "movie", "show", "book"] as const;
+export type Medium = (typeof MEDIA)[number];
 
 export const MEDIUM_NAMES: Record<Medium, string> = {
 	game: "Game",
@@ -75,9 +75,13 @@ export interface SpotlightView extends SpotlightCandidate {
 	poster: Poster | null;
 }
 
+export interface MediumActivityView extends MediumActivity {
+	thumbnail: Poster | null;
+}
+
 export interface MediumCardView {
 	medium: Medium;
-	activity: (MediumActivity & { thumbnail: Poster | null }) | null;
+	activity: MediumActivityView | null;
 }
 
 /** Everything the 800x480 screen renders from. */

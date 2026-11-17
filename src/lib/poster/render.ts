@@ -133,7 +133,7 @@ function dither(
 
 /**
  * Turn source artwork into a four-grey PNG for the e-ink panel:
- * resize, greyscale, normalise, sharpen, lift, dither.
+ * resize, greyscale, normalise, lift, sharpen, dither.
  */
 export async function renderPoster(
 	source: Buffer,
@@ -148,13 +148,27 @@ export async function renderPoster(
 		.flatten({ background: "#ffffff" })
 		.greyscale()
 		.normalise({ lower: 0.5, upper: 99.5 })
-		.sharpen({ sigma: recipe.sharpenSigma })
 		.raw()
 		.toBuffer({ resolveWithObject: true });
 
 	const curve = liftCurve(data);
-	const lifted = Float32Array.from(data, (value) => curve[value]);
-	const indices = dither(lifted, info.width, info.height, recipe.errorShare);
+	const lifted = Buffer.from(data.map((value) => Math.round(curve[value])));
+
+	// A second pass, because sharp applies its operations in its own fixed
+	// order (sharpen before normalise) whatever order they are called in.
+	const sharpened = await sharp(lifted, {
+		raw: { width: info.width, height: info.height, channels: 1 },
+	})
+		.sharpen({ sigma: recipe.sharpenSigma })
+		.raw()
+		.toBuffer();
+
+	const indices = dither(
+		Float32Array.from(sharpened),
+		info.width,
+		info.height,
+		recipe.errorShare,
+	);
 
 	return {
 		png: encodeFourGreyPng(indices, info.width, info.height, GREYS),

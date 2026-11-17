@@ -3,8 +3,8 @@ import { loadScreen } from "@/lib/screen/load";
 
 export const dynamic = "force-dynamic";
 
-export default async function PreviewPage() {
-	const view = await loadScreen();
+export default async function PreviewPage(): Promise<React.JSX.Element> {
+	const view = await loadScreen({ rememberPick: false });
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-gray-800 p-8">

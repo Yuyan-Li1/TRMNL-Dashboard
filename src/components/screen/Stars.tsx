@@ -14,6 +14,8 @@ export function Stars({ value, size = 20 }: StarsProps): React.JSX.Element {
 		<span className="flex gap-0.5" role="img" aria-label={`${value} out of 5`}>
 			{[0, 1, 2, 3, 4].map((index) => {
 				const fill = Math.max(0, Math.min(1, value - index));
+				// The outline stays 2px on screen whatever the star's size
+				const strokeWidth = (2 * 20) / size;
 				const clipId = `star-${size}-${index}-${fill}`;
 				return (
 					<svg
@@ -31,7 +33,7 @@ export function Stars({ value, size = 20 }: StarsProps): React.JSX.Element {
 							d={STAR}
 							fill="none"
 							stroke="currentColor"
-							strokeWidth="2"
+							strokeWidth={strokeWidth}
 							strokeLinejoin="round"
 						/>
 					</svg>
