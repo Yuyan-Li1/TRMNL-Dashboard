@@ -49,10 +49,26 @@ export async function refreshAllData(): Promise<DashboardData> {
 		}
 	}
 
-	const [gaming, movies] = await Promise.all([
+	const [gaming, readMovies] = await Promise.all([
 		read("Gaming", getGamingData, (data) => data.gaming),
 		read("Movies", getMoviesData, (data) => data.movies),
 	]);
+
+	// TMDB's text may not be kept for ever. The copy that otherwise never
+	// expires lives only as long as the movies in it may still be kept, and
+	// movies carried over from the last good data are dropped once too old.
+	let movies = readMovies;
+	let latestTtlSeconds: number | undefined;
+	if (movies) {
+		const ageSeconds = Math.floor(
+			(Date.now() - new Date(movies.fetchedAt).getTime()) / 1000,
+		);
+		latestTtlSeconds = CACHE_TTL.TMDB_DERIVED - ageSeconds;
+		if (latestTtlSeconds <= 0) {
+			movies = null;
+			latestTtlSeconds = undefined;
+		}
+	}
 
 	const dashboardData: DashboardData = {
 		gaming,
@@ -65,8 +81,7 @@ export async function refreshAllData(): Promise<DashboardData> {
 		CACHE_KEYS.DASHBOARD_DATA,
 		dashboardData,
 		CACHE_TTL.DASHBOARD_DATA,
-		// It holds TMDB's text, which may not be kept for ever
-		CACHE_TTL.TMDB_DERIVED,
+		latestTtlSeconds,
 	);
 
 	return dashboardData;

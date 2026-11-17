@@ -1,4 +1,4 @@
-import { daysSinceWatched, isRecentlyWatched } from "@/lib/movies/diary";
+import { daysSinceWatched, isEligibleForSpotlight } from "@/lib/movies/diary";
 import type { Movie } from "@/types/movies";
 import { formatDaysAgo } from "./format";
 import type { MediumContent, SpotlightCandidate } from "./types";
@@ -8,10 +8,12 @@ interface SpotlightMovie extends Movie {
 	posterUrl: string;
 }
 
+function watchedWhen(movie: Movie, now: Date): string {
+	return formatDaysAgo(daysSinceWatched(movie.watchedOn, now));
+}
+
 function toCandidate(movie: SpotlightMovie, now: Date): SpotlightCandidate {
-	const facts = [
-		`Watched ${formatDaysAgo(daysSinceWatched(movie.watchedOn, now))}`,
-	];
+	const facts = [`Watched ${watchedWhen(movie, now)}`];
 	if (movie.rewatch) {
 		facts.push("Rewatch");
 	}
@@ -30,7 +32,8 @@ function toCandidate(movie: SpotlightMovie, now: Date): SpotlightCandidate {
 				: undefined,
 		facts,
 		text: movie.review ?? movie.overview,
-		// The diary records the day and no time
+		// The diary records the day and no time. Midnight UTC falls near the
+		// middle of the owner's day, the best guess for the freshness weight.
 		activityAt: new Date(`${movie.watchedOn}T00:00:00Z`).toISOString(),
 		posterUrl: movie.posterUrl,
 	};
@@ -60,7 +63,7 @@ export function moviesContent(movies: Movie[], now: Date): MediumContent {
 		}
 		seen.add(candidate.id);
 		fallback.push(candidate);
-		if (isRecentlyWatched(movie, now)) {
+		if (isEligibleForSpotlight(movie, now)) {
 			eligible.push(candidate);
 		}
 	}
@@ -75,7 +78,7 @@ export function moviesContent(movies: Movie[], now: Date): MediumContent {
 					title: latest.title,
 					stars: latest.stars,
 					detail: "Watched",
-					when: formatDaysAgo(daysSinceWatched(latest.watchedOn, now)),
+					when: watchedWhen(latest, now),
 					thumbnailUrl: latest.thumbnailUrl,
 				}
 			: null,

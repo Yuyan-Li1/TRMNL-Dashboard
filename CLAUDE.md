@@ -205,7 +205,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
 - TMDB lookups (`tmdb:movie:<TMDB id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires
-- Combined dashboard data: 15-minute TTL; its `:latest` copy expires after 150 days (see TMDB below)
+- Combined dashboard data: 15-minute TTL; while it holds movies its `:latest` copy expires 150 days after they were read (see TMDB below)
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL

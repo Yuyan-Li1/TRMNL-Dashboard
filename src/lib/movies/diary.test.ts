@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysSinceWatched, isRecentlyWatched } from "./diary";
+import { daysSinceWatched, isEligibleForSpotlight } from "./diary";
 
 describe("daysSinceWatched", () => {
 	it("counts calendar days in the owner's time zone, not elapsed hours", () => {
@@ -18,11 +18,13 @@ describe("daysSinceWatched", () => {
 	});
 });
 
-describe("isRecentlyWatched", () => {
+describe("isEligibleForSpotlight", () => {
 	it("holds for 14 days from the watched date", () => {
 		const now = new Date("2026-11-17T22:00:00Z");
 
-		expect(isRecentlyWatched({ watchedOn: "2026-11-04" }, now)).toBe(true);
-		expect(isRecentlyWatched({ watchedOn: "2026-11-03" }, now)).toBe(false);
+		expect(isEligibleForSpotlight({ watchedOn: "2026-11-04" }, now)).toBe(true);
+		expect(isEligibleForSpotlight({ watchedOn: "2026-11-03" }, now)).toBe(
+			false,
+		);
 	});
 });
