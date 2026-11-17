@@ -34,13 +34,13 @@ Resolved 2026-11-17 by grilling with the owner. **Collector** was added to `GLOS
   - runs whichever jobs are due according to SQLite.
 - **Jobs**:
 
-  | Job | When |
-  |---|---|
-  | Goodreads read | Every 6 hours |
-  | Letterboxd following list | Every 6 hours |
-  | Code update | Daily at 03:30 Sydney |
-  | LLM check, per medium | Daily at 04:00 Sydney |
-  | Snapshot | Nightly |
+  | Job                       | When                  |
+  | ------------------------- | --------------------- |
+  | Goodreads read            | Every 6 hours         |
+  | Letterboxd following list | Every 6 hours         |
+  | Code update               | Daily at 03:30 Sydney |
+  | LLM check, per medium     | Daily at 04:00 Sydney |
+  | Snapshot                  | Nightly               |
 
 - **Alerts**: each tick sends its Alerts straight to Telegram before it exits. The rules in [Failure alerts by Telegram](19-failure-alerts-by-telegram.md) are unchanged except one detail: the last-sent time kept "in memory" for when Redis is unreachable is a row in SQLite, because no process stays alive between ticks.
 - **Code update**: the collector pulls `main` (fast-forward only), reinstalls dependencies if the lockfile changed, and copies the run-folder templates into place. A failed pull raises an Alert and the old code keeps running.
@@ -95,13 +95,13 @@ Resolved 2026-11-17 by grilling with the owner. **Collector** was added to `GLOS
 - **`home:status`**, rewritten every tick, is what Vercel shows on the status strip and the source health page: the heartbeat time, the running commit, the Claude Code token's expiry date, and for each job the last attempt, the last success and the count of failures in a row.
 - **Commands run by hand**:
 
-  | Command | What it does |
-  |---|---|
-  | `collector seed` | One-off: loads the exports and the film-to-TMDB map into SQLite. Safe to run twice. |
-  | `collector publish` | Rewrites every `home:` key from SQLite. |
-  | `collector restore` | Rebuilds SQLite and the text files from the snapshot in Redis or on disk. |
-  | `collector test-alert` | Sends a test Alert to Telegram. |
-  | `collector run <job>` | Runs one job now, ignoring its schedule. |
+  | Command                | What it does                                                                        |
+  | ---------------------- | ----------------------------------------------------------------------------------- |
+  | `collector seed`       | One-off: loads the exports and the film-to-TMDB map into SQLite. Safe to run twice. |
+  | `collector publish`    | Rewrites every `home:` key from SQLite.                                             |
+  | `collector restore`    | Rebuilds SQLite and the text files from the snapshot in Redis or on disk.           |
+  | `collector test-alert` | Sends a test Alert to Telegram.                                                     |
+  | `collector run <job>`  | Runs one job now, ignoring its schedule.                                            |
 
 ## Comments
 

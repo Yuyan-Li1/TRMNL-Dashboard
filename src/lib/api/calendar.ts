@@ -43,19 +43,17 @@ async function fetchEventsFromAPI(daysAhead = 7): Promise<CalendarEvent[]> {
 
 	const events = response.data.items || [];
 
-	return events.map(
-		(event): CalendarEvent => ({
-			id: event.id || "",
-			title: event.summary || "Untitled Event",
-			description: event.description ?? undefined,
-			location: event.location ?? undefined,
-			startTime: event.start?.dateTime || event.start?.date || "",
-			endTime: event.end?.dateTime || event.end?.date || "",
-			isAllDay: !event.start?.dateTime,
-			status: (event.status as CalendarEvent["status"]) || "confirmed",
-			colorId: event.colorId ?? undefined,
-		}),
-	);
+	return events.map((event): CalendarEvent => ({
+		id: event.id || "",
+		title: event.summary || "Untitled Event",
+		description: event.description ?? undefined,
+		location: event.location ?? undefined,
+		startTime: event.start?.dateTime || event.start?.date || "",
+		endTime: event.end?.dateTime || event.end?.date || "",
+		isAllDay: !event.start?.dateTime,
+		status: (event.status as CalendarEvent["status"]) || "confirmed",
+		colorId: event.colorId ?? undefined,
+	}));
 }
 
 /**

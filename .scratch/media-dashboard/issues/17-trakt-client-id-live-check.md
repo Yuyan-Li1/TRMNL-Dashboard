@@ -40,10 +40,10 @@ Results:
 
 The comparison gives the right answer for both test shows:
 
-| Show | Status | Watched per season | Aired per season | Result |
-| --- | --- | --- | --- | --- |
-| Ted Lasso | returning series | 10, 12, 12, 10 | 10, 12, 12, 10 | Finished: season 4 fully watched, no next episode |
-| Nathan for You | ended | 7 (season 1 only) | 8, 8, 8, 7 | Not finished: season 1 is 7 of 8 |
+| Show           | Status           | Watched per season | Aired per season | Result                                            |
+| -------------- | ---------------- | ------------------ | ---------------- | ------------------------------------------------- |
+| Ted Lasso      | returning series | 10, 12, 12, 10     | 10, 12, 12, 10   | Finished: season 4 fully watched, no next episode |
+| Nathan for You | ended            | 7 (season 1 only)  | 8, 8, 8, 7       | Not finished: season 1 is 7 of 8                  |
 
 Differences from [Trakt finished-season detection](09-trakt-finished-season-detection.md):
 

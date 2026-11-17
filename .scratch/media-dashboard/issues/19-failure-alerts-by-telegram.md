@@ -27,14 +27,14 @@ Resolved 2026-11-17 with the owner.
   - Vercel's refresh writes its last-success time to Redis; the home server alerts when it is stale. This also catches a disabled GitHub Actions cron.
 - **What alerts, and after how long**: a single failed run is silent.
 
-  | Failure | Alerts after |
-  |---|---|
-  | Source read on the 15-minute Vercel refresh | 4 failed runs in a row (1 hour) |
+  | Failure                                                    | Alerts after                       |
+  | ---------------------------------------------------------- | ---------------------------------- |
+  | Source read on the 15-minute Vercel refresh                | 4 failed runs in a row (1 hour)    |
   | Goodreads or Letterboxd read on the home server (6-hourly) | 2 failed reads in a row (12 hours) |
-  | Daily LLM run | 1 failed run |
-  | Token rejected (PSN, Nintendo, Trakt, Claude Code) | Immediately |
-  | Home server heartbeat stale | 1 hour |
-  | Vercel refresh stale | 1 hour |
+  | Daily LLM run                                              | 1 failed run                       |
+  | Token rejected (PSN, Nintendo, Trakt, Claude Code)         | Immediately                        |
+  | Home server heartbeat stale                                | 1 hour                             |
+  | Vercel refresh stale                                       | 1 hour                             |
 
 - **Tokens close to expiry**: a token with a known expiry date warns 14 days before and again 3 days before. A rejected token always alerts, as the backstop.
   - Claude Code token: one year from `claude setup-token`.

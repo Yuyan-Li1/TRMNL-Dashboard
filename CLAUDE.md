@@ -14,7 +14,7 @@ This is a custom TRMNL e-ink dashboard built with Next.js, TypeScript, and hoste
 - **Database**: MongoDB Atlas (free tier, via Mongoose)
 - **Cache**: Upstash Redis
 - **Styling**: Tailwind CSS 4 (e-ink optimized)
-- **Formatter**: Biome
+- **Formatter**: Oxfmt
 - **Linter**: Oxlint
 - **Deployment**: Vercel Hobby plan
 - **Scheduling**: GitHub Actions (workaround for Vercel cron limits)
@@ -96,18 +96,18 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 
 ```typescript
 // Use explicit return types
-async function getWeather(): Promise<WeatherData> { }
+async function getWeather(): Promise<WeatherData> {}
 
 // Use interface over type for objects
 interface WidgetConfig {
-  id: string;
-  type: WidgetType;
-  priority: number;
+	id: string;
+	type: WidgetType;
+	priority: number;
 }
 
 // Use const assertions for constants
-const DAY_TYPES = ['office', 'wfh', 'weekend'] as const;
-type DayType = typeof DAY_TYPES[number];
+const DAY_TYPES = ["office", "wfh", "weekend"] as const;
+type DayType = (typeof DAY_TYPES)[number];
 ```
 
 ### File Organization
@@ -234,21 +234,21 @@ Each widget:
 
 ### Automation (require `VERCEL_URL` and `CRON_SECRET` repo secrets)
 
-| Workflow | Schedule | Purpose |
-|----------|----------|---------|
-| `refresh.yml` | Every 15 min | Main data refresh via `/api/refresh` |
-| `morning-prefetch.yml` | 7:40 AM Sydney (Mon-Fri) | Pre-cache morning data (runs twice with 30s gap) |
-| `health-check.yml` | Every 6 hours | Check MongoDB/Redis connectivity, creates GitHub issue on failure |
-| `token-expiry.yml` | Daily 9 AM UTC | Check token health, creates GitHub issue for expired tokens |
+| Workflow               | Schedule                 | Purpose                                                           |
+| ---------------------- | ------------------------ | ----------------------------------------------------------------- |
+| `refresh.yml`          | Every 15 min             | Main data refresh via `/api/refresh`                              |
+| `morning-prefetch.yml` | 7:40 AM Sydney (Mon-Fri) | Pre-cache morning data (runs twice with 30s gap)                  |
+| `health-check.yml`     | Every 6 hours            | Check MongoDB/Redis connectivity, creates GitHub issue on failure |
+| `token-expiry.yml`     | Daily 9 AM UTC           | Check token health, creates GitHub issue for expired tokens       |
 
 ### CI
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `biome.yml` | Push/PR | Biome formatter check |
-| `oxlint.yml` | Push/PR | Oxlint linter |
-| `type-check.yml` | Push/PR | TypeScript type checking |
-| `build.yml` | Push/PR | Next.js build verification |
+| Workflow         | Trigger | Purpose                    |
+| ---------------- | ------- | -------------------------- |
+| `oxfmt.yml`      | Push/PR | Oxfmt formatter check      |
+| `oxlint.yml`     | Push/PR | Oxlint linter              |
+| `type-check.yml` | Push/PR | TypeScript type checking   |
+| `build.yml`      | Push/PR | Next.js build verification |
 
 ### GitHub Actions Secrets Required
 
@@ -298,8 +298,8 @@ Env var validation is centralized in `src/lib/env.ts` with grouped checks.
 pnpm dev              # Development server
 pnpm build            # Production build
 pnpm lint             # Run Oxlint
-pnpm format           # Run Biome check
-pnpm fix              # Run Biome auto-fix
+pnpm format           # Run Oxfmt check
+pnpm fix              # Run Oxfmt and write changes
 pnpm type-check       # TypeScript type check
 pnpm ci               # Full CI pipeline (lint + format + type-check + build)
 pnpm db:seed          # Seed MongoDB with default schedules/routines

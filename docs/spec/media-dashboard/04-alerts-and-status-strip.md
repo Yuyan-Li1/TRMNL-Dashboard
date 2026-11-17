@@ -17,10 +17,10 @@ Read [the overview](README.md) first. This stage adds Telegram Alerts from Verce
 
 A single failed run is silent.
 
-| Failure | Alerts after |
-|---|---|
+| Failure                                                                                                     | Alerts after                    |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | A source or Catalog read on the 15-minute refresh (Steam, Xbox, PSN, Switch, Trakt, Letterboxd, TMDB, IGDB) | 4 failed runs in a row (1 hour) |
-| A token rejected (PSN, Nintendo, Trakt) | Immediately |
+| A token rejected (PSN, Nintendo, Trakt)                                                                     | Immediately                     |
 
 - **Tokens close to expiry** warn 14 days before and again 3 days before:
   - PSN NPSSO: 60 days. The refresh stores a fingerprint of the token and the day the fingerprint changes; expiry is 60 days after that day. No hand-set date.

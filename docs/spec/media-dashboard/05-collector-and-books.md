@@ -34,32 +34,32 @@ If step 4 fails, the stage still ships and stage 8 is reconsidered.
 - **SQLite is the Collector's record** (`~/trmnl-collector/collector.db`): in this stage, the day each Goodreads book was first seen as read, per-job schedule and failure counts, Alert repeat state, and the Claude Code token's fingerprint. Redis can be rebuilt from it at any time.
 - **`home:status`**, rewritten every tick: the heartbeat time, the running commit, the Claude Code token's expiry date, and for each job the last attempt, the last success and the failures in a row.
 
-| Job in this stage | When |
-|---|---|
-| Goodreads read | Every 6 hours |
-| Code update | Daily at 03:30 Sydney |
-| Snapshot | Nightly |
+| Job in this stage | When                  |
+| ----------------- | --------------------- |
+| Goodreads read    | Every 6 hours         |
+| Code update       | Daily at 03:30 Sydney |
+| Snapshot          | Nightly               |
 
 - **Code update**: pull `main` (fast-forward only) and reinstall dependencies if the lockfile changed. A failed pull raises an Alert and the old code keeps running.
 - **Snapshot**: a consistent copy of the database (and, from later stages, the taste models and "also consumed" files). Keep the last 14 on disk and store the newest, compressed, in `home:backup`.
 
-| Command run by hand | What it does |
-|---|---|
-| `collector publish` | Rewrites every `home:` key from SQLite |
-| `collector restore` | Rebuilds SQLite and the text files from the snapshot in Redis or on disk |
-| `collector test-alert` | Sends a test Alert |
-| `collector run <job>` | Runs one job now, ignoring its schedule |
+| Command run by hand    | What it does                                                             |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `collector publish`    | Rewrites every `home:` key from SQLite                                   |
+| `collector restore`    | Rebuilds SQLite and the text files from the snapshot in Redis or on disk |
+| `collector test-alert` | Sends a test Alert                                                       |
+| `collector run <job>`  | Runs one job now, ignoring its schedule                                  |
 
 ### 2. Alerts on both sides
 
 - The Collector's Alerts follow stage 4's rules for repeats, recovery and format, with the sender `[home]`.
 
-| Failure | Sent by | Alerts after |
-|---|---|---|
-| Goodreads read | Collector | 2 failed reads in a row (12 hours) |
-| Vercel refresh Stale | Collector | 1 hour |
-| Home server heartbeat Stale | Vercel | 1 hour |
-| Claude Code token rejected | Collector | Immediately |
+| Failure                     | Sent by   | Alerts after                       |
+| --------------------------- | --------- | ---------------------------------- |
+| Goodreads read              | Collector | 2 failed reads in a row (12 hours) |
+| Vercel refresh Stale        | Collector | 1 hour                             |
+| Home server heartbeat Stale | Vercel    | 1 hour                             |
+| Claude Code token rejected  | Collector | Immediately                        |
 
 - **Claude Code token expiry**: one year after the day the Collector first sees the token's fingerprint or sees it change. Alerts 14 and 3 days ahead.
 - When Redis is unreachable the Collector still alerts, keeping the last-sent time in SQLite.
