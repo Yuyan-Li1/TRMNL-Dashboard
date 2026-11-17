@@ -19,25 +19,49 @@ This is a custom TRMNL e-ink dashboard built with Next.js, TypeScript, and hoste
 - **Deployment**: Vercel Hobby plan
 - **Scheduling**: GitHub Actions (workaround for Vercel cron limits)
 
-## Git Workflow (Git Town)
+## Git Workflow (gh stack)
 
-This project uses [Git Town](https://www.git-town.com/) for branch management.
+This project uses GitHub stacked PRs through the official [`gh stack`](https://gh.io/stacks) extension (`gh extension install github/gh-stack`). Every change starts as a stack, even when it has only one branch.
 
 ```bash
-# Create a feature branch (from main)
-git town hack <branch-name>
+# Start a stack with its first branch (based on main)
+gh stack init <branch-name>
 
-# Stage, commit, then push + open PR
-git town propose --title "PR title" --body "PR body"
+# Commit as usual, then add the next branch on top when the change splits
+gh stack add <next-branch-name>
 
-# Sync branch with main
-git town sync
+# Push every branch and create or update the PRs
+gh stack submit                # interactive editor for titles and bodies
+gh stack submit --auto --open  # non-interactive: auto titles, ready for review
 
-# Clean up merged branches
-git town prune-branches
+# Fetch, rebase the stack onto main, and push
+gh stack sync
+
+# Resolve conflicts when sync reports one
+gh stack rebase
+
+# Merge the stack (all or nothing)
+gh stack merge --yes --squash
+
+# Inspect and move around
+gh stack view
+gh stack up / down / top / bottom
 ```
 
+Agents run in a non-interactive terminal: use `gh stack submit --auto --open`, then set each PR's title and body with `gh pr edit <number> --title "..." --body "..."`. `gh stack sync` never opens PRs; only `submit` does.
+
 Branch naming: `kebab-case` descriptive names (e.g. `stale-cache-fallback`, `add-weather-alerts`).
+
+## Issue Tracker (wayfinder)
+
+The issue tracker is local markdown under `.scratch/`. Do not search for it or query GitHub issues.
+
+- **Active map**: `.scratch/media-dashboard/map.md`. When wayfinder is invoked with no argument, work through this map.
+- **Tickets**: `.scratch/media-dashboard/issues/NN-kebab-title.md`, numbered in creation order. The title is the `#` heading.
+- **Header lines** under the title: `Type: research|prototype|grilling|task`, then optionally `Blocked by: 05, 08` (ticket numbers), `Assignee: <name>` (the claim) and `Status: resolved` (closed).
+- **Frontier**: tickets with no `Status` line, no `Assignee` line, and every `Blocked by` ticket resolved. Find it with one command: `grep -L "^Status: resolved" .scratch/media-dashboard/issues/*.md | xargs grep -H "^Blocked by\|^Assignee\|^Type"`.
+- **Resolution**: add `Status: resolved`, write the answer under `## Answer` in the ticket, and add one line to the map's Decisions so far.
+- Domain language is in `GLOSSARY.md`.
 
 ## Key Constraints
 
@@ -46,7 +70,7 @@ Branch naming: `kebab-case` descriptive names (e.g. `stale-cache-fallback`, `add
 - **Viewport**: 800 x 480 pixels (landscape), configured in `src/lib/config.ts`
 - **Color depth**: 2-bit grayscale (black, white, light gray, dark gray)
 - **Render time**: Page must fully render within 5 seconds
-- **Refresh interval**: 30 minutes (with 30-minute buffer)
+- **Refresh interval**: 15 minutes (set on the TRMNL device)
 - **URLs**: All CSS/JS/images must use absolute URLs
 - No gradients, no thin lines under 2px, no anti-aliased graphics
 
