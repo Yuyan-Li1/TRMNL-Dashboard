@@ -1,76 +1,59 @@
-/* Inter font for e-ink readability — must precede tailwindcss import */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap");
+/* Inter Bold, for the Spotlight title only. Must precede the tailwindcss import. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap");
 
 @import "tailwindcss";
 
 /* TRMNL E-ink Display Theme */
 @theme inline {
-	/* E-ink only has 4 shades */
+	/* The panel has four even greys */
 	--color-eink-black: #000000;
 	--color-eink-dark: #555555;
 	--color-eink-light: #aaaaaa;
 	--color-eink-white: #ffffff;
-
-	/* TRMNL display dimensions */
-	--width-trmnl: 800px;
-	--height-trmnl: 480px;
-
-	/* Font sizes optimized for e-ink readability */
-	--font-size-eink-xs: 12px;
-	--line-height-eink-xs: 16px;
-	--font-size-eink-sm: 14px;
-	--line-height-eink-sm: 20px;
-	--font-size-eink-base: 16px;
-	--line-height-eink-base: 24px;
-	--font-size-eink-lg: 20px;
-	--line-height-eink-lg: 28px;
-	--font-size-eink-xl: 24px;
-	--line-height-eink-xl: 32px;
-	--font-size-eink-2xl: 32px;
-	--line-height-eink-2xl: 40px;
-	--font-size-eink-3xl: 48px;
-	--line-height-eink-3xl: 56px;
-
-	/* E-ink optimized font */
-	--font-eink: "Inter", system-ui, sans-serif;
 }
 
 html {
-	font-family: var(--font-eink);
+	font-family: system-ui, sans-serif;
 }
 
-/* E-ink displays work best with high contrast */
 body {
 	background-color: var(--color-eink-white);
 	color: var(--color-eink-black);
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
 	margin: 0;
 	padding: 0;
 }
 
-/* E-ink card component */
-.eink-card {
-	border: 2px solid var(--color-eink-black);
-	background-color: var(--color-eink-white);
-	padding: 1rem;
+/*
+ * Type for the e-ink screen. The TRMNL pixel fonts are used only at their
+ * native sizes, unsmoothed, with whole-pixel line heights. Their @font-face
+ * rules need absolute URLs, so they are emitted by TrmnlFontFaces.
+ */
+@utility type-12 {
+	font-family: "TRMNL12", monospace;
+	font-size: 12px;
+	line-height: 1;
 }
 
-/* E-ink button */
-.eink-button {
-	border: 2px solid var(--color-eink-black);
-	background-color: var(--color-eink-white);
-	padding: 0.5rem 1rem;
-	font-weight: 600;
+@utility type-16 {
+	font-family: "TRMNL16", monospace;
+	font-size: 16px;
+	line-height: 22px;
 }
 
-.eink-button:hover {
-	background-color: var(--color-eink-light);
+@utility type-21 {
+	font-family: "TRMNL21", monospace;
+	font-size: 21px;
+	line-height: 1;
 }
 
-.eink-button:active {
-	background-color: var(--color-eink-dark);
-	color: var(--color-eink-white);
+/* The Spotlight title: the one smoothed face on the screen */
+@utility type-title {
+	font-family: "Inter", system-ui, sans-serif;
+	font-size: 32px;
+	line-height: 35px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	-webkit-font-smoothing: auto;
 }
 
 /* Dashboard container - exactly TRMNL dimensions */
@@ -79,26 +62,16 @@ body {
 	height: 480px;
 	overflow: hidden;
 	background-color: var(--color-eink-white);
+	font-family: "TRMNL16", monospace;
+	font-size: 16px;
+	line-height: 22px;
+	-webkit-font-smoothing: none;
 }
 
-/* High contrast text utilities */
-.text-eink-primary {
-	color: var(--color-eink-black);
-}
-
-.text-eink-secondary {
-	color: var(--color-eink-dark);
-}
-
-.text-eink-muted {
-	color: var(--color-eink-light);
-}
-
-/* Border utilities for e-ink */
-.border-eink {
+/* E-ink button */
+.eink-button {
 	border: 2px solid var(--color-eink-black);
-}
-
-.border-eink-subtle {
-	border: 1px solid var(--color-eink-dark);
+	background-color: var(--color-eink-white);
+	padding: 0.5rem 1rem;
+	font-weight: bold;
 }
