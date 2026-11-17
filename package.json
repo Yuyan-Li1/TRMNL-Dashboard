@@ -10,7 +10,8 @@
 		"format": "oxfmt --check",
 		"fix": "oxfmt",
 		"type-check": "tsc --noEmit",
-		"ci": "pnpm lint && pnpm format && pnpm type-check && pnpm build",
+		"test": "vitest run",
+		"ci": "pnpm lint && pnpm format && pnpm type-check && pnpm test && pnpm build",
 		"clean": "rm -rf .next node_modules"
 	},
 	"dependencies": {
@@ -19,6 +20,7 @@
 		"psn-api": "^2.17.0",
 		"react": "19.2.4",
 		"react-dom": "19.2.4",
+		"sharp": "0.34.5",
 		"steamapi": "^3.1.5"
 	},
 	"devDependencies": {
@@ -30,6 +32,7 @@
 		"oxfmt": "^0.78.0",
 		"oxlint": "^1.43.0",
 		"tailwindcss": "^4.1.18",
-		"typescript": "^5"
+		"typescript": "^5",
+		"vitest": "^5.1.0"
 	}
 }
