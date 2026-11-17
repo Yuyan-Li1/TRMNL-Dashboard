@@ -23,19 +23,16 @@ export function MedicationWidget({
 		>
 			<div className="flex flex-col gap-2">
 				{medications.length === 0 ? (
-					<div className="text-eink-dark text-eink-sm">
+					<div className="text-eink-sm text-eink-dark">
 						No medications scheduled
 					</div>
 				) : (
 					medications.map((med, i) => (
 						<div
 							key={med.name}
-							className={`
-                flex items-center gap-2
-                ${i < medications.length - 1 ? "pb-2 border-b border-eink-light" : ""}
-              `}
+							className={`flex items-center gap-2 ${i < medications.length - 1 ? "border-b border-eink-light pb-2" : ""} `}
 						>
-							<div className="flex-1 min-w-0">
+							<div className="min-w-0 flex-1">
 								<div className="text-eink-sm font-medium">{med.name}</div>
 								{med.dosage && (
 									<div className="text-eink-xs text-eink-dark">
@@ -45,7 +42,7 @@ export function MedicationWidget({
 							</div>
 
 							{med.time && (
-								<div className="text-eink-sm font-bold shrink-0">
+								<div className="text-eink-sm shrink-0 font-bold">
 									{med.time}
 								</div>
 							)}

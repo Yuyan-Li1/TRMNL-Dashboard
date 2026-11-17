@@ -27,9 +27,9 @@ The owner accepted all four proposals on 2026-11-17.
 
 Per medium:
 
-| Medium | In progress | Finished |
-|---|---|---|
-| Game | Played in the last 14 days | Never |
-| Movie | Never | Logged in the diary |
-| Show | Episode watched in the last 14 days, including "caught up" | Season or show ended and fully watched |
-| Book | On the currently-reading list | Marked as read |
+| Medium | In progress                                                | Finished                               |
+| ------ | ---------------------------------------------------------- | -------------------------------------- |
+| Game   | Played in the last 14 days                                 | Never                                  |
+| Movie  | Never                                                      | Logged in the diary                    |
+| Show   | Episode watched in the last 14 days, including "caught up" | Season or show ended and fully watched |
+| Book   | On the currently-reading list                              | Marked as read                         |

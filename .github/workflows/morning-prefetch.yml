@@ -6,8 +6,8 @@ on:
     # Two entries cover both AEDT and AEST — one will fire an hour
     # early/late depending on DST, but that's fine for a pre-fetch.
     # Mon-Fri Sydney morning = Sun-Thu UTC night
-    - cron: '40 20 * * 0-4'  # 7:40 AM AEDT / 6:40 AM AEST (Mon-Fri Sydney)
-    - cron: '40 21 * * 0-4'  # 8:40 AM AEDT / 7:40 AM AEST (Mon-Fri Sydney)
+    - cron: "40 20 * * 0-4" # 7:40 AM AEDT / 6:40 AM AEST (Mon-Fri Sydney)
+    - cron: "40 21 * * 0-4" # 8:40 AM AEDT / 7:40 AM AEST (Mon-Fri Sydney)
 
   workflow_dispatch:
 

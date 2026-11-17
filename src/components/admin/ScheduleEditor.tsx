@@ -131,8 +131,8 @@ export function ScheduleEditor({
 	return (
 		<form onSubmit={handleSubmit} className="space-y-6">
 			{/* Basic info */}
-			<div className="bg-white shadow rounded-lg p-6">
-				<h2 className="text-lg font-medium text-gray-900 mb-4">
+			<div className="rounded-lg bg-white p-6 shadow">
+				<h2 className="mb-4 text-lg font-medium text-gray-900">
 					Basic Information
 				</h2>
 
@@ -174,14 +174,14 @@ export function ScheduleEditor({
 				</div>
 
 				<div className="mt-4">
-					<span className="block text-sm font-medium text-gray-700 mb-2">
+					<span className="mb-2 block text-sm font-medium text-gray-700">
 						Days of Week
 					</span>
 					<div className="flex flex-wrap gap-2">
 						{dayOptions.map((day) => (
 							<label
 								key={day.value}
-								className={`inline-flex items-center px-3 py-1 rounded-full text-sm cursor-pointer ${
+								className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-sm ${
 									formData.daysOfWeek.includes(day.value)
 										? "bg-indigo-100 text-indigo-800"
 										: "bg-gray-100 text-gray-600"
@@ -229,8 +229,8 @@ export function ScheduleEditor({
 			</div>
 
 			{/* Time blocks */}
-			<div className="bg-white shadow rounded-lg p-6">
-				<div className="flex justify-between items-center mb-4">
+			<div className="rounded-lg bg-white p-6 shadow">
+				<div className="mb-4 flex items-center justify-between">
 					<h2 className="text-lg font-medium text-gray-900">Time Blocks</h2>
 					<button
 						type="button"
@@ -256,7 +256,7 @@ export function ScheduleEditor({
 					))}
 
 					{formData.timeBlocks.length === 0 && (
-						<p className="text-gray-500 text-sm">
+						<p className="text-sm text-gray-500">
 							No time blocks. Add one to configure widgets.
 						</p>
 					)}
@@ -268,14 +268,14 @@ export function ScheduleEditor({
 				<button
 					type="button"
 					onClick={() => router.back()}
-					className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+					className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
 				>
 					Cancel
 				</button>
 				<button
 					type="submit"
 					disabled={saving}
-					className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+					className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
 				>
 					{saving ? "Saving..." : "Save Schedule"}
 				</button>
@@ -294,9 +294,9 @@ function TimeBlockEditor({
 	onRemove: () => void;
 }) {
 	return (
-		<div className="border rounded-lg p-4">
-			<div className="flex justify-between items-start mb-3">
-				<div className="grid grid-cols-3 gap-3 flex-1">
+		<div className="rounded-lg border p-4">
+			<div className="mb-3 flex items-start justify-between">
+				<div className="grid flex-1 grid-cols-3 gap-3">
 					<div>
 						<label className="block text-xs font-medium text-gray-500">
 							Block Type
@@ -352,14 +352,14 @@ function TimeBlockEditor({
 				<button
 					type="button"
 					onClick={onRemove}
-					className="ml-2 text-red-600 hover:text-red-500 text-sm"
+					className="ml-2 text-sm text-red-600 hover:text-red-500"
 				>
 					Remove
 				</button>
 			</div>
 
 			<div>
-				<span className="block text-xs font-medium text-gray-500 mb-2">
+				<span className="mb-2 block text-xs font-medium text-gray-500">
 					Widgets
 				</span>
 				<div className="flex flex-wrap gap-2">
@@ -389,7 +389,7 @@ function TimeBlockEditor({
 										});
 									}
 								}}
-								className={`px-2 py-1 rounded text-xs ${
+								className={`rounded px-2 py-1 text-xs ${
 									isSelected
 										? "bg-indigo-100 text-indigo-800"
 										: "bg-gray-100 text-gray-600"

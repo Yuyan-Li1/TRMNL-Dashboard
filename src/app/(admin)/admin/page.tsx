@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
 
 			{/* Warning banner */}
 			{tokenWarnings.length > 0 && (
-				<div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+				<div className="border-l-4 border-yellow-400 bg-yellow-50 p-4">
 					<div className="flex">
 						<div className="ml-3">
 							<p className="text-sm text-yellow-700">
@@ -80,8 +80,8 @@ export default async function AdminDashboardPage() {
 			</div>
 
 			{/* Current context */}
-			<div className="bg-white shadow rounded-lg p-6">
-				<h2 className="text-lg font-medium text-gray-900 mb-4">
+			<div className="rounded-lg bg-white p-6 shadow">
+				<h2 className="mb-4 text-lg font-medium text-gray-900">
 					Current Context
 				</h2>
 				<dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -112,15 +112,15 @@ export default async function AdminDashboardPage() {
 				</dl>
 
 				{context.specialConditions.length > 0 && (
-					<div className="mt-4 pt-4 border-t border-gray-200">
-						<h3 className="text-sm font-medium text-gray-500 mb-2">
+					<div className="mt-4 border-t border-gray-200 pt-4">
+						<h3 className="mb-2 text-sm font-medium text-gray-500">
 							Active Conditions
 						</h3>
 						<div className="flex flex-wrap gap-2">
 							{context.specialConditions.map((condition) => (
 								<span
 									key={condition.message}
-									className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+									className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
 										condition.severity === "high"
 											? "bg-red-100 text-red-800"
 											: "bg-yellow-100 text-yellow-800"
@@ -135,23 +135,23 @@ export default async function AdminDashboardPage() {
 			</div>
 
 			{/* Quick actions */}
-			<div className="bg-white shadow rounded-lg p-6">
-				<h2 className="text-lg font-medium text-gray-900 mb-4">
+			<div className="rounded-lg bg-white p-6 shadow">
+				<h2 className="mb-4 text-lg font-medium text-gray-900">
 					Quick Actions
 				</h2>
-				<div className="flex flex-wrap gap-3 items-start">
+				<div className="flex flex-wrap items-start gap-3">
 					<RefreshButton />
 					<Link
 						href="/preview"
 						target="_blank"
-						className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+						className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
 					>
 						Preview Dashboard
 					</Link>
 					<Link
 						href="/api/health"
 						target="_blank"
-						className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+						className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
 					>
 						Health Check
 					</Link>
@@ -179,11 +179,11 @@ function StatCard({
 	};
 
 	const content = (
-		<div className="bg-white overflow-hidden shadow rounded-lg">
+		<div className="overflow-hidden rounded-lg bg-white shadow">
 			<div className="p-5">
 				<div className="flex items-center">
 					<div className="flex-1">
-						<p className="text-sm font-medium text-gray-500 truncate">
+						<p className="truncate text-sm font-medium text-gray-500">
 							{title}
 						</p>
 						<p

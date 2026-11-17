@@ -13,18 +13,18 @@ Create a personal dashboard that displays context-aware information on a TRMNL e
 
 ## 📋 Implementation Steps
 
-| Step | File | Description | Manual Actions Required |
-|------|------|-------------|------------------------|
-| 0 | [00-project-setup.md](./docs/00-project-setup.md) | Initialize Next.js project with pnpm | None |
-| 1 | [01-database-setup.md](./docs/01-database-setup.md) | MongoDB Atlas + Upstash Redis setup | ⚠️ Account creation, env vars |
-| 2 | [02-core-api-integrations.md](./docs/02-core-api-integrations.md) | Weather, Transit, Calendar APIs | ⚠️ API key registration |
-| 3 | [03-gaming-integrations.md](./docs/03-gaming-integrations.md) | Steam, Xbox, PlayStation APIs | ⚠️ API keys, PSN token |
-| 4 | [04-schedule-system.md](./docs/04-schedule-system.md) | Day type and time block logic | None |
-| 5 | [05-widget-system.md](./docs/05-widget-system.md) | E-ink optimized widget components | None |
-| 6 | [06-dashboard-renderer.md](./docs/06-dashboard-renderer.md) | TRMNL-compatible page rendering | None |
-| 7 | [07-admin-ui.md](./docs/07-admin-ui.md) | Schedule and routine management UI | None |
-| 8 | [08-github-actions.md](./docs/08-github-actions.md) | Scheduled data refresh | ⚠️ GitHub secrets setup |
-| 9 | [09-deployment.md](./docs/09-deployment.md) | Vercel deployment and TRMNL config | ⚠️ Vercel env vars, TRMNL setup |
+| Step | File                                                              | Description                          | Manual Actions Required         |
+| ---- | ----------------------------------------------------------------- | ------------------------------------ | ------------------------------- |
+| 0    | [00-project-setup.md](./docs/00-project-setup.md)                 | Initialize Next.js project with pnpm | None                            |
+| 1    | [01-database-setup.md](./docs/01-database-setup.md)               | MongoDB Atlas + Upstash Redis setup  | ⚠️ Account creation, env vars   |
+| 2    | [02-core-api-integrations.md](./docs/02-core-api-integrations.md) | Weather, Transit, Calendar APIs      | ⚠️ API key registration         |
+| 3    | [03-gaming-integrations.md](./docs/03-gaming-integrations.md)     | Steam, Xbox, PlayStation APIs        | ⚠️ API keys, PSN token          |
+| 4    | [04-schedule-system.md](./docs/04-schedule-system.md)             | Day type and time block logic        | None                            |
+| 5    | [05-widget-system.md](./docs/05-widget-system.md)                 | E-ink optimized widget components    | None                            |
+| 6    | [06-dashboard-renderer.md](./docs/06-dashboard-renderer.md)       | TRMNL-compatible page rendering      | None                            |
+| 7    | [07-admin-ui.md](./docs/07-admin-ui.md)                           | Schedule and routine management UI   | None                            |
+| 8    | [08-github-actions.md](./docs/08-github-actions.md)               | Scheduled data refresh               | ⚠️ GitHub secrets setup         |
+| 9    | [09-deployment.md](./docs/09-deployment.md)                       | Vercel deployment and TRMNL config   | ⚠️ Vercel env vars, TRMNL setup |
 
 ## 🛠 Tech Stack
 
@@ -70,19 +70,19 @@ Create a personal dashboard that displays context-aware information on a TRMNL e
 
 ### Free Account Registration Required
 
-| Service | URL | What You Get |
-|---------|-----|--------------|
-| MongoDB Atlas | <https://www.mongodb.com/cloud/atlas> | Connection string |
-| Upstash | <https://upstash.com> | Redis URL + Token |
-| Transport NSW | <https://opendata.transport.nsw.gov.au> | API key |
-| Steam | <https://steamcommunity.com/dev/apikey> | API key |
-| OpenXBL | <https://xbl.io> | API key |
-| Google Cloud | <https://console.cloud.google.com> | Service account JSON |
+| Service       | URL                                     | What You Get         |
+| ------------- | --------------------------------------- | -------------------- |
+| MongoDB Atlas | <https://www.mongodb.com/cloud/atlas>   | Connection string    |
+| Upstash       | <https://upstash.com>                   | Redis URL + Token    |
+| Transport NSW | <https://opendata.transport.nsw.gov.au> | API key              |
+| Steam         | <https://steamcommunity.com/dev/apikey> | API key              |
+| OpenXBL       | <https://xbl.io>                        | API key              |
+| Google Cloud  | <https://console.cloud.google.com>      | Service account JSON |
 
 ### Manual Token Retrieval
 
-| Service | Method |
-|---------|--------|
+| Service   | Method                                                                          |
+| --------- | ------------------------------------------------------------------------------- |
 | PSN NPSSO | Login to PlayStation.com → Visit <https://ca.account.sony.com/api/v1/ssocookie> |
 
 ## 📁 Final Project Structure
@@ -168,13 +168,13 @@ trmnl-dashboard/
 
 ## ⏱ Estimated Timeline
 
-| Phase | Steps | Time Estimate |
-|-------|-------|---------------|
-| Foundation | 0-1 | 2-3 hours |
-| Core APIs | 2-3 | 4-5 hours |
-| Dashboard | 4-6 | 4-5 hours |
-| Admin & Polish | 7-9 | 3-4 hours |
-| **Total** | | **13-17 hours** |
+| Phase          | Steps | Time Estimate   |
+| -------------- | ----- | --------------- |
+| Foundation     | 0-1   | 2-3 hours       |
+| Core APIs      | 2-3   | 4-5 hours       |
+| Dashboard      | 4-6   | 4-5 hours       |
+| Admin & Polish | 7-9   | 3-4 hours       |
+| **Total**      |       | **13-17 hours** |
 
 ## 🔄 Refresh Schedule Logic
 
@@ -213,11 +213,11 @@ PSN tokens are tracked in MongoDB with:
 
 ```typescript
 interface TokenHealth {
-  service: 'psn' | 'xbox' | 'steam' | 'google' | 'tfnsw';
-  status: 'healthy' | 'expiring_soon' | 'expired' | 'error';
-  lastChecked: Date;
-  expiresAt?: Date;  // For PSN access/refresh tokens
-  errorMessage?: string;
+	service: "psn" | "xbox" | "steam" | "google" | "tfnsw";
+	status: "healthy" | "expiring_soon" | "expired" | "error";
+	lastChecked: Date;
+	expiresAt?: Date; // For PSN access/refresh tokens
+	errorMessage?: string;
 }
 ```
 

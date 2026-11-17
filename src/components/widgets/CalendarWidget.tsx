@@ -22,7 +22,7 @@ export function CalendarWidget({
 				icon={<EinkIcon name="calendar" size="sm" />}
 				size={size}
 			>
-				<div className="flex items-center justify-center h-full text-eink-dark">
+				<div className="flex h-full items-center justify-center text-eink-dark">
 					No calendar data
 				</div>
 			</EinkCard>
@@ -43,7 +43,7 @@ export function CalendarWidget({
 		>
 			<div className="flex flex-col gap-2">
 				{limitedEvents.length === 0 ? (
-					<div className="text-eink-dark text-eink-sm">
+					<div className="text-eink-sm text-eink-dark">
 						{mode === "today" ? "No events today" : "No upcoming events"}
 					</div>
 				) : (
@@ -57,7 +57,7 @@ export function CalendarWidget({
 				)}
 
 				{events.length > limitedEvents.length && (
-					<div className="text-eink-xs text-eink-dark mt-1">
+					<div className="text-eink-xs mt-1 text-eink-dark">
 						+{events.length - limitedEvents.length} more
 					</div>
 				)}
@@ -84,11 +84,7 @@ function EventRow({
 
 	return (
 		<div
-			className={`
-        flex gap-2
-        ${!isLast ? "pb-2 border-b border-eink-light" : ""}
-        ${isNow ? "bg-eink-light -mx-2 px-2 py-1" : ""}
-      `}
+			className={`flex gap-2 ${!isLast ? "border-b border-eink-light pb-2" : ""} ${isNow ? "-mx-2 bg-eink-light px-2 py-1" : ""} `}
 		>
 			{/* Time column */}
 			<div className="w-16 shrink-0">
@@ -107,12 +103,12 @@ function EventRow({
 			</div>
 
 			{/* Event details */}
-			<div className="flex-1 min-w-0">
+			<div className="min-w-0 flex-1">
 				<div className={`text-eink-sm truncate ${isNow ? "font-bold" : ""}`}>
 					{event.title}
 				</div>
 				{event.location && (
-					<div className="text-eink-xs text-eink-dark truncate">
+					<div className="text-eink-xs truncate text-eink-dark">
 						@ {event.location}
 					</div>
 				)}
@@ -120,12 +116,12 @@ function EventRow({
 
 			{/* Status indicators */}
 			{isNow && (
-				<div className="shrink-0 text-eink-xs border-2 border-eink-black px-1 h-fit">
+				<div className="text-eink-xs h-fit shrink-0 border-2 border-eink-black px-1">
 					NOW
 				</div>
 			)}
 			{isSoon && !isNow && (
-				<div className="shrink-0 text-eink-xs text-eink-dark">Soon</div>
+				<div className="text-eink-xs shrink-0 text-eink-dark">Soon</div>
 			)}
 		</div>
 	);

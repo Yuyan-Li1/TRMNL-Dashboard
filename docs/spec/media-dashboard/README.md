@@ -6,16 +6,16 @@ Domain terms (Medium, Source, Catalog, Title, Spotlight, Mode, Medium card, Pool
 
 ## Stages
 
-| # | Stage | What the device gains |
-|---|---|---|
-| 1 | [New screen with games](01-new-screen-with-games.md) | The new screen; games from Steam, Xbox, PSN and Switch |
-| 2 | [Movies](02-movies.md) | Movies from Letterboxd; the Finished mode |
-| 3 | [Shows](03-shows.md) | Shows from Trakt, with Caught up |
-| 4 | [Alerts and status strip](04-alerts-and-status-strip.md) | Nothing on the panel; Telegram Alerts, the status strip, the source health page |
-| 5 | [Collector and books](05-collector-and-books.md) | Books from Goodreads, read by the home server |
-| 6 | [Consumed set and Catalog picks](06-consumed-set-and-catalog-picks.md) | The Recommendation mode, with Catalog picks |
-| 7 | [Friend activity](07-friend-activity.md) | Friends' Letterboxd ratings and reviews |
-| 8 | [LLM picks](08-llm-picks.md) | LLM picks in the Pool; book Recommendations |
+| #   | Stage                                                                  | What the device gains                                                           |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | [New screen with games](01-new-screen-with-games.md)                   | The new screen; games from Steam, Xbox, PSN and Switch                          |
+| 2   | [Movies](02-movies.md)                                                 | Movies from Letterboxd; the Finished mode                                       |
+| 3   | [Shows](03-shows.md)                                                   | Shows from Trakt, with Caught up                                                |
+| 4   | [Alerts and status strip](04-alerts-and-status-strip.md)               | Nothing on the panel; Telegram Alerts, the status strip, the source health page |
+| 5   | [Collector and books](05-collector-and-books.md)                       | Books from Goodreads, read by the home server                                   |
+| 6   | [Consumed set and Catalog picks](06-consumed-set-and-catalog-picks.md) | The Recommendation mode, with Catalog picks                                     |
+| 7   | [Friend activity](07-friend-activity.md)                               | Friends' Letterboxd ratings and reviews                                         |
+| 8   | [LLM picks](08-llm-picks.md)                                           | LLM picks in the Pool; book Recommendations                                     |
 
 Rules for every stage:
 
@@ -96,12 +96,12 @@ Chosen on the device from the prototype on branch `prototype/spotlight-screen` (
 - **The Spotlight is re-picked on every render of the dashboard page** and is never the same Title twice in a row. The previous pick is kept in Redis.
 - **Eligibility window**: 14 days for a Finished title, a friend's entry, and an In progress game or show.
 
-| Medium | In progress | Finished |
-|---|---|---|
-| Game | Played in the last 14 days | Never |
-| Movie | Never | Logged in the diary |
-| Show | Episode watched in the last 14 days, including Caught up | Season or show ended and fully watched |
-| Book | On the currently-reading shelf, with a progress update in the last 14 days | Marked as read |
+| Medium | In progress                                                                | Finished                               |
+| ------ | -------------------------------------------------------------------------- | -------------------------------------- |
+| Game   | Played in the last 14 days                                                 | Never                                  |
+| Movie  | Never                                                                      | Logged in the diary                    |
+| Show   | Episode watched in the last 14 days, including Caught up                   | Season or show ended and fully watched |
+| Book   | On the currently-reading shelf, with a progress update in the last 14 days | Marked as read                         |
 
 ### A medium with nothing to show
 
@@ -111,19 +111,19 @@ Chosen on the device from the prototype on branch `prototype/spotlight-screen` (
 
 ## Sources and Catalogs
 
-| Medium | Source | Read by | Stage |
-|---|---|---|---|
-| Game | Steam, Xbox (OpenXBL), PSN, Nintendo Switch | Vercel | 1 |
-| Movie | Letterboxd public diary feed | Vercel | 2 |
-| Show | Trakt, client id only | Vercel | 3 |
-| Book | Goodreads, no login | Collector | 5 |
-| Friends | Letterboxd following list and friends' diary feeds | Collector | 7 |
+| Medium  | Source                                             | Read by   | Stage |
+| ------- | -------------------------------------------------- | --------- | ----- |
+| Game    | Steam, Xbox (OpenXBL), PSN, Nintendo Switch        | Vercel    | 1     |
+| Movie   | Letterboxd public diary feed                       | Vercel    | 2     |
+| Show    | Trakt, client id only                              | Vercel    | 3     |
+| Book    | Goodreads, no login                                | Collector | 5     |
+| Friends | Letterboxd following list and friends' diary feeds | Collector | 7     |
 
-| Catalog | For | Called from | Notes |
-|---|---|---|---|
-| TMDB | Movies, shows | Vercel only | Free key. Attribution notice and logo required. Cached data must not be kept longer than 6 months. |
-| IGDB | Games | Vercel and Collector | Twitch app token, about 60 days. 4 requests per second. |
-| Goodreads | Books | Collector only | Unofficial endpoints. |
+| Catalog   | For           | Called from          | Notes                                                                                              |
+| --------- | ------------- | -------------------- | -------------------------------------------------------------------------------------------------- |
+| TMDB      | Movies, shows | Vercel only          | Free key. Attribution notice and logo required. Cached data must not be kept longer than 6 months. |
+| IGDB      | Games         | Vercel and Collector | Twitch app token, about 60 days. 4 requests per second.                                            |
+| Goodreads | Books         | Collector only       | Unofficial endpoints.                                                                              |
 
 **TMDB and the LLM**: TMDB's terms forbid use in connection with an AI application. The LLM never receives TMDB data, TMDB is never called from the Collector, and LLM-named movies and shows are confirmed through Trakt search.
 
@@ -131,14 +131,14 @@ Chosen on the device from the prototype on branch `prototype/spotlight-screen` (
 
 Removed in stage 1: `MONGODB_URI`, `TFNSW_API_KEY`, `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY`, `GOOGLE_CALENDAR_ID`.
 
-| Variable | Where | From stage |
-|---|---|---|
-| `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (IGDB) | Vercel; Collector from stage 6 | 1 |
-| `NINTENDO_SESSION_TOKEN` | Vercel | 1 |
-| `LETTERBOXD_USERNAME`, `TMDB_API_KEY` | Vercel | 2 |
-| `TRAKT_CLIENT_ID`, `TRAKT_USER_SLUG` | Vercel; Collector from stage 8 | 3 |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Vercel; Collector from stage 5 | 4 |
-| `GOODREADS_USER_ID`, `CLAUDE_CODE_OAUTH_TOKEN` | Collector | 5 |
+| Variable                                          | Where                          | From stage |
+| ------------------------------------------------- | ------------------------------ | ---------- |
+| `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` (IGDB) | Vercel; Collector from stage 6 | 1          |
+| `NINTENDO_SESSION_TOKEN`                          | Vercel                         | 1          |
+| `LETTERBOXD_USERNAME`, `TMDB_API_KEY`             | Vercel                         | 2          |
+| `TRAKT_CLIENT_ID`, `TRAKT_USER_SLUG`              | Vercel; Collector from stage 8 | 3          |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`          | Vercel; Collector from stage 5 | 4          |
+| `GOODREADS_USER_ID`, `CLAUDE_CODE_OAUTH_TOKEN`    | Collector                      | 5          |
 
 The Collector's `.env` also holds the Upstash credentials, the dashboard URL and `CRON_SECRET`. `.env.local` is blocked to agents by a deny rule, so the owner adds every secret by hand, locally and in Vercel.
 
@@ -158,12 +158,12 @@ Ruled out: weather, transit, calendar, routines, medication, day types, time blo
 
 Each is a Markdown file on a pushed, never-merged branch.
 
-| Branch | File |
-|---|---|
-| `research/goodreads-no-login-surface` | `docs/research/goodreads-no-login-surface.md` |
-| `research/catalog-capabilities` | `docs/research/catalog-capabilities.md` |
-| `research/trakt-finished-season-detection` | `docs/research/trakt-finished-season-detection.md` |
-| `research/trmnl-image-rendering` | `docs/research/trmnl-image-rendering.md` |
-| `research/dark-artwork-on-2-bit-panel` | `docs/research/dark-artwork-on-2-bit-panel.md` |
-| `research/trmnl-font-licence-and-hosting` | `docs/research/trmnl-font-licence-and-hosting.md` |
-| `prototype/spotlight-screen` | route `/prototype/spotlight`, `scripts/prototype-spotlight-dither.mjs` |
+| Branch                                     | File                                                                   |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `research/goodreads-no-login-surface`      | `docs/research/goodreads-no-login-surface.md`                          |
+| `research/catalog-capabilities`            | `docs/research/catalog-capabilities.md`                                |
+| `research/trakt-finished-season-detection` | `docs/research/trakt-finished-season-detection.md`                     |
+| `research/trmnl-image-rendering`           | `docs/research/trmnl-image-rendering.md`                               |
+| `research/dark-artwork-on-2-bit-panel`     | `docs/research/dark-artwork-on-2-bit-panel.md`                         |
+| `research/trmnl-font-licence-and-hosting`  | `docs/research/trmnl-font-licence-and-hosting.md`                      |
+| `prototype/spotlight-screen`               | route `/prototype/spotlight`, `scripts/prototype-spotlight-dither.mjs` |

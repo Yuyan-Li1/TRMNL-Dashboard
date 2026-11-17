@@ -24,9 +24,9 @@ export function AlertBanner({ conditions }: AlertBannerProps) {
 	if (importantConditions.length === 0) return null;
 
 	return (
-		<div className="w-full bg-eink-black text-eink-white p-2 flex items-center gap-3">
+		<div className="flex w-full items-center gap-3 bg-eink-black p-2 text-eink-white">
 			<EinkIcon name="alert" size="md" className="shrink-0" />
-			<div className="flex-1 flex flex-wrap gap-x-4 gap-y-1">
+			<div className="flex flex-1 flex-wrap gap-x-4 gap-y-1">
 				{importantConditions.map((condition) => (
 					<div key={condition.type} className="flex items-center gap-1">
 						<EinkIcon
