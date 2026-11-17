@@ -14,7 +14,7 @@ export interface Poster {
 const FETCH_TIMEOUT_MS = 10_000;
 
 /** Bump when the recipe's output changes, so stored posters are redone. */
-const RECIPE_VERSION = 2;
+const RECIPE_VERSION = 3;
 
 function posterKey(sourceUrl: string, target: PosterTarget): string {
 	const hash = createHash("sha256").update(sourceUrl).digest("hex");

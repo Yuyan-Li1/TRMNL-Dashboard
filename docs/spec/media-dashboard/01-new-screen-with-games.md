@@ -25,7 +25,7 @@ Read [the overview](README.md) first. This stage removes the old dashboard and s
 
 ### 3. Poster pipeline
 
-- Implement the recipe in the overview as one module that takes a source image URL and a target (Spotlight 320x480 cover crop, or thumbnail fitted in 64x96) and returns a 4-colour PNG. `sharp` cannot dither to a fixed palette, so the dithering step is our own loop.
+- Implement the recipe in the overview as one module that takes a source image URL and a target (Spotlight fitted in 320x480, or thumbnail fitted in 64x96) and returns a 4-colour PNG. `sharp` cannot dither to a fixed palette, so the dithering step is our own loop.
 - It runs during the refresh. The result is stored in Redis keyed by source URL and target, and reused until the source URL changes.
 
 ### 4. Game sources and IGDB

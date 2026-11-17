@@ -10,7 +10,12 @@ export function Spotlight({
 }): React.JSX.Element {
 	return (
 		<>
-			<div className="h-[480px] w-[320px] flex-none bg-eink-light">
+			{/* The poster keeps its own shape, so it may be shorter than the slot. */}
+			<div
+				className={`flex h-[480px] w-[320px] flex-none items-center justify-center ${
+					spotlight.poster ? "bg-eink-white" : "bg-eink-light"
+				}`}
+			>
 				{spotlight.poster && <PosterImage poster={spotlight.poster} />}
 			</div>
 

@@ -45,7 +45,7 @@ Chosen on the device from the prototype on branch `prototype/spotlight-screen` (
 
 ### Layout
 
-- The Spotlight's poster fills the left edge at 320x480.
+- The Spotlight's poster sits on the left edge in a 320x480 slot. It keeps the artwork's own aspect ratio, fitted inside the slot and centred, never cropped: a 2:3 movie poster fills it, a 3:4 IGDB cover is 320x427 with white above and below.
 - A text column of about 276 px sits beside it.
 - A rail of about 204 px on the right holds three Medium cards, stacked, separated by 2 px rules. The Spotlight's medium has no card; the other three do.
 - **Text column, top to bottom**: the Mode in a black label with the Medium beside it; the title; a byline (author; year and director; platform; or season); the rating; the reason (Recommendation only); the facts; a progress bar where there is progress; then the review or description.
@@ -77,7 +77,7 @@ Chosen on the device from the prototype on branch `prototype/spotlight-screen` (
 ### Posters
 
 - Posters are dithered by us when data is refreshed, never at render time and never by TRMNL. The four-grey PNG is stored in Redis and embedded in the page as a data URI, shown 1:1 with `image-rendering: pixelated`. `next/image` is not used.
-- **Recipe**: resize to exact pixels with a cover crop; greyscale; normalise, clipping 0.5% at each end; brighten with our own lookup-table curve chosen so the mean reaches 0.45, never darkening, gamma capped at 2.6 (`sharp`'s `.gamma()` does not brighten and is not used); sharpen with sigma 0.8; serpentine Floyd-Steinberg in linear light to the four even greys `#000`, `#555`, `#aaa`, `#fff`; 4-colour palette PNG.
+- **Recipe**: resize to fit inside the target, never cropped; greyscale; normalise, clipping 0.5% at each end; brighten with our own lookup-table curve chosen so the mean reaches 0.45, never darkening, gamma capped at 2.6 (`sharp`'s `.gamma()` does not brighten and is not used); sharpen with sigma 0.8; serpentine Floyd-Steinberg in linear light to the four even greys `#000`, `#555`, `#aaa`, `#fff`; 4-colour palette PNG.
 - **Thumbnails** are made from the source image, not from the large poster: fitted (not cropped) into 64x96, the same lift, sharpen sigma 0.6, 75% of the dithering error passed on. Untested on the device; tuned at stage 1's device check.
 - A title without artwork is not eligible for the Spotlight. Artwork is looked for in the Catalog first, then in the source.
 - Grey specks in white areas are e-ink ghosting, not our image. Nothing is done about them.

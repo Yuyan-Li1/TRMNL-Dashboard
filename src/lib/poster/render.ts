@@ -8,11 +8,13 @@ const GREYS = [0, 85, 170, 255] as const;
 const LIFT_TARGET_MEAN = 0.45;
 const LIFT_MAX_GAMMA = 2.6;
 
+/**
+ * The artwork is fitted inside `width` x `height` and keeps its own shape; it
+ * is never cropped, because covers carry their title edge to edge.
+ */
 interface PosterRecipe {
 	width: number;
 	height: number;
-	/** "cover" crops to the exact size; "inside" keeps the artwork's shape. */
-	fit: "cover" | "inside";
 	sharpenSigma: number;
 	/** Share of the dithering error passed on to neighbouring pixels. */
 	errorShare: number;
@@ -22,14 +24,12 @@ export const POSTER_TARGETS = {
 	spotlight: {
 		width: 320,
 		height: 480,
-		fit: "cover",
 		sharpenSigma: 0.8,
 		errorShare: 1,
 	},
 	thumbnail: {
 		width: 64,
 		height: 96,
-		fit: "inside",
 		sharpenSigma: 0.6,
 		errorShare: 0.75,
 	},
@@ -141,10 +141,7 @@ export async function renderPoster(
 ): Promise<RenderedPoster> {
 	const recipe = POSTER_TARGETS[target];
 	const { data, info } = await sharp(source)
-		.resize(recipe.width, recipe.height, {
-			fit: recipe.fit,
-			position: "attention",
-		})
+		.resize(recipe.width, recipe.height, { fit: "inside" })
 		.flatten({ background: "#ffffff" })
 		.greyscale()
 		.normalise({ lower: 0.5, upper: 99.5 })
