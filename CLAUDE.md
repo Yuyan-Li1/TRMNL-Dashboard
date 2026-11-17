@@ -51,7 +51,7 @@ gh stack up / down / top / bottom
 
 Agents run in a non-interactive terminal: use `gh stack submit --auto --open`, then set each PR's title and body with `gh pr edit <number> --title "..." --body "..."`. `gh stack sync` never opens PRs; only `submit` does.
 
-**Run the CI gates locally before pushing.** `pnpm run ci` (lint, format check, type check, build; plain `pnpm ci` is pnpm's clean install, not this script) must pass before `gh stack submit`, `gh stack sync` or any `git push`.
+**Run the CI gates locally before pushing.** `pnpm run ci` (lint, format check, type check, tests, build; plain `pnpm ci` is pnpm's clean install, not this script) must pass before `gh stack submit`, `gh stack sync` or any `git push`.
 
 Branch naming: `kebab-case` descriptive names (e.g. `stale-cache-fallback`, `add-weather-alerts`).
 
@@ -135,6 +135,10 @@ src/
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── dashboard/loader.ts      # Load cached data for the page render
+│   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
+│   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
+│   │   ├── png.ts               # 2-bit palette PNG encoder
+│   │   └── poster.ts            # getPoster(): fetch, render, keep in Redis
 │   ├── config.ts                # TRMNL screen config
 │   └── env.ts                   # Environment variable validation groups
 ├── types/                       # TypeScript type definitions
@@ -174,6 +178,15 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Each game source: 1-hour TTL
 - Combined dashboard data: 15-minute TTL
 - PSN refresh token: `psn:auth`, no TTL
+- Posters: `poster:<target>:<hash of source URL>`, 30 days
+
+### Posters
+
+Artwork is dithered by us when data is refreshed, never at render time and never by TRMNL (`src/lib/poster/`). The four-grey PNG is stored in Redis and embedded in the page as a data URI, shown 1:1 with `image-rendering: pixelated`. `next/image` is not used. The recipe is in the spec overview.
+
+### Tests
+
+Vitest, with test files beside the code (`*.test.ts`). Tests go through a module's public interface.
 
 Key ownership (from stage 5): every key the Collector writes starts with `home:`. Vercel never writes under it.
 
@@ -203,6 +216,7 @@ The two issue workflows are replaced by Telegram Alerts in stage 4.
 | `oxfmt.yml`      | Push/PR | Oxfmt formatter check      |
 | `oxlint.yml`     | Push/PR | Oxlint linter              |
 | `type-check.yml` | Push/PR | TypeScript type checking   |
+| `test.yml`       | Push/PR | Vitest suite               |
 | `build.yml`      | Push/PR | Next.js build verification |
 
 ### GitHub Actions Secrets Required
@@ -245,7 +259,8 @@ pnpm lint             # Run Oxlint
 pnpm format           # Run Oxfmt check
 pnpm fix              # Run Oxfmt and write changes
 pnpm type-check       # TypeScript type check
-pnpm run ci           # Full CI pipeline (lint + format + type-check + build)
+pnpm test             # Run the Vitest suite (src/**/*.test.ts)
+pnpm run ci           # Full CI pipeline (lint + format + type-check + test + build)
 pnpm clean            # Remove .next and node_modules
 ```
 
