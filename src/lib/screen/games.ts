@@ -53,7 +53,9 @@ export function gamesContent(games: Game[], now: Date): MediumContent {
 						latest.minutesPlayed !== undefined
 							? `${formatHours(latest.minutesPlayed)} played`
 							: undefined,
-					at: latest.lastPlayedAt,
+					when: latest.lastPlayedAt
+						? formatWhen(latest.lastPlayedAt, now)
+						: undefined,
 					thumbnailUrl: latest.thumbnailUrl,
 				}
 			: null,

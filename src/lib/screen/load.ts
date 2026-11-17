@@ -2,6 +2,7 @@ import type { DashboardData } from "@/lib/api/refresh";
 import { CACHE_KEYS, cacheGetOrLatest, getRedis } from "@/lib/cache/redis";
 import { readPoster } from "@/lib/poster/poster";
 import { gamesContent } from "./games";
+import { moviesContent } from "./movies";
 import { pickSpotlight } from "./spotlight";
 import {
 	MEDIA,
@@ -36,6 +37,7 @@ export async function loadScreen({
 	// A medium whose stage has not shipped contributes nothing
 	const contents: MediumContent[] = [
 		gamesContent(data?.gaming?.games ?? [], now),
+		moviesContent(data?.movies?.movies ?? [], now),
 	];
 
 	const picked = pickSpotlight({
@@ -69,6 +71,5 @@ export async function loadScreen({
 	return {
 		spotlight: picked ? { ...picked, poster } : null,
 		cards,
-		now: now.toISOString(),
 	};
 }
