@@ -33,6 +33,7 @@ export const CACHE_KEYS = {
 	IGDB_TOKEN: "igdb:token",
 	PSN_AUTH: "psn:auth",
 	DASHBOARD_DATA: "dashboard:media",
+	SPOTLIGHT_PREVIOUS: "spotlight:previous",
 } as const;
 
 /**
@@ -42,6 +43,19 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 	const r = getRedis();
 	const data = await r.get<T>(key);
 	return data;
+}
+
+/**
+ * The non-expiring copy `cacheSet` keeps beside a key: stale but never
+ * missing.
+ */
+export async function cacheGetLatest<T>(key: string): Promise<T | null> {
+	return cacheGet<T>(`${key}:latest`);
+}
+
+/** The fresh value, or the non-expiring copy once the TTL'd key has expired. */
+export async function cacheGetOrLatest<T>(key: string): Promise<T | null> {
+	return (await cacheGet<T>(key)) ?? (await cacheGetLatest<T>(key));
 }
 
 /**

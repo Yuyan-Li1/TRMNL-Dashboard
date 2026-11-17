@@ -72,14 +72,27 @@ function linearMean(pixels: Buffer): number {
 }
 
 describe("renderPoster", () => {
-	it("crops a Spotlight poster to exactly 320x480", async () => {
-		const poster = await renderPoster(
-			await rampImage(900, 600, 0, 255),
+	it("fits a Spotlight poster inside 320x480 without cropping", async () => {
+		const twoByThree = await renderPoster(
+			await rampImage(600, 900, 0, 255),
 			"spotlight",
 		);
-		const decoded = await decode(poster.png);
-		expect([poster.width, poster.height]).toEqual([320, 480]);
+		const decoded = await decode(twoByThree.png);
+		expect([twoByThree.width, twoByThree.height]).toEqual([320, 480]);
 		expect([decoded.width, decoded.height]).toEqual([320, 480]);
+
+		// An IGDB cover is 3:4, a little wider than the slot.
+		const threeByFour = await renderPoster(
+			await rampImage(528, 704, 0, 255),
+			"spotlight",
+		);
+		expect([threeByFour.width, threeByFour.height]).toEqual([320, 427]);
+
+		const square = await renderPoster(
+			await rampImage(512, 512, 0, 255),
+			"spotlight",
+		);
+		expect([square.width, square.height]).toEqual([320, 320]);
 	});
 
 	it("uses only the four even greys, in a 2-bit palette PNG", async () => {
@@ -146,5 +159,25 @@ describe("renderPoster", () => {
 		);
 		const { pixels } = await decode(poster.png);
 		expect(mean(pixels)).toBeGreaterThan(0.95);
+	});
+});
+
+describe("renderPoster geometry", () => {
+	it("keeps the artwork's layout: a dark top half stays on top, a light bottom half below", async () => {
+		const width = 320;
+		const height = 480;
+		const data = Buffer.alloc(width * height, 255);
+		data.fill(0, 0, width * (height / 2));
+		const source = await sharp(data, { raw: { width, height, channels: 1 } })
+			.png()
+			.toBuffer();
+
+		const { png } = await renderPoster(source, "spotlight");
+		const { pixels } = await decode(png);
+
+		const topQuarter = pixels.subarray(0, width * (height / 4));
+		const bottomQuarter = pixels.subarray(width * (height * 0.75));
+		expect(mean(topQuarter)).toBeLessThan(0.05);
+		expect(mean(bottomQuarter)).toBeGreaterThan(0.95);
 	});
 });

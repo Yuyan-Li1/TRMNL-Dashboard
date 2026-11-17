@@ -16,6 +16,9 @@ export const PLATFORM_NAMES: Record<Platform, string> = {
 	switch2: "Switch 2",
 };
 
+/** A game is In progress when it was played within this many days. */
+export const IN_PROGRESS_DAYS = 14;
+
 /** One source's record of one game, as the source names it. */
 export interface PlatformPlay {
 	platform: Platform;

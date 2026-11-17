@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import type { DashboardData } from "@/lib/api/refresh";
-import { CACHE_KEYS, cacheGet } from "@/lib/cache/redis";
+import { CACHE_KEYS, cacheGetOrLatest } from "@/lib/cache/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +9,9 @@ const LINK_CLASS =
 	"inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50";
 
 export default async function AdminDashboardPage() {
-	const dashboardData =
-		(await cacheGet<DashboardData>(CACHE_KEYS.DASHBOARD_DATA)) ??
-		(await cacheGet<DashboardData>(`${CACHE_KEYS.DASHBOARD_DATA}:latest`));
+	const dashboardData = await cacheGetOrLatest<DashboardData>(
+		CACHE_KEYS.DASHBOARD_DATA,
+	);
 
 	return (
 		<div className="space-y-6">

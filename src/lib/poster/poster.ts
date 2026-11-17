@@ -11,13 +11,25 @@ export interface Poster {
 	dataUri: string;
 }
 
-/** A stored poster is rebuilt after this long even if its source is unchanged. */
-const POSTER_TTL_SECONDS = 30 * 24 * 60 * 60;
 const FETCH_TIMEOUT_MS = 10_000;
+
+/** Bump when the recipe's output changes, so stored posters are redone. */
+const RECIPE_VERSION = 3;
 
 function posterKey(sourceUrl: string, target: PosterTarget): string {
 	const hash = createHash("sha256").update(sourceUrl).digest("hex");
-	return `poster:${target}:${hash}`;
+	return `poster:v${RECIPE_VERSION}:${target}:${hash}`;
+}
+
+/**
+ * Read a stored poster without making one. This is what the page uses: it
+ * never fetches artwork while rendering.
+ */
+export async function readPoster(
+	sourceUrl: string,
+	target: PosterTarget,
+): Promise<Poster | null> {
+	return getRedis().get<Poster>(posterKey(sourceUrl, target));
 }
 
 /**
@@ -54,6 +66,6 @@ export async function getPoster(
 		height: rendered.height,
 		dataUri: `data:image/png;base64,${rendered.png.toString("base64")}`,
 	};
-	await redis.set(key, poster, { ex: POSTER_TTL_SECONDS });
+	await redis.set(key, poster);
 	return poster;
 }

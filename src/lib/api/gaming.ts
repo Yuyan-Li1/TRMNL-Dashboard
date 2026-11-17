@@ -1,4 +1,5 @@
-import { mergePlays } from "@/lib/games/titles";
+import { CACHE_KEYS, cacheGetLatest } from "@/lib/cache/redis";
+import { isInProgress, mergePlays } from "@/lib/games/titles";
 import { getPoster } from "@/lib/poster/poster";
 import type { Game, GameTitle, GamingData, PlatformPlay } from "@/types/gaming";
 import { lookupGame } from "./igdb";
@@ -7,34 +8,31 @@ import { getSteamPlays } from "./steam";
 import { getSwitchPlays } from "./switch";
 import { getXboxPlays } from "./xbox";
 
-/** A game is In progress when it was played within this many days. */
-export const IN_PROGRESS_DAYS = 14;
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** How many Titles get Catalog data and posters on a refresh. */
-const MAX_DETAILED = 8;
+/**
+ * At most this many In progress Titles get Catalog data and posters, so a
+ * first refresh stays inside the function timeout.
+ */
+const MAX_PREPARED = 20;
 /** With nothing In progress, this many of the latest Titles are prepared. */
-const FALLBACK_DETAILED = 3;
+const FALLBACK_PREPARED = 3;
 
 const SOURCES = [
-	{ name: "Steam", getPlays: getSteamPlays },
-	{ name: "Xbox", getPlays: getXboxPlays },
-	{ name: "PlayStation", getPlays: getPlayStationPlays },
-	{ name: "Switch", getPlays: getSwitchPlays },
+	{ name: "Steam", getPlays: getSteamPlays, key: CACHE_KEYS.GAMING_STEAM },
+	{ name: "Xbox", getPlays: getXboxPlays, key: CACHE_KEYS.GAMING_XBOX },
+	{
+		name: "PlayStation",
+		getPlays: getPlayStationPlays,
+		key: CACHE_KEYS.GAMING_PSN,
+	},
+	{ name: "Switch", getPlays: getSwitchPlays, key: CACHE_KEYS.GAMING_SWITCH },
 ] as const;
-
-function isInProgress(title: GameTitle, now: number): boolean {
-	return (
-		title.lastPlayedAt !== undefined &&
-		now - new Date(title.lastPlayedAt).getTime() <= IN_PROGRESS_DAYS * DAY_MS
-	);
-}
 
 /**
  * Add the Catalog's description and rating to a Title and make its posters.
  * Artwork is looked for in the Catalog first, then in the source. A failure
  * here leaves the Title without that detail; it never fails the refresh.
  */
-async function addDetail(
+async function prepareForScreen(
 	title: GameTitle,
 	withThumbnail: boolean,
 	errors: string[],
@@ -51,20 +49,24 @@ async function addDetail(
 		errors.push(`IGDB (${title.name}): ${error}`);
 	}
 
-	const candidates = [coverUrl, title.imageUrl].filter((url): url is string =>
+	const artworkUrls = [coverUrl, title.imageUrl].filter((url): url is string =>
 		Boolean(url),
 	);
-	for (const url of candidates) {
+	for (const url of artworkUrls) {
 		try {
 			await getPoster(url, "spotlight");
 			game.posterUrl = url;
-			if (withThumbnail) {
-				await getPoster(url, "thumbnail");
-				game.thumbnailUrl = url;
-			}
 			break;
 		} catch (error) {
 			errors.push(`Artwork (${title.name}): ${error}`);
+		}
+	}
+	if (withThumbnail && game.posterUrl) {
+		try {
+			await getPoster(game.posterUrl, "thumbnail");
+			game.thumbnailUrl = game.posterUrl;
+		} catch (error) {
+			errors.push(`Thumbnail (${title.name}): ${error}`);
 		}
 	}
 
@@ -82,24 +84,30 @@ export async function getGamingData(): Promise<GamingData> {
 		SOURCES.map((source) => source.getPlays()),
 	);
 	const plays: PlatformPlay[] = [];
-	results.forEach((result, index) => {
+	for (const [index, result] of results.entries()) {
+		const source = SOURCES[index];
 		if (result.status === "fulfilled") {
 			plays.push(...result.value);
-		} else {
-			errors.push(`${SOURCES[index].name}: ${result.reason}`);
+			continue;
 		}
-	});
+		errors.push(`${source.name}: ${result.reason}`);
+		// A source that fails is Stale: its last good plays stay on screen
+		const lastGood = await cacheGetLatest<PlatformPlay[]>(source.key).catch(
+			() => null,
+		);
+		plays.push(...(lastGood ?? []));
+	}
 	if (plays.length === 0 && errors.length === SOURCES.length) {
 		throw new Error(`Every game source failed: ${errors.join("; ")}`);
 	}
 
 	const titles = mergePlays(plays);
-	const now = Date.now();
+	const now = new Date();
 	const inProgress = titles.filter((title) => isInProgress(title, now));
-	const detailed = new Set(
+	const prepared = new Set(
 		(inProgress.length > 0
-			? inProgress.slice(0, MAX_DETAILED)
-			: titles.slice(0, FALLBACK_DETAILED)
+			? inProgress.slice(0, MAX_PREPARED)
+			: titles.slice(0, FALLBACK_PREPARED)
 		).map((title) => title.id),
 	);
 
@@ -107,12 +115,12 @@ export async function getGamingData(): Promise<GamingData> {
 	const games: Game[] = [];
 	for (const [index, title] of titles.entries()) {
 		games.push(
-			detailed.has(title.id)
+			prepared.has(title.id)
 				? // Only the latest Title can appear on the games Medium card
-					await addDetail(title, index === 0, errors)
+					await prepareForScreen(title, index === 0, errors)
 				: title,
 		);
 	}
 
-	return { games, errors, fetchedAt: new Date(now).toISOString() };
+	return { games, errors, fetchedAt: now.toISOString() };
 }

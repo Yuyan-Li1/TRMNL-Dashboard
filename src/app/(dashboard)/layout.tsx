@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { TrmnlFontFaces } from "@/components/ui/TrmnlFontFaces";
+import { TRMNL } from "@/lib/config";
 
 export const metadata: Metadata = {
 	title: "TRMNL Dashboard",
@@ -8,8 +9,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-	width: 800,
-	height: 480,
+	width: TRMNL.width,
+	height: TRMNL.height,
 	initialScale: 1,
 	maximumScale: 1,
 	userScalable: false,
@@ -19,7 +20,7 @@ export default function DashboardLayout({
 	children,
 }: {
 	children: React.ReactNode;
-}) {
+}): React.JSX.Element {
 	return (
 		<>
 			<TrmnlFontFaces />

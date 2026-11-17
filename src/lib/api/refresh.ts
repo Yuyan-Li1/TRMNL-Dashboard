@@ -1,4 +1,9 @@
-import { CACHE_KEYS, CACHE_TTL, cacheSet } from "@/lib/cache/redis";
+import {
+	CACHE_KEYS,
+	CACHE_TTL,
+	cacheGetLatest,
+	cacheSet,
+} from "@/lib/cache/redis";
 import type { GamingData } from "@/types/gaming";
 import { getGamingData } from "./gaming";
 
@@ -22,6 +27,11 @@ export async function refreshAllData(): Promise<DashboardData> {
 	} catch (error) {
 		errors.push(`Gaming: ${error}`);
 		console.error("Gaming fetch failed:", error);
+		// Keep the last good games on screen: stale but never missing
+		const lastGood = await cacheGetLatest<DashboardData>(
+			CACHE_KEYS.DASHBOARD_DATA,
+		).catch(() => null);
+		gaming = lastGood?.gaming ?? null;
 	}
 
 	const dashboardData: DashboardData = {
