@@ -1,6 +1,8 @@
+import { HomeServer } from "@/components/admin/HomeServer";
 import { TestAlertButton } from "@/components/admin/TestAlertButton";
 import { StateMark, TroubleNotes } from "@/components/admin/Trouble";
 import { readLastSend } from "@/lib/health/alert";
+import { readHomeStatus } from "@/lib/health/home";
 import { healthReport } from "@/lib/health/report";
 import { readRefreshStatus } from "@/lib/health/status";
 import { formatWhenOrNever } from "@/lib/health/strip";
@@ -12,11 +14,12 @@ const HEAD =
 const CELL = "px-3 pt-3 text-left align-top first:pl-0 last:pr-0";
 
 export default async function SourceHealthPage(): Promise<React.JSX.Element> {
-	const [status, lastSend] = await Promise.all([
+	const [status, lastSend, home] = await Promise.all([
 		readRefreshStatus(),
 		readLastSend(),
+		readHomeStatus(),
 	]);
-	const report = healthReport(status, new Date());
+	const report = healthReport(status, new Date(), home);
 
 	return (
 		<div className="flex flex-col gap-12">
@@ -98,6 +101,10 @@ export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 				</div>
 			</section>
 
+			<section className="flex flex-col gap-4">
+				<h2 className="m-0 type-21 font-bold">Home server</h2>
+				<HomeServer home={report.home} />
+			</section>
 			<section className="flex flex-col gap-4">
 				<h2 className="m-0 type-21 font-bold">Alerts</h2>
 				<p className="m-0 text-eink-dark">

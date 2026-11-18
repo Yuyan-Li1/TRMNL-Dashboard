@@ -1,5 +1,7 @@
 import type { Check } from "@/lib/alerts/alerts";
+import type { HomeStatus } from "@/lib/home/status";
 import { addDays, daysUntilDay } from "@/lib/owner-day";
+import { isHeartbeatStale } from "./home";
 import { SOURCE_IDS, SOURCES, type SourceId } from "./sources";
 import type { RefreshStatus } from "./status";
 
@@ -106,14 +108,35 @@ function expiryCheck(
 }
 
 /**
- * What Vercel alerts on, judged from the refresh's bookkeeping: a source or
- * Catalog read that keeps failing, a rejected token, and a dated token close
- * to expiry.
+ * The home server's heartbeat, which only Vercel can watch. Before the
+ * Collector has ever ticked there is nothing to be Stale.
  */
-export function healthChecks(status: RefreshStatus, now: Date): Check[] {
+function heartbeatCheck(home: HomeStatus | null, now: Date): Check {
+	return {
+		id: `${SENDER}:home-heartbeat`,
+		label: "Home server",
+		failure:
+			home && isHeartbeatStale(home, now)
+				? { what: "Home server heartbeat Stale", since: home.heartbeatAt }
+				: null,
+	};
+}
+
+/**
+ * What Vercel alerts on, judged from the refresh's bookkeeping and the
+ * Collector's status: a source or Catalog read that keeps failing, a
+ * rejected token, a dated token close to expiry, and a home server that has
+ * stopped ticking.
+ */
+export function healthChecks(
+	status: RefreshStatus,
+	now: Date,
+	home: HomeStatus | null = null,
+): Check[] {
 	return [
 		...SOURCE_IDS.map((id) => sourceCheck(id, status)),
 		expiryCheck(`${SENDER}:psn-expiry`, "psn", status, now),
 		expiryCheck(`${SENDER}:nintendo-expiry`, "switch", status, now),
+		heartbeatCheck(home, now),
 	];
 }

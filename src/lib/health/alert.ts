@@ -8,6 +8,7 @@ import {
 import { sendTelegramMessage } from "@/lib/alerts/telegram";
 import { getRedis } from "@/lib/cache/redis";
 import { OWNER_TIME_ZONE } from "@/lib/config";
+import type { HomeStatus } from "@/lib/home/status";
 import { healthChecks, SENDER } from "./checks";
 import type { RefreshStatus } from "./status";
 
@@ -39,16 +40,18 @@ export async function readLastSend(): Promise<SentAlert | null> {
 }
 
 /**
- * Send the Alerts the refresh's bookkeeping calls for: failures that have
- * started, lasted another day or cleared, and tokens close to expiry.
+ * Send the Alerts the refresh's bookkeeping and the Collector's status call
+ * for: failures that have started, lasted another day or cleared, tokens
+ * close to expiry, and a home server whose heartbeat is Stale.
  */
 export async function sendAlerts(
 	status: RefreshStatus,
 	now: Date,
+	home: HomeStatus | null = null,
 ): Promise<SentAlert[]> {
 	const alerts = await processChecks({
 		sender: SENDER,
-		checks: healthChecks(status, now),
+		checks: healthChecks(status, now, home),
 		store: redisStore,
 		send,
 		now,

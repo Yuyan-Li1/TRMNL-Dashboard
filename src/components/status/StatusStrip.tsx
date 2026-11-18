@@ -4,8 +4,8 @@ import { TmdbAttribution } from "./TmdbAttribution";
 import { TraktAttribution } from "./TraktAttribution";
 
 /**
- * The status strip: each source's last good read, the last refresh and the
- * last Alert, then the attribution lines. It sits below the 800x480 area the
+ * The status strip: each source's last good read, the last refresh, the
+ * last Alert and the home server, then the attribution lines. It sits below the 800x480 area the
  * device captures, so it is seen in a browser and never on the panel.
  */
 export function StatusStrip({
@@ -37,6 +37,26 @@ export function StatusStrip({
 						: "none"}
 					.
 				</p>
+				{view.home && (
+					<p className="mt-1 mb-0">
+						<span className="font-bold text-eink-black">Home server</span>{" "}
+						{view.home.heartbeat}
+						{view.home.stale && (
+							<span className="font-bold text-eink-black"> Stale</span>
+						)}
+						{view.home.jobs.map((job) => (
+							<span key={job.name}>
+								. {job.name} {job.lastSuccess}
+								{job.stale && (
+									<span className="font-bold text-eink-black"> Stale</span>
+								)}
+							</span>
+						))}
+						.
+						{view.home.claudeTokenExpires &&
+							` Claude Code token expires ${view.home.claudeTokenExpires}.`}
+					</p>
+				)}
 			</section>
 			<TmdbAttribution />
 			<TraktAttribution />

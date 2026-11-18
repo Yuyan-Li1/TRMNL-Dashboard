@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { HomeStatus } from "@/lib/home/status";
 import { healthChecks, tokenExpiry } from "./checks";
 import type { RefreshStatus, SourceHealth } from "./status";
 
@@ -21,7 +22,7 @@ function check(id: string, from: RefreshStatus, now = NOW) {
 }
 
 describe("healthChecks", () => {
-	it("checks every source and Catalog, and both dated tokens", () => {
+	it("checks every source and Catalog, both dated tokens and the home server", () => {
 		expect(healthChecks(status(), NOW).map((entry) => entry.id)).toEqual([
 			"vercel:steam",
 			"vercel:xbox",
@@ -33,6 +34,7 @@ describe("healthChecks", () => {
 			"vercel:igdb",
 			"vercel:psn-expiry",
 			"vercel:nintendo-expiry",
+			"vercel:home-heartbeat",
 		]);
 	});
 
@@ -118,5 +120,32 @@ describe("healthChecks", () => {
 		expect(expiry?.failure?.what).toBe(
 			"Nintendo session token expires within 14 days, on 16 Nov 2028",
 		);
+	});
+
+	it("fails a home server heartbeat more than an hour old, since that heartbeat", () => {
+		const home = (heartbeatAt: string): HomeStatus => ({
+			heartbeatAt,
+			commit: "abc1234",
+			jobs: {
+				goodreads: { failuresInARow: 0 },
+				"code-update": { failuresInARow: 0 },
+				snapshot: { failuresInARow: 0 },
+			},
+		});
+		const heartbeat = (from: HomeStatus | null) =>
+			healthChecks(status(), NOW, from).find(
+				(entry) => entry.id === "vercel:home-heartbeat",
+			);
+		expect(heartbeat(home("2026-11-18T00:15:00Z"))?.failure).toBeNull();
+		expect(heartbeat(home("2026-11-17T23:45:00Z"))).toEqual({
+			id: "vercel:home-heartbeat",
+			label: "Home server",
+			failure: {
+				what: "Home server heartbeat Stale",
+				since: "2026-11-17T23:45:00Z",
+			},
+		});
+		// Before the Collector is set up there is nothing to be Stale
+		expect(heartbeat(null)?.failure).toBeNull();
 	});
 });
