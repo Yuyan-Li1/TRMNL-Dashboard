@@ -25,7 +25,7 @@ export interface Check {
 		fix?: string;
 	} | null;
 	/**
-	 * A warning sent once per wording, with no reminder and no recovery
+	 * An Alert sent once per wording, with no reminder and no recovery
 	 * message: a token close to expiry.
 	 */
 	oneOff?: boolean;

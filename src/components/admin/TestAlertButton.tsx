@@ -7,11 +7,11 @@ interface TestAlertResult {
 	error?: string;
 }
 
-export function TestAlertButton() {
+export function TestAlertButton(): React.JSX.Element {
 	const [loading, setLoading] = useState(false);
 	const [result, setResult] = useState<TestAlertResult | null>(null);
 
-	const handleSend = async () => {
+	const handleSend = async (): Promise<void> => {
 		setLoading(true);
 		setResult(null);
 

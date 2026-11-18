@@ -95,7 +95,7 @@ describe("healthChecks", () => {
 		],
 		["2027-01-14T01:00:00Z", "PSN NPSSO expires within 3 days, on 17 Jan 2027"],
 		["2027-01-20T01:00:00Z", "PSN NPSSO expires within 3 days, on 17 Jan 2027"],
-	])("on %s the PSN expiry warning is %s", (now, what) => {
+	])("on %s the PSN expiry Alert is %s", (now, what) => {
 		const expiry = check(
 			"vercel:psn-expiry",
 			status({ npsso: { fingerprint: "aaaa", changedOn: "2026-11-18" } }),
@@ -103,10 +103,12 @@ describe("healthChecks", () => {
 		);
 
 		expect(expiry?.oneOff).toBe(true);
+		// The label is shown on the public status strip: no token names
+		expect(expiry?.label).toBe("PSN");
 		expect(expiry?.failure?.what ?? null).toBe(what);
 	});
 
-	it("warns before the Nintendo session token's fixed expiry day", () => {
+	it("alerts before the Nintendo session token's fixed expiry day", () => {
 		const expiry = check(
 			"vercel:nintendo-expiry",
 			status(),

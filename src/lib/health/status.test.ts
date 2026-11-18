@@ -49,11 +49,32 @@ describe("updateStatus", () => {
 		});
 	});
 
-	it("counts a run with any failed read as failed", () => {
-		const status = run({ tmdb: { good: 3, failed: 1 } }, T0);
+	it("counts a run as good when any read of the source worked", () => {
+		// One show Trakt cannot answer for must not make Trakt Stale
+		const status = run({ trakt: { good: 3, failed: 1, error: "404" } }, T0);
 
-		expect(status.sources.tmdb?.failuresInARow).toBe(1);
-		expect(status.sources.tmdb?.lastGoodReadAt).toBeUndefined();
+		expect(status.sources.trakt).toEqual({
+			lastGoodReadAt: T0.toISOString(),
+			failuresInARow: 0,
+		});
+	});
+
+	it("keeps a token rejected while the source goes on failing another way", () => {
+		const rejected = run({ psn: { good: 0, failed: 1, rejected: true } }, T0);
+		const timedOut = run({ psn: { good: 0, failed: 1 } }, T1, rejected);
+
+		expect(timedOut.sources.psn?.rejected).toBe(true);
+		expect(timedOut.sources.psn?.failuresInARow).toBe(2);
+	});
+
+	it("takes the day a token first seen was set from what was known before", () => {
+		const status = updateStatus(
+			null,
+			{ reads: {}, npsso: { fingerprint: "aaaa", knownSince: "2026-10-30" } },
+			T0,
+		);
+
+		expect(status.npsso?.changedOn).toBe("2026-10-30");
 	});
 
 	it("clears the failure when the source is read again", () => {

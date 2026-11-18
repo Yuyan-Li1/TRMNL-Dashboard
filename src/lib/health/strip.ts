@@ -14,7 +14,8 @@ export interface StatusStripView {
 	lastAlert: { label: string; at: string; sent: boolean } | null;
 }
 
-function when(at: string | undefined): string {
+/** A moment in the owner's time zone, or "never" for one that has not come. */
+export function formatWhenOrNever(at: string | undefined): string {
 	return at ? formatMoment(at, OWNER_TIME_ZONE) : "never";
 }
 
@@ -28,13 +29,17 @@ export function statusStripView(
 			const health = status?.sources[id];
 			return {
 				name: SOURCES[id].name,
-				lastGoodRead: when(health?.lastGoodReadAt),
+				lastGoodRead: formatWhenOrNever(health?.lastGoodReadAt),
 				stale: isStale(id, health, now),
 			};
 		}),
-		lastRefresh: when(status?.lastSuccessAt),
+		lastRefresh: formatWhenOrNever(status?.lastSuccessAt),
 		lastAlert: lastSend
-			? { label: lastSend.label, at: when(lastSend.at), sent: lastSend.ok }
+			? {
+					label: lastSend.label,
+					at: formatWhenOrNever(lastSend.at),
+					sent: lastSend.ok,
+				}
 			: null,
 	};
 }
