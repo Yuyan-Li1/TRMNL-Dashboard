@@ -12,7 +12,7 @@ export const NPSSO_LIFETIME_DAYS = 60;
 /** The day the Nintendo session token now configured stops working. */
 const NINTENDO_TOKEN_EXPIRES_ON = "2028-11-16";
 /** A dated token alerts this many days before it expires, nearest first. */
-const ALERT_DAYS_BEFORE = [3, 14] as const;
+export const ALERT_DAYS_BEFORE = [3, 14] as const;
 
 const DAY_FORMAT = new Intl.DateTimeFormat("en-GB", {
 	timeZone: "UTC",

@@ -1,61 +1,78 @@
 import Link from "next/link";
 import { RefreshButton } from "@/components/admin/RefreshButton";
-import type { DashboardData } from "@/lib/api/refresh";
-import { CACHE_KEYS, cacheGetOrLatest } from "@/lib/cache/redis";
+import { StateMark, TroubleNotes } from "@/components/admin/Trouble";
+import { Screen } from "@/components/screen/Screen";
+import { healthReport } from "@/lib/health/report";
+import { readRefreshStatus } from "@/lib/health/status";
+import { formatWhen } from "@/lib/screen/format";
+import { loadScreen } from "@/lib/screen/load";
 
 export const dynamic = "force-dynamic";
 
-const LINK_CLASS =
-	"inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50";
-
-export default async function AdminDashboardPage() {
-	const dashboardData = await cacheGetOrLatest<DashboardData>(
-		CACHE_KEYS.DASHBOARD_DATA,
-	);
+export default async function AdminOverviewPage(): Promise<React.JSX.Element> {
+	const [status, view] = await Promise.all([
+		readRefreshStatus(),
+		loadScreen({ rememberPick: false }),
+	]);
+	const now = new Date();
+	const report = healthReport(status, now);
+	const troubled = report.rows.filter((row) => row.trouble);
 
 	return (
-		<div className="space-y-6">
-			<h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-
-			<div className="rounded-lg bg-white p-6 shadow">
-				<p className="text-sm font-medium text-gray-500">Last refresh</p>
-				<p className="mt-1 text-3xl font-semibold text-gray-900">
-					{dashboardData?.refreshedAt
-						? getTimeAgo(new Date(dashboardData.refreshedAt))
-						: "No data"}
+		<div className="flex flex-col gap-10">
+			<section className="flex flex-col gap-4">
+				<h1
+					className={`m-0 type-42 ${report.trouble ? "text-signal" : "text-eink-black"}`}
+				>
+					{report.headline}
+				</h1>
+				<p className="m-0 text-eink-dark">
+					{status
+						? `Last refresh ${report.lastRefresh}, ${formatWhen(status.lastSuccessAt, now)}. One runs every 15 minutes.`
+						: "The refresh runs every 15 minutes. Run one now to fill the screen."}
 				</p>
-				{dashboardData && dashboardData.errors.length > 0 && (
-					<ul className="mt-3 list-disc pl-5 text-sm text-red-700">
-						{dashboardData.errors.map((error) => (
-							<li key={error}>{error}</li>
+				<RefreshButton />
+			</section>
+
+			{troubled.length > 0 && (
+				<section aria-label="Needs attention">
+					<ul className="m-0 list-none border-t-2 border-eink-black p-0">
+						{troubled.map((row) => (
+							<li
+								key={row.id}
+								className="flex flex-col gap-1 border-b-2 border-eink-light py-3"
+							>
+								<p className="m-0">
+									<StateMark row={row} />
+									<span className="font-bold">{row.name}</span>{" "}
+									<span className="font-bold text-signal">{row.state}</span>
+								</p>
+								<div className="pl-6">
+									<TroubleNotes row={row} />
+								</div>
+							</li>
 						))}
 					</ul>
-				)}
-			</div>
+					<p className="mt-4 mb-0">
+						<Link href="/admin/sources" className="admin-link">
+							See every source
+						</Link>
+					</p>
+				</section>
+			)}
 
-			<div className="rounded-lg bg-white p-6 shadow">
-				<div className="flex flex-wrap items-start gap-3">
-					<RefreshButton />
-					<Link href="/preview" target="_blank" className={LINK_CLASS}>
-						Preview Dashboard
-					</Link>
-					<Link href="/admin/sources" className={LINK_CLASS}>
-						Source health
-					</Link>
-					<Link href="/api/health" target="_blank" className={LINK_CLASS}>
-						Health Check
-					</Link>
+			<section className="flex flex-col gap-3">
+				<h2 className="m-0 type-21 font-bold">On the screen now</h2>
+				<div className="overflow-x-auto">
+					<div className="w-fit bg-eink-black p-4">
+						<Screen view={view} />
+					</div>
 				</div>
-			</div>
+				<p className="m-0 max-w-[70ch] text-eink-dark">
+					The device captures this every 15 minutes and picks the Spotlight
+					again each time, so its next capture may show another Title.
+				</p>
+			</section>
 		</div>
 	);
-}
-
-function getTimeAgo(date: Date): string {
-	const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
-	if (seconds < 60) return "Just now";
-	if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-	if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-	return `${Math.floor(seconds / 86400)}d ago`;
 }

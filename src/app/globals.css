@@ -10,6 +10,8 @@
 	--color-eink-dark: #555555;
 	--color-eink-light: #aaaaaa;
 	--color-eink-white: #ffffff;
+	/* The one colour off the panel: trouble in the admin area */
+	--color-signal: #c81e0a;
 }
 
 html {
@@ -78,6 +80,67 @@ body {
 	height: 100%;
 	height: round(down, 100%, 22px);
 	overflow: hidden;
+}
+
+/*
+ * The admin area: the panel's greys and pixel fonts on paper white, with
+ * the signal colour kept for trouble. TRMNL21 at twice its native size
+ * stays on whole pixels.
+ */
+@utility type-42 {
+	font-family: "TRMNL21", monospace;
+	font-size: 42px;
+	line-height: 46px;
+	font-weight: 700;
+}
+
+@layer components {
+	.admin {
+		min-height: 100vh;
+		font-family: "TRMNL16", monospace;
+		font-size: 16px;
+		line-height: 22px;
+		-webkit-font-smoothing: none;
+	}
+
+	.admin :focus-visible {
+		outline: 2px solid var(--color-eink-black);
+		outline-offset: 2px;
+	}
+
+	.admin-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--color-eink-black);
+		background-color: var(--color-eink-black);
+		color: var(--color-eink-white);
+		padding: 7px 16px;
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.admin-button:hover:not(:disabled) {
+		background-color: var(--color-eink-white);
+		color: var(--color-eink-black);
+	}
+
+	.admin-button:disabled {
+		border-color: var(--color-eink-light);
+		background-color: var(--color-eink-light);
+		cursor: default;
+	}
+
+	.admin-link {
+		text-decoration: underline;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 4px;
+	}
+
+	.admin-link:hover {
+		text-decoration-color: var(--color-eink-light);
+	}
 }
 
 /* E-ink button */
