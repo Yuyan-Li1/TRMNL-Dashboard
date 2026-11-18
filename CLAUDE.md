@@ -4,7 +4,7 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stage 1 (games) is the current stage; movies, shows and books arrive in later stages.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games) and 2 (movies) are built; shows and books arrive in later stages.
 
 ## Tech Stack
 
@@ -93,6 +93,7 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 - **PSN**: Rate limited (use caching aggressively)
 - **Nintendo**: unofficial; data updates once a day, fetch at most hourly
 - **IGDB**: 4 requests/second
+- **Letterboxd**: public RSS feed, no key; fetch at most hourly
 
 ## Code Style Guidelines
 
@@ -135,6 +136,8 @@ src/
 │   │   ├── steam.ts, xbox.ts, playstation.ts, switch.ts   # Game sources
 │   │   ├── igdb.ts              # IGDB, the Catalog for games
 │   │   ├── gaming.ts            # Reads the sources, merges, adds Catalog data and posters
+│   │   ├── letterboxd.ts        # The owner's Letterboxd diary feed, the Source for movies
+│   │   ├── movies.ts            # Reads the diary
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── screen/                  # What the screen shows
@@ -174,6 +177,7 @@ GitHub Actions (every 15 min)
   → POST /api/refresh (with CRON_SECRET)
     → refreshAllData() fetches every source
       → Games: Steam, Xbox, PSN and Switch plays merged into one Title per game
+      → Movies: the diary entries in the owner's Letterboxd feed
       → IGDB adds the description, rating and cover for recently played Titles
       → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
@@ -192,6 +196,7 @@ Dashboard page render (server-side)
 Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expiring `:latest` key as fallback, so data is stale but never missing.
 
 - Each game source's plays (`plays:<source>`): 1-hour TTL
+- The Letterboxd diary (`diary:letterboxd`): 1-hour TTL
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires
 - Combined dashboard data: 15-minute TTL
@@ -271,6 +276,9 @@ PSN_NPSSO=                    # Manual: expires every ~2 months
 
 # Nintendo Switch
 NINTENDO_SESSION_TOKEN=       # Manual: expires 2028-11-16
+
+# Letterboxd
+LETTERBOXD_USERNAME=          # The owner's public profile name
 
 # IGDB (through a Twitch application)
 TWITCH_CLIENT_ID=

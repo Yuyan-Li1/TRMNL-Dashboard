@@ -5,3 +5,4 @@ export type {
 	Platform,
 	PlatformPlay,
 } from "./gaming";
+export type { DiaryEntry, MoviesData } from "./movies";
