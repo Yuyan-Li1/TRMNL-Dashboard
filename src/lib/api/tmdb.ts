@@ -1,4 +1,5 @@
 import { CACHE_TTL, getRedis } from "@/lib/cache/redis";
+import { trackRead } from "@/lib/health/reads";
 
 /**
  * TMDB, the Catalog for movies and shows. Its terms require the attribution notice and
@@ -144,7 +145,7 @@ async function lookup<T>(
 		return stored.title;
 	}
 
-	const title = await find();
+	const title = await trackRead("tmdb", find);
 	await redis.set(key, { title } satisfies StoredLookup<T>, {
 		ex: title ? CACHE_TTL.TMDB_LOOKUP : NO_MATCH_TTL_SECONDS,
 	});

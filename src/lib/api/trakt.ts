@@ -5,6 +5,7 @@ import {
 	cacheSet,
 	getRedis,
 } from "@/lib/cache/redis";
+import { TokenRejectedError, trackRead } from "@/lib/health/reads";
 import type {
 	NextEpisode,
 	SeasonCounts,
@@ -184,6 +185,12 @@ async function traktGet(path: string): Promise<unknown> {
 	if (response.status === 204) {
 		return null;
 	}
+	// 403 is Trakt's answer to a client id it does not accept
+	if (response.status === 401 || response.status === 403) {
+		throw new TokenRejectedError(
+			`Trakt rejected the client id: ${response.status} ${path}`,
+		);
+	}
 	if (!response.ok) {
 		throw new Error(`Trakt request failed: ${response.status} ${path}`);
 	}
@@ -201,31 +208,33 @@ export async function getTraktActivity(): Promise<TraktActivity> {
 		return cached;
 	}
 
-	const slug = process.env.TRAKT_USER_SLUG;
-	if (!slug) {
-		throw new Error("TRAKT_USER_SLUG not configured");
-	}
-	const user = `/users/${encodeURIComponent(slug)}`;
+	return trackRead("trakt", async () => {
+		const slug = process.env.TRAKT_USER_SLUG;
+		if (!slug) {
+			throw new Error("TRAKT_USER_SLUG not configured");
+		}
+		const user = `/users/${encodeURIComponent(slug)}`;
 
-	const [history, watched] = await Promise.all([
-		traktGet(`${user}/history/episodes?limit=${HISTORY_LIMIT}`).then(
-			parseHistory,
-		),
-		// Without `progress` there is no `seasons` array
-		traktGet(`${user}/watched/shows?extended=full,progress`).then(
-			parseWatchedShows,
-		),
-	]);
+		const [history, watched] = await Promise.all([
+			traktGet(`${user}/history/episodes?limit=${HISTORY_LIMIT}`).then(
+				parseHistory,
+			),
+			// Without `progress` there is no `seasons` array
+			traktGet(`${user}/watched/shows?extended=full,progress`).then(
+				parseWatchedShows,
+			),
+		]);
 
-	// Only the shows in the history are used, and the rest is most of the size
-	const recent = new Set(history.map((episode) => episode.showId));
-	const activity: TraktActivity = {
-		history,
-		watched: watched.filter((show) => recent.has(show.showId)),
-	};
+		// Only the shows in the history are used, and the rest is most of the size
+		const recent = new Set(history.map((episode) => episode.showId));
+		const activity: TraktActivity = {
+			history,
+			watched: watched.filter((show) => recent.has(show.showId)),
+		};
 
-	await cacheSet(CACHE_KEYS.SHOWS_TRAKT, activity, CACHE_TTL.SHOWS);
-	return activity;
+		await cacheSet(CACHE_KEYS.SHOWS_TRAKT, activity, CACHE_TTL.SHOWS);
+		return activity;
+	});
 }
 
 /**
@@ -248,12 +257,14 @@ export async function getShowSchedule(
 	}
 
 	try {
-		const [seasons, nextEpisode] = await Promise.all([
-			traktGet(`/shows/${showId}/seasons?extended=full`).then(parseSeasons),
-			traktGet(`/shows/${showId}/next_episode?extended=full`).then(
-				parseNextEpisode,
-			),
-		]);
+		const [seasons, nextEpisode] = await trackRead("trakt", () =>
+			Promise.all([
+				traktGet(`/shows/${showId}/seasons?extended=full`).then(parseSeasons),
+				traktGet(`/shows/${showId}/next_episode?extended=full`).then(
+					parseNextEpisode,
+				),
+			]),
+		);
 		const schedule: ShowSchedule = {
 			seasons,
 			nextEpisode,

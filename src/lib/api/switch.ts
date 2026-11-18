@@ -1,4 +1,5 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
+import { TokenRejectedError, trackRead } from "@/lib/health/reads";
 import type { Platform, PlatformPlay } from "@/types/gaming";
 
 /**
@@ -46,6 +47,12 @@ async function getAccessToken(sessionToken: string): Promise<string> {
 			grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer-session-token",
 		}),
 	});
+	// Nintendo answers a session token it no longer accepts with 400 or 401
+	if (response.status === 400 || response.status === 401) {
+		throw new TokenRejectedError(
+			`Nintendo rejected the session token: ${response.status}`,
+		);
+	}
 	if (!response.ok) {
 		throw new Error(`Nintendo token exchange failed: ${response.status}`);
 	}
@@ -96,21 +103,25 @@ export async function getSwitchPlays(): Promise<PlatformPlay[]> {
 		return cached;
 	}
 
-	const sessionToken = process.env.NINTENDO_SESSION_TOKEN;
-	if (!sessionToken) {
-		throw new Error("NINTENDO_SESSION_TOKEN not configured");
-	}
+	return trackRead("switch", async () => {
+		const sessionToken = process.env.NINTENDO_SESSION_TOKEN;
+		if (!sessionToken) {
+			throw new Error("NINTENDO_SESSION_TOKEN not configured");
+		}
 
-	const history = await fetchPlayHistory(await getAccessToken(sessionToken));
+		const history = await fetchPlayHistory(await getAccessToken(sessionToken));
 
-	const plays: PlatformPlay[] = (history.playHistories ?? []).map((title) => ({
-		platform: toPlatform(title.platform),
-		name: title.titleName,
-		lastPlayedAt: title.lastPlayedAt,
-		minutesPlayed: title.totalPlayedMinutes,
-		imageUrl: title.imageUrl,
-	}));
+		const plays: PlatformPlay[] = (history.playHistories ?? []).map(
+			(title) => ({
+				platform: toPlatform(title.platform),
+				name: title.titleName,
+				lastPlayedAt: title.lastPlayedAt,
+				minutesPlayed: title.totalPlayedMinutes,
+				imageUrl: title.imageUrl,
+			}),
+		);
 
-	await cacheSet(CACHE_KEYS.GAMING_SWITCH, plays, CACHE_TTL.GAMING);
-	return plays;
+		await cacheSet(CACHE_KEYS.GAMING_SWITCH, plays, CACHE_TTL.GAMING);
+		return plays;
+	});
 }

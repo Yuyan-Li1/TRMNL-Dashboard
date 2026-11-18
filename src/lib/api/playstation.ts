@@ -13,6 +13,7 @@ import {
 	cacheSet,
 	getRedis,
 } from "@/lib/cache/redis";
+import { TokenRejectedError, trackRead } from "@/lib/health/reads";
 import type { PlatformPlay } from "@/types/gaming";
 
 // Token cache (in-memory for the current process)
@@ -72,8 +73,12 @@ async function getAuth(): Promise<AuthorizationPayload> {
 	try {
 		const accessCode = await exchangeNpssoForAccessCode(npsso);
 		authResponse = await exchangeAccessCodeForAuthTokens(accessCode);
-	} catch {
-		throw new Error("PSN authentication failed - NPSSO may be expired");
+	} catch (error) {
+		// psn-api's own words for an NPSSO that Sony no longer accepts
+		if (String(error).includes("Is your NPSSO code valid")) {
+			throw new TokenRejectedError("PSN rejected the NPSSO");
+		}
+		throw new Error(`PSN authentication failed: ${error}`);
 	}
 
 	await redis.set(CACHE_KEYS.PSN_AUTH, {
@@ -105,25 +110,27 @@ export async function getPlayStationPlays(): Promise<PlatformPlay[]> {
 		return cached;
 	}
 
-	const auth = await getAuth();
-	const response = await getUserPlayedGames(auth, "me", {
-		limit: PLAYED_GAMES_LIMIT,
-		offset: 0,
+	return trackRead("psn", async () => {
+		const auth = await getAuth();
+		const response = await getUserPlayedGames(auth, "me", {
+			limit: PLAYED_GAMES_LIMIT,
+			offset: 0,
+		});
+
+		const plays: PlatformPlay[] = (response.titles ?? [])
+			// The rest are apps such as Netflix and Plex
+			.filter((title) => title.category?.includes("game"))
+			.map((title) => ({
+				platform: "playstation" as const,
+				name: title.name,
+				lastPlayedAt: title.lastPlayedDateTime,
+				minutesPlayed: parsePlayDuration(title.playDuration ?? ""),
+				imageUrl: title.imageUrl,
+			}));
+
+		await cacheSet(CACHE_KEYS.GAMING_PSN, plays, CACHE_TTL.GAMING);
+		return plays;
 	});
-
-	const plays: PlatformPlay[] = (response.titles ?? [])
-		// The rest are apps such as Netflix and Plex
-		.filter((title) => title.category?.includes("game"))
-		.map((title) => ({
-			platform: "playstation" as const,
-			name: title.name,
-			lastPlayedAt: title.lastPlayedDateTime,
-			minutesPlayed: parsePlayDuration(title.playDuration ?? ""),
-			imageUrl: title.imageUrl,
-		}));
-
-	await cacheSet(CACHE_KEYS.GAMING_PSN, plays, CACHE_TTL.GAMING);
-	return plays;
 }
 
 export interface PsnTokenHealth {

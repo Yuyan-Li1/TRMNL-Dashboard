@@ -1,4 +1,5 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
+import { trackRead } from "@/lib/health/reads";
 import type { DiaryEntry } from "@/types/movies";
 
 /**
@@ -135,23 +136,25 @@ export async function getDiaryEntries(): Promise<DiaryEntry[]> {
 		return cached;
 	}
 
-	const username = process.env.LETTERBOXD_USERNAME;
-	if (!username) {
-		throw new Error("LETTERBOXD_USERNAME not configured");
-	}
+	return trackRead("letterboxd", async () => {
+		const username = process.env.LETTERBOXD_USERNAME;
+		if (!username) {
+			throw new Error("LETTERBOXD_USERNAME not configured");
+		}
 
-	const response = await fetch(
-		`https://letterboxd.com/${encodeURIComponent(username)}/rss/`,
-		{
-			headers: { Accept: "application/rss+xml, application/xml" },
-			signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-		},
-	);
-	if (!response.ok) {
-		throw new Error(`Letterboxd feed request failed: ${response.status}`);
-	}
-	const entries = parseDiaryFeed(await response.text());
+		const response = await fetch(
+			`https://letterboxd.com/${encodeURIComponent(username)}/rss/`,
+			{
+				headers: { Accept: "application/rss+xml, application/xml" },
+				signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+			},
+		);
+		if (!response.ok) {
+			throw new Error(`Letterboxd feed request failed: ${response.status}`);
+		}
+		const entries = parseDiaryFeed(await response.text());
 
-	await cacheSet(CACHE_KEYS.MOVIES_LETTERBOXD, entries, CACHE_TTL.MOVIES);
-	return entries;
+		await cacheSet(CACHE_KEYS.MOVIES_LETTERBOXD, entries, CACHE_TTL.MOVIES);
+		return entries;
+	});
 }
