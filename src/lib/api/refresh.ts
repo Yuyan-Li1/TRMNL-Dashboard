@@ -23,6 +23,7 @@ import type { ShowsData } from "@/types/shows";
 import { getBooksData } from "./books";
 import { getGamingData } from "./gaming";
 import { getMoviesData } from "./movies";
+import { retirePoolPicks } from "./picks";
 import { getShowsData } from "./shows";
 
 export interface DashboardData {
@@ -164,6 +165,15 @@ async function readAndStore(): Promise<DashboardData> {
 		errors,
 		refreshedAt: new Date().toISOString(),
 	};
+
+	// A pick leaves the Pool at the next refresh once its Title is in the
+	// owner's activity, has had its appearances, or has been there too long
+	try {
+		await retirePoolPicks(dashboardData);
+	} catch (error) {
+		errors.push(`Pool: ${error}`);
+		console.error("Retiring picks failed:", error);
+	}
 
 	await cacheSet(
 		CACHE_KEYS.DASHBOARD_DATA,

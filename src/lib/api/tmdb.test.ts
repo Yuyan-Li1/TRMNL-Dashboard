@@ -19,6 +19,7 @@ const PAST_LIVES = {
 describe("toCatalogMovie", () => {
 	it("reads the poster, overview, release year, director and rating in five stars", () => {
 		expect(toCatalogMovie(PAST_LIVES)).toEqual({
+			title: "Past Lives",
 			posterUrl:
 				"https://image.tmdb.org/t/p/w780/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
 			overview: "Nora and Hae Sung are wrested apart as children.",
@@ -52,21 +53,24 @@ describe("toCatalogMovie", () => {
 				vote_average: 0,
 				vote_count: 0,
 			}),
-		).toEqual({});
+		).toEqual({ title: "Untitled" });
 	});
 });
 
 describe("toCatalogShow", () => {
-	it("reads the poster, overview and rating in five stars", () => {
+	it("reads the name, year it first aired, poster, overview and rating in five stars", () => {
 		expect(
 			toCatalogShow({
 				name: "Ted Lasso",
+				first_air_date: "2020-08-14",
 				overview: "An American football coach moves to England.",
 				poster_path: "/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg",
 				vote_average: 8.4,
 				vote_count: 3100,
 			}),
 		).toEqual({
+			title: "Ted Lasso",
+			year: 2020,
 			posterUrl:
 				"https://image.tmdb.org/t/p/w780/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg",
 			overview: "An American football coach moves to England.",
@@ -83,6 +87,6 @@ describe("toCatalogShow", () => {
 				vote_average: 0,
 				vote_count: 0,
 			}),
-		).toEqual({});
+		).toEqual({ title: "Untitled" });
 	});
 });

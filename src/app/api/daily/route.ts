@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { runDaily } from "@/lib/api/daily";
 
-/** Paging PSN to the end takes longer than the default allows. */
+/** Paging PSN to the end and dithering new picks' posters take a while. */
 export const maxDuration = 60;
 
 /**
  * POST /api/daily
- * The daily run: each source's full history.
+ * The daily run: each source's full history, and the Catalog picks.
  * Called by GitHub Actions once a day, on its own schedule.
  */
 export async function POST(request: NextRequest) {
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 		console.log(
 			[
 				`Daily run completed in ${duration}`,
+				`  Picks added: ${JSON.stringify(result.picksAdded)}`,
 				...result.errors.map((error) => `  ${error}`),
 			].join("\n"),
 		);

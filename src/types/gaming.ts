@@ -48,6 +48,8 @@ export interface GameTitle {
 
 /** A game Title with what the Catalog and the poster pipeline added. */
 export interface Game extends GameTitle {
+	/** The Catalog's id for the game (IGDB) */
+	igdbId?: number;
 	/** The Catalog description (IGDB summary) */
 	description?: string;
 	/** The Catalog's public rating, converted to five stars */

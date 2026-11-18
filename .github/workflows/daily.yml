@@ -1,10 +1,11 @@
 name: Daily Run
 
 on:
-  # Once a day at 15:00 UTC: 02:00 in Sydney in summer, 01:00 in winter,
-  # before the Collector's nightly jobs
+  # Once a day at 15:07 UTC: just after 02:00 in Sydney in summer, 01:00 in
+  # winter, before the Collector's nightly jobs. Off the quarter hour, so it
+  # does not start with a 15-minute refresh: both write the Pool's record
   schedule:
-    - cron: "0 15 * * *"
+    - cron: "7 15 * * *"
 
   # Allow manual trigger
   workflow_dispatch:

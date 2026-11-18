@@ -14,6 +14,8 @@ const FETCH_TIMEOUT_MS = 10_000;
 
 /** What the Catalog says about a movie. */
 export interface CatalogMovie {
+	/** Absent in a lookup stored before it was kept */
+	title?: string;
 	posterUrl?: string;
 	overview?: string;
 	/** The release year */
@@ -36,14 +38,19 @@ interface TmdbMovie {
 
 /** What the Catalog says about a show. */
 export interface CatalogShow {
+	/** Absent in a lookup stored before it was kept */
+	title?: string;
 	posterUrl?: string;
 	overview?: string;
+	/** The year it first aired */
+	year?: number;
 	/** Public rating converted to five stars, in half-star steps */
 	rating?: number;
 }
 
 interface TmdbShow {
 	name?: string;
+	first_air_date?: string | null;
 	overview?: string | null;
 	poster_path?: string | null;
 	vote_average?: number;
@@ -55,9 +62,17 @@ interface StoredLookup<T> {
 	title: T | null;
 }
 
+/** A date's year, where TMDB gives the date. */
+function yearOf(date: string | null | undefined): number | undefined {
+	const year = Number(date?.slice(0, 4));
+	return Number.isInteger(year) && year > 0 ? year : undefined;
+}
+
 /** The poster, overview and rating, which a movie and a show both carry. */
-function sharedDetails(title: TmdbMovie | TmdbShow): CatalogShow {
-	const catalog: CatalogShow = {};
+function sharedDetails(
+	title: TmdbMovie | TmdbShow,
+): Omit<CatalogShow, "title" | "year"> {
+	const catalog: Omit<CatalogShow, "title" | "year"> = {};
 	if (title.poster_path) {
 		catalog.posterUrl = `${POSTER_URL}${title.poster_path}`;
 	}
@@ -75,8 +90,11 @@ function sharedDetails(title: TmdbMovie | TmdbShow): CatalogShow {
 /** The parts of a TMDB movie the screen uses. */
 export function toCatalogMovie(movie: TmdbMovie): CatalogMovie {
 	const catalog: CatalogMovie = sharedDetails(movie);
-	const year = Number(movie.release_date?.slice(0, 4));
-	if (Number.isInteger(year) && year > 0) {
+	if (movie.title) {
+		catalog.title = movie.title;
+	}
+	const year = yearOf(movie.release_date);
+	if (year !== undefined) {
 		catalog.year = year;
 	}
 	const directors = (movie.credits?.crew ?? [])
@@ -90,7 +108,15 @@ export function toCatalogMovie(movie: TmdbMovie): CatalogMovie {
 
 /** The parts of a TMDB show the screen uses. */
 export function toCatalogShow(show: TmdbShow): CatalogShow {
-	return sharedDetails(show);
+	const catalog: CatalogShow = sharedDetails(show);
+	if (show.name) {
+		catalog.title = show.name;
+	}
+	const year = yearOf(show.first_air_date);
+	if (year !== undefined) {
+		catalog.year = year;
+	}
+	return catalog;
 }
 
 /** Ask TMDB for one title. Null when it does not have the id. */
@@ -134,14 +160,19 @@ async function tmdbGet<T>(
  * Look a title up, keeping the answer in Redis: a miss for a day and a match
  * for a month.
  */
-async function lookup<T>(
+async function lookup<T extends { title?: string }>(
 	key: string,
 	find: () => Promise<T | null>,
 ): Promise<T | null> {
 	const redis = getRedis();
 	const stored = await redis.get<StoredLookup<T>>(key);
-	// A lookup stored in an earlier shape has no `title` and is asked again
-	if (stored && "title" in stored) {
+	// A lookup stored in an earlier shape, or a match stored before its name
+	// was kept, is asked again
+	if (
+		stored &&
+		"title" in stored &&
+		(stored.title === null || stored.title.title !== undefined)
+	) {
 		return stored.title;
 	}
 
@@ -171,4 +202,24 @@ export async function lookupShow(tmdbId: number): Promise<CatalogShow | null> {
 		const found = await tmdbGet<TmdbShow>(`/tv/${tmdbId}`);
 		return found ? toCatalogShow(found) : null;
 	});
+}
+
+/**
+ * The TMDB ids of the titles TMDB recommends for a movie or a show, best
+ * first: its ratings-based `/recommendations`, not the genre-based
+ * `/similar`. Empty when TMDB does not have the id. Not kept: only the
+ * daily run asks, once per seed.
+ */
+export async function getRecommendations(
+	kind: "movie" | "show",
+	tmdbId: string | number,
+): Promise<string[]> {
+	const found = await trackRead("tmdb", () =>
+		tmdbGet<{ results?: { id?: number }[] }>(
+			`/${kind === "movie" ? "movie" : "tv"}/${encodeURIComponent(tmdbId)}/recommendations`,
+		),
+	);
+	return (found?.results ?? []).flatMap((result) =>
+		result.id === undefined ? [] : [String(result.id)],
+	);
 }
