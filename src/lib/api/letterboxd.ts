@@ -1,5 +1,6 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
 import { trackRead } from "@/lib/health/reads";
+import { decodeEntities } from "@/lib/html";
 import type { DiaryEntry } from "@/types/movies";
 
 /**
@@ -10,33 +11,6 @@ import type { DiaryEntry } from "@/types/movies";
 const FETCH_TIMEOUT_MS = 10_000;
 const SPOILER_NOTICE =
 	/<p>\s*<em>\s*This review may contain spoilers\.\s*<\/em>\s*<\/p>/i;
-
-const NAMED_ENTITIES: Record<string, string> = {
-	amp: "&",
-	lt: "<",
-	gt: ">",
-	quot: '"',
-	apos: "'",
-	nbsp: " ",
-};
-
-function decodeEntities(text: string): string {
-	return text.replace(
-		/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
-		(whole, entity: string) => {
-			if (entity[0] !== "#") {
-				return NAMED_ENTITIES[entity.toLowerCase()] ?? whole;
-			}
-			const code =
-				entity[1].toLowerCase() === "x"
-					? Number.parseInt(entity.slice(2), 16)
-					: Number.parseInt(entity.slice(1), 10);
-			return Number.isFinite(code) && code <= 0x10ffff
-				? String.fromCodePoint(code)
-				: whole;
-		},
-	);
-}
 
 /** The text inside the first `<name>` element of an item, if it has one. */
 function element(item: string, name: string): string | undefined {

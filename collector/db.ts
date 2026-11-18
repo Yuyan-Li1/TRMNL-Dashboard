@@ -22,6 +22,33 @@ const SCHEMA = `
 		fingerprint TEXT NOT NULL,
 		changed_on TEXT NOT NULL
 	);
+	CREATE TABLE IF NOT EXISTS books (
+		review_id TEXT PRIMARY KEY,
+		book_id TEXT,
+		title TEXT NOT NULL,
+		author TEXT,
+		cover_url TEXT,
+		stars INTEGER,
+		shelf TEXT NOT NULL,
+		-- Where the book stood on its shelf at the last read; NULL once a
+		-- read book has dropped out of the newest hundred
+		position INTEGER,
+		-- The day the book was first seen as read; NULL for a book already
+		-- read when the Collector first ran
+		first_read_on TEXT
+	);
+	CREATE TABLE IF NOT EXISTS book_progress (
+		book_id TEXT PRIMARY KEY,
+		page INTEGER,
+		pages INTEGER,
+		percent INTEGER,
+		at TEXT NOT NULL
+	);
+	CREATE TABLE IF NOT EXISTS book_details (
+		book_id TEXT PRIMARY KEY,
+		description TEXT,
+		average_rating REAL
+	);
 	CREATE TABLE IF NOT EXISTS meta (
 		key TEXT PRIMARY KEY,
 		value TEXT NOT NULL

@@ -7,6 +7,7 @@ import { HOME_KEYS, JOB_NAMES } from "@/lib/home/status";
 import { SENDER } from "./checks";
 import { codeUpdateJob, exec } from "./code-update";
 import { type Database, openDatabase } from "./db";
+import { goodreadsJob, publishBooks } from "./goodreads/read";
 import { type Job, runJob } from "./jobs";
 import { connectRedis, type HomeRedis } from "./redis";
 import { publishBackup, restore, snapshotJob } from "./snapshot";
@@ -74,6 +75,7 @@ async function refresh(): Promise<void> {
 /** The Collector's jobs, in the order a tick runs them. */
 function jobs(db: Database, store: HomeRedis): Job[] {
 	return [
+		goodreadsJob({ db, userId: env("GOODREADS_USER_ID") }),
 		snapshotJob({ db, dir: SNAPSHOT_DIR, redis: store }),
 		// Last, so nothing else in the tick runs after the code has changed
 		codeUpdateJob({ repoDir: REPO_DIR, exec }),
@@ -129,6 +131,7 @@ async function main(): Promise<void> {
 			jobs: jobs(db, store),
 			refresh,
 			send,
+			publish: () => publishBooks(db, store),
 			...options,
 		});
 		console.log(
@@ -136,6 +139,7 @@ async function main(): Promise<void> {
 		);
 	} else if (command === "publish") {
 		await store.set(HOME_KEYS.STATUS, homeStatus(db, await statusOptions()));
+		await publishBooks(db, store);
 		await publishBackup(SNAPSHOT_DIR, store);
 		console.log("Published every home: key.");
 	} else {
@@ -147,6 +151,7 @@ async function main(): Promise<void> {
 		await runJob(db, job, options.now);
 		const status = homeStatus(db, options);
 		await store.set(HOME_KEYS.STATUS, status);
+		await publishBooks(db, store);
 		const { lastError } = status.jobs[job.name];
 		if (lastError) {
 			throw new Error(`${job.name} failed: ${lastError}`);
