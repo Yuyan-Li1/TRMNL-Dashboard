@@ -4,7 +4,7 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games) and 2 (movies) are built; shows and books arrive in later stages.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies) and 3 (shows) are built; books arrive in a later stage.
 
 ## Tech Stack
 
@@ -95,6 +95,7 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 - **IGDB**: 4 requests/second
 - **TMDB**: about 40 requests/second; attribution required
 - **Letterboxd**: public RSS feed, no key; fetch at most hourly
+- **Trakt**: client id only, no OAuth; 500 requests per 5 minutes; user endpoints are cached by Trakt for up to an hour, fetch at most hourly
 
 ## Code Style Guidelines
 
@@ -138,8 +139,10 @@ src/
 │   │   ├── igdb.ts              # IGDB, the Catalog for games
 │   │   ├── gaming.ts            # Reads the sources, merges, adds Catalog data and posters
 │   │   ├── letterboxd.ts        # The owner's Letterboxd diary feed, the Source for movies
-│   │   ├── tmdb.ts              # TMDB, the Catalog for movies
+│   │   ├── tmdb.ts              # TMDB, the Catalog for movies and shows
 │   │   ├── movies.ts            # Reads the diary, adds Catalog data and posters
+│   │   ├── trakt.ts             # The owner's Trakt history and watched shows, the Source for shows
+│   │   ├── shows.ts             # Reads Trakt, applies the show rules, adds Catalog data and posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── screen/                  # What the screen shows
@@ -147,10 +150,13 @@ src/
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
 │   │   ├── games.ts             # What games contribute: candidates and the Medium card
 │   │   ├── movies.ts            # What movies contribute: Finished candidates and the Medium card
+│   │   ├── shows.ts             # What shows contribute: In progress and Finished candidates and the Medium card
 │   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours"
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── movies/diary.ts          # Days since a movie was watched, in the owner's time zone
+│   ├── shows/progress.ts        # The show rules: one entry per show, Finished, Caught up
+│   ├── owner-day.ts             # Calendar days in the owner's time zone
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
 │   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
 │   │   ├── png.ts               # 2-bit palette PNG encoder
@@ -182,7 +188,8 @@ GitHub Actions (every 15 min)
     → refreshAllData() fetches every source
       → Games: Steam, Xbox, PSN and Switch plays merged into one Title per game
       → Movies: the diary entries in the owner's Letterboxd feed
-      → TMDB adds the director, year, overview, rating and poster for recently watched movies
+      → Shows: the latest episode watched of each show in the owner's Trakt history, with where the owner is in its season
+      → TMDB adds the director, year, overview, rating and poster for recently watched movies, and the overview, rating and poster for recently watched shows
       → IGDB adds the description, rating and cover for recently played Titles
       → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
@@ -202,10 +209,12 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 
 - Each game source's plays (`plays:<source>`): 1-hour TTL
 - The Letterboxd diary (`diary:letterboxd`): 1-hour TTL
+- Trakt activity, the latest watched episodes and the watched episodes of those shows (`watched:trakt`): 1-hour TTL
+- A show's seasons and next episode (`trakt:show:<Trakt id>`): 1 day, and read again sooner once the owner has watched an episode since
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
-- TMDB lookups (`tmdb:movie:<TMDB id>`): 30 days for a match, 1 day for a miss
+- TMDB lookups (`tmdb:movie:<TMDB id>`, `tmdb:show:<TMDB id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires
-- Combined dashboard data: 15-minute TTL; while it holds movies its `:latest` copy expires 150 days after they were read (see TMDB below)
+- Combined dashboard data: 15-minute TTL; while it holds movies or shows its `:latest` copy expires 150 days after they were read (see TMDB below)
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
@@ -214,7 +223,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 
 ### The screen
 
-The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts` and `movies.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
+The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts`, `movies.ts` and `shows.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
 
 Type utilities are in `globals.css`: `type-12`, `type-16`, `type-21` (the TRMNL pixel fonts, only at their native sizes, unsmoothed) and `type-title` (Inter Bold, the Spotlight title only).
 
@@ -288,6 +297,10 @@ NINTENDO_SESSION_TOKEN=       # Manual: expires 2028-11-16
 # Letterboxd
 LETTERBOXD_USERNAME=          # The owner's public profile name
 
+# Trakt
+TRAKT_CLIENT_ID=              # The client id of a Trakt API app; no OAuth
+TRAKT_USER_SLUG=              # The owner's public profile name
+
 # TMDB
 TMDB_API_KEY=                 # The API key or the API read access token
 
@@ -337,7 +350,7 @@ PSN NPSSO expires every ~2 months. To refresh:
 
 These require manual action and cannot be automated:
 
-1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB), TMDB
+1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB), TMDB, a Trakt API app
 2. **Token Retrieval**: PSN NPSSO and the Nintendo session token (manual browser login required)
 3. **Environment Variables**: Must be added to the Vercel dashboard
 4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets
