@@ -1,16 +1,16 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGetLatest } from "@/lib/cache/redis";
-import { isRecentlyWatched } from "@/lib/movies/diary";
+import { isEligibleForSpotlight } from "@/lib/movies/diary";
 import { getPoster } from "@/lib/poster/poster";
 import type { DiaryEntry, Movie, MoviesData } from "@/types/movies";
 import { getDiaryEntries } from "./letterboxd";
 import { lookupMovie } from "./tmdb";
 
 /**
- * At most this many recently watched movies get Catalog data and posters,
+ * At most this many movies inside their eligibility window get Catalog data and posters,
  * so a first refresh stays inside the function timeout.
  */
 const MAX_PREPARED = 20;
-/** With nothing recently watched, this many of the latest are prepared. */
+/** With nothing eligible, this many of the latest are prepared. */
 const FALLBACK_PREPARED = 3;
 
 /**
@@ -50,15 +50,20 @@ async function prepareForScreen(
 		}
 		try {
 			await getPoster(url, "spotlight", ttl);
-			movie.posterUrl = url;
-			if (withThumbnail) {
-				await getPoster(url, "thumbnail", ttl);
-				movie.thumbnailUrl = url;
-			}
-			break;
 		} catch (error) {
 			errors.push(`Artwork (${entry.title}): ${error}`);
+			continue;
 		}
+		movie.posterUrl = url;
+		if (withThumbnail) {
+			try {
+				await getPoster(url, "thumbnail", ttl);
+				movie.thumbnailUrl = url;
+			} catch (error) {
+				errors.push(`Thumbnail (${entry.title}): ${error}`);
+			}
+		}
+		break;
 	}
 
 	return movie;
@@ -86,10 +91,12 @@ export async function getMoviesData(): Promise<MoviesData> {
 	}
 
 	const now = new Date();
-	const recent = entries.filter((entry) => isRecentlyWatched(entry, now));
+	const eligible = entries.filter((entry) =>
+		isEligibleForSpotlight(entry, now),
+	);
 	const prepared = new Set(
-		(recent.length > 0
-			? recent.slice(0, MAX_PREPARED)
+		(eligible.length > 0
+			? eligible.slice(0, MAX_PREPARED)
 			: entries.slice(0, FALLBACK_PREPARED)
 		).map((entry) => entry.id),
 	);

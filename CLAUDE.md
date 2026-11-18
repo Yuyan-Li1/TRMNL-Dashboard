@@ -146,7 +146,8 @@ src/
 │   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
 │   │   ├── games.ts             # What games contribute: candidates and the Medium card
-│   │   ├── format.ts            # "3 hours ago", "42 hours"
+│   │   ├── movies.ts            # What movies contribute: Finished candidates and the Medium card
+│   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours"
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── movies/diary.ts          # Days since a movie was watched, in the owner's time zone
@@ -155,7 +156,7 @@ src/
 │   │   ├── png.ts               # 2-bit palette PNG encoder
 │   │   └── poster.ts            # getPoster(): fetch, render, keep in Redis
 │   ├── base-url.ts              # The dashboard's own origin, for absolute URLs
-│   ├── config.ts                # TRMNL screen config
+│   ├── config.ts                # TRMNL screen config, the owner's time zone
 │   └── env.ts                   # Environment variable validation groups
 ├── types/                       # TypeScript type definitions
 └── proxy.ts                     # Auth for /admin and /api/admin routes
@@ -204,7 +205,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
 - TMDB lookups (`tmdb:movie:<TMDB id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires
-- Combined dashboard data: 15-minute TTL; its `:latest` copy expires after 150 days (see TMDB below)
+- Combined dashboard data: 15-minute TTL; while it holds movies its `:latest` copy expires 150 days after they were read (see TMDB below)
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
@@ -213,7 +214,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 
 ### The screen
 
-The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
+The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts` and `movies.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
 
 Type utilities are in `globals.css`: `type-12`, `type-16`, `type-21` (the TRMNL pixel fonts, only at their native sizes, unsmoothed) and `type-title` (Inter Bold, the Spotlight title only).
 

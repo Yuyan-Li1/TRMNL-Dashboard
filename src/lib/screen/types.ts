@@ -53,8 +53,8 @@ export interface MediumActivity {
 	title: string;
 	/** Hours played; episode and "caught up"; page of pages; or "Watched" */
 	detail?: string;
-	/** ISO timestamp */
-	at?: string;
+	/** When it happened, as the card says it: "3 hours ago", "yesterday" */
+	when?: string;
 	/** The owner's rating, when the latest activity has one */
 	stars?: number;
 	/** Source URL of the artwork with a stored thumbnail */
@@ -89,5 +89,4 @@ export interface ScreenView {
 	spotlight: SpotlightView | null;
 	/** One card for every Medium not in the Spotlight */
 	cards: MediumCardView[];
-	now: string;
 }

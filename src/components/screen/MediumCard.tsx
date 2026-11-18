@@ -1,4 +1,3 @@
-import { formatWhen } from "@/lib/screen/format";
 import { MEDIUM_NAMES, type MediumCardView } from "@/lib/screen/types";
 import { PosterImage } from "./PosterImage";
 import { Stars } from "./Stars";
@@ -6,10 +5,8 @@ import { Stars } from "./Stars";
 /** The latest activity for one Medium, however old. */
 export function MediumCard({
 	card,
-	now,
 }: {
 	card: MediumCardView;
-	now: Date;
 }): React.JSX.Element {
 	const { activity } = card;
 
@@ -36,10 +33,8 @@ export function MediumCard({
 						{activity.detail && (
 							<div className="type-12">{activity.detail}</div>
 						)}
-						{activity.at && (
-							<div className="type-12 text-eink-dark">
-								{formatWhen(activity.at, now)}
-							</div>
+						{activity.when && (
+							<div className="type-12 text-eink-dark">{activity.when}</div>
 						)}
 					</>
 				) : (

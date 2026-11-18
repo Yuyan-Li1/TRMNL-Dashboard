@@ -101,7 +101,7 @@ describe("gamesContent", () => {
 		expect(content.latest).toEqual({
 			title: "Hades II",
 			detail: "42 hours played",
-			at: "2025-01-01T00:00:00Z",
+			when: "1 year ago",
 			thumbnailUrl: "https://example.com/hades.jpg",
 		});
 	});

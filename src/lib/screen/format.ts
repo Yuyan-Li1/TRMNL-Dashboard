@@ -14,7 +14,15 @@ export function formatWhen(at: string, now: Date): string {
 	if (elapsed < DAY_MS) {
 		return `${plural(Math.floor(elapsed / HOUR_MS), "hour")} ago`;
 	}
-	const days = Math.floor(elapsed / DAY_MS);
+	return formatDaysAgo(Math.floor(elapsed / DAY_MS));
+}
+
+/**
+ * How long ago a day was, for activity that has a date and no time: "today",
+ * "yesterday", "5 days ago".
+ */
+export function formatDaysAgo(days: number): string {
+	if (days <= 0) return "today";
 	if (days === 1) return "yesterday";
 	if (days < 14) return `${days} days ago`;
 	if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
