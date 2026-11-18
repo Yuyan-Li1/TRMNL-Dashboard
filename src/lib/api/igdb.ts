@@ -1,5 +1,6 @@
 import { CACHE_KEYS, getRedis } from "@/lib/cache/redis";
 import { matchKey } from "@/lib/games/titles";
+import { trackRead } from "@/lib/health/reads";
 import type { GameTitle } from "@/types/gaming";
 
 /**
@@ -194,7 +195,9 @@ export async function lookupGame(
 		return stored.game;
 	}
 
-	const found = await findGame(await getCredentials(), title);
+	const found = await trackRead("igdb", async () =>
+		findGame(await getCredentials(), title),
+	);
 	const game = found ? toCatalogGame(found) : null;
 	await redis.set(key, { game } satisfies StoredLookup, {
 		ex: game ? MATCH_TTL_SECONDS : NO_MATCH_TTL_SECONDS,

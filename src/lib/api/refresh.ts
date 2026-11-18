@@ -4,6 +4,13 @@ import {
 	cacheGetLatest,
 	cacheSet,
 } from "@/lib/cache/redis";
+import { collectReads } from "@/lib/health/reads";
+import {
+	fingerprint,
+	readRefreshStatus,
+	updateStatus,
+	writeRefreshStatus,
+} from "@/lib/health/status";
 import type { GamingData } from "@/types/gaming";
 import type { MoviesData } from "@/types/movies";
 import type { ShowsData } from "@/types/shows";
@@ -22,10 +29,25 @@ export interface DashboardData {
 }
 
 /**
- * Refresh every source and store the combined result in Redis.
+ * Refresh every source, store the combined result in Redis, and keep the
+ * refresh's bookkeeping: its last success and each source's health.
  * Called by the refresh API endpoints.
  */
 export async function refreshAllData(): Promise<DashboardData> {
+	const { result, reads } = await collectReads(readAndStore);
+
+	const npsso = process.env.PSN_NPSSO;
+	const status = updateStatus(
+		await readRefreshStatus(),
+		{ reads, npsso: npsso ? { fingerprint: fingerprint(npsso) } : undefined },
+		new Date(),
+	);
+	await writeRefreshStatus(status);
+
+	return result;
+}
+
+async function readAndStore(): Promise<DashboardData> {
 	const errors: string[] = [];
 	let lastGood: Promise<DashboardData | null> | undefined;
 

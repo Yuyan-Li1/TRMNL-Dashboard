@@ -1,5 +1,6 @@
 import SteamAPI from "steamapi";
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
+import { trackRead } from "@/lib/health/reads";
 import type { PlatformPlay } from "@/types/gaming";
 
 // Lazy singleton SteamAPI instance — avoids reading env at module level
@@ -32,32 +33,34 @@ export async function getSteamPlays(): Promise<PlatformPlay[]> {
 		return cached;
 	}
 
-	const steamId = process.env.STEAM_ID;
-	if (!steamId) {
-		throw new Error("STEAM_ID not configured");
-	}
+	return trackRead("steam", async () => {
+		const steamId = process.env.STEAM_ID;
+		if (!steamId) {
+			throw new Error("STEAM_ID not configured");
+		}
 
-	// The owned-games call is used because it alone carries the last played
-	// date; the recently-played call does not.
-	const owned = await getSteamClient().getUserOwnedGames(steamId, {
-		includeAppInfo: true,
-		includeFreeGames: true,
-	});
-
-	const plays: PlatformPlay[] = owned
-		.filter((entry) => entry.minutes > 0 && entry.lastPlayedAt)
-		.map((entry) => {
-			const appId = entry.game.id.toString();
-			return {
-				platform: "steam" as const,
-				name: "name" in entry.game ? entry.game.name : appId,
-				lastPlayedAt: entry.lastPlayedAt?.toISOString(),
-				minutesPlayed: entry.minutes,
-				imageUrl: libraryImageUrl(appId),
-				steamAppId: appId,
-			};
+		// The owned-games call is used because it alone carries the last played
+		// date; the recently-played call does not.
+		const owned = await getSteamClient().getUserOwnedGames(steamId, {
+			includeAppInfo: true,
+			includeFreeGames: true,
 		});
 
-	await cacheSet(CACHE_KEYS.GAMING_STEAM, plays, CACHE_TTL.GAMING);
-	return plays;
+		const plays: PlatformPlay[] = owned
+			.filter((entry) => entry.minutes > 0 && entry.lastPlayedAt)
+			.map((entry) => {
+				const appId = entry.game.id.toString();
+				return {
+					platform: "steam" as const,
+					name: "name" in entry.game ? entry.game.name : appId,
+					lastPlayedAt: entry.lastPlayedAt?.toISOString(),
+					minutesPlayed: entry.minutes,
+					imageUrl: libraryImageUrl(appId),
+					steamAppId: appId,
+				};
+			});
+
+		await cacheSet(CACHE_KEYS.GAMING_STEAM, plays, CACHE_TTL.GAMING);
+		return plays;
+	});
 }

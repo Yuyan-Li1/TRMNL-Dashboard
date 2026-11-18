@@ -1,4 +1,5 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGet, cacheSet } from "@/lib/cache/redis";
+import { trackRead } from "@/lib/health/reads";
 import type { PlatformPlay } from "@/types/gaming";
 
 const OPENXBL_BASE = "https://xbl.io/api/v2";
@@ -33,37 +34,39 @@ export async function getXboxPlays(): Promise<PlatformPlay[]> {
 		return cached;
 	}
 
-	const apiKey = process.env.OPENXBL_API_KEY;
-	if (!apiKey) {
-		throw new Error("OPENXBL_API_KEY not configured");
-	}
+	return trackRead("xbox", async () => {
+		const apiKey = process.env.OPENXBL_API_KEY;
+		if (!apiKey) {
+			throw new Error("OPENXBL_API_KEY not configured");
+		}
 
-	const response = await fetch(`${OPENXBL_BASE}/player/titleHistory`, {
-		headers: {
-			"X-Authorization": apiKey,
-			Accept: "application/json",
-			"Accept-Language": "en-US",
-		},
+		const response = await fetch(`${OPENXBL_BASE}/player/titleHistory`, {
+			headers: {
+				"X-Authorization": apiKey,
+				Accept: "application/json",
+				"Accept-Language": "en-US",
+			},
+		});
+		if (!response.ok) {
+			throw new Error(`OpenXBL API error: ${response.status}`);
+		}
+
+		const body = (await response.json()) as XboxTitleHistoryResponse;
+		const titles = body.content?.titles;
+		if (!titles) {
+			throw new Error("OpenXBL returned no title history");
+		}
+
+		const plays: PlatformPlay[] = titles
+			.filter((title) => !title.type || title.type === "Game")
+			.map((title) => ({
+				platform: "xbox" as const,
+				name: title.name,
+				lastPlayedAt: title.titleHistory?.lastTimePlayed,
+				imageUrl: title.displayImage,
+			}));
+
+		await cacheSet(CACHE_KEYS.GAMING_XBOX, plays, CACHE_TTL.GAMING);
+		return plays;
 	});
-	if (!response.ok) {
-		throw new Error(`OpenXBL API error: ${response.status}`);
-	}
-
-	const body = (await response.json()) as XboxTitleHistoryResponse;
-	const titles = body.content?.titles;
-	if (!titles) {
-		throw new Error("OpenXBL returned no title history");
-	}
-
-	const plays: PlatformPlay[] = titles
-		.filter((title) => !title.type || title.type === "Game")
-		.map((title) => ({
-			platform: "xbox" as const,
-			name: title.name,
-			lastPlayedAt: title.titleHistory?.lastTimePlayed,
-			imageUrl: title.displayImage,
-		}));
-
-	await cacheSet(CACHE_KEYS.GAMING_XBOX, plays, CACHE_TTL.GAMING);
-	return plays;
 }
