@@ -7,7 +7,8 @@ import type {
 } from "@/types/shows";
 import {
 	daysSinceWatch,
-	isRecentWatch,
+	isBehindWatched,
+	isEligibleForSpotlight,
 	latestWatches,
 	seasonProgress,
 } from "./progress";
@@ -205,11 +206,36 @@ describe("daysSinceWatch", () => {
 	});
 });
 
-describe("isRecentWatch", () => {
+describe("isEligibleForSpotlight", () => {
 	it("holds for 14 days from the day of the watch", () => {
 		const now = new Date("2026-11-17T22:00:00Z");
 
-		expect(isRecentWatch("2026-11-04T02:00:00.000Z", now)).toBe(true);
-		expect(isRecentWatch("2026-11-03T02:00:00.000Z", now)).toBe(false);
+		expect(isEligibleForSpotlight("2026-11-04T02:00:00.000Z", now)).toBe(true);
+		expect(isEligibleForSpotlight("2026-11-03T02:00:00.000Z", now)).toBe(false);
+	});
+});
+
+describe("isBehindWatched", () => {
+	const counts = { number: 1, episodeCount: 10, airedEpisodes: 9 };
+
+	it("holds when the owner has watched an episode Trakt does not yet count as aired", () => {
+		expect(
+			isBehindWatched({ watched: 10, aired: 9, state: "caught up" }, counts),
+		).toBe(true);
+	});
+
+	it("holds when every episode is watched and the season still reads as running", () => {
+		expect(
+			isBehindWatched({ watched: 10, aired: 10, state: "caught up" }, counts),
+		).toBe(true);
+	});
+
+	it("does not hold while caught up mid-season, or once finished", () => {
+		expect(
+			isBehindWatched({ watched: 5, aired: 5, state: "caught up" }, counts),
+		).toBe(false);
+		expect(
+			isBehindWatched({ watched: 10, aired: 10, state: "finished" }, counts),
+		).toBe(false);
 	});
 });

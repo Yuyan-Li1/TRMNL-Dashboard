@@ -1,5 +1,6 @@
 import { daysSinceDay, ownerDay } from "@/lib/owner-day";
 import type {
+	SeasonCounts,
 	SeasonProgress,
 	ShowSchedule,
 	WatchedEpisode,
@@ -20,8 +21,8 @@ export function daysSinceWatch(watchedAt: string, now: Date): number {
 	return daysSinceDay(ownerDay(new Date(watchedAt)), now);
 }
 
-/** Whether a watch is inside the 14-day Spotlight eligibility window. */
-export function isRecentWatch(watchedAt: string, now: Date): boolean {
+/** Whether a watch is inside the Spotlight eligibility window. */
+export function isEligibleForSpotlight(watchedAt: string, now: Date): boolean {
 	return daysSinceWatch(watchedAt, now) <= SHOW_ELIGIBLE_DAYS;
 }
 
@@ -47,6 +48,22 @@ export function latestWatches(history: WatchedEpisode[]): WatchedEpisode[] {
 		}
 	}
 	return [...latest.values()];
+}
+
+/**
+ * Whether Trakt's counts for a season are behind what the owner has watched:
+ * more episodes watched than have aired. Aired counts lag just after an
+ * episode airs, so the show's schedule is worth asking for again.
+ */
+export function isBehindWatched(
+	progress: SeasonProgress,
+	counts: SeasonCounts | undefined,
+): boolean {
+	return (
+		progress.state !== "finished" &&
+		(progress.watched > progress.aired ||
+			(counts !== undefined && progress.watched >= counts.episodeCount))
+	);
 }
 
 /**

@@ -3,6 +3,7 @@ import { CACHE_KEYS, cacheGetOrLatest, getRedis } from "@/lib/cache/redis";
 import { readPoster } from "@/lib/poster/poster";
 import { gamesContent } from "./games";
 import { moviesContent } from "./movies";
+import { showsContent } from "./shows";
 import { pickSpotlight } from "./spotlight";
 import {
 	MEDIA,
@@ -38,6 +39,7 @@ export async function loadScreen({
 	const contents: MediumContent[] = [
 		gamesContent(data?.gaming?.games ?? [], now),
 		moviesContent(data?.movies?.movies ?? [], now),
+		showsContent(data?.shows?.shows ?? [], now),
 	];
 
 	const picked = pickSpotlight({

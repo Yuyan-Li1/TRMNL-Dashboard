@@ -229,32 +229,42 @@ export async function getTraktActivity(): Promise<TraktActivity> {
 }
 
 /**
- * A show's seasons and next episode. Kept in Redis for a day, and asked for
- * again sooner once the owner has watched an episode since: that is when a
- * season's aired count is most likely to have moved.
+ * A show's seasons and next episode, apart from the owner's activity. The
+ * answer is reused for a day unless `askAgain` is set. When Trakt fails, the
+ * last good answer is returned with the error: stale but never missing.
  */
 export async function getShowSchedule(
 	showId: number,
-	latestWatchAt: string,
-): Promise<ShowSchedule> {
+	askAgain = false,
+): Promise<{ schedule: ShowSchedule; error?: unknown }> {
 	const redis = getRedis();
 	const key = `trakt:show:${showId}`;
 	const stored = await redis.get<ShowSchedule>(key);
-	if (stored && stored.fetchedAt >= new Date(latestWatchAt).toISOString()) {
-		return stored;
+	const ageSeconds = stored
+		? (Date.now() - new Date(stored.fetchedAt).getTime()) / 1000
+		: Number.POSITIVE_INFINITY;
+	if (stored && !askAgain && ageSeconds < CACHE_TTL.TRAKT_SCHEDULE) {
+		return { schedule: stored };
 	}
 
-	const [seasons, nextEpisode] = await Promise.all([
-		traktGet(`/shows/${showId}/seasons?extended=full`).then(parseSeasons),
-		traktGet(`/shows/${showId}/next_episode?extended=full`).then(
-			parseNextEpisode,
-		),
-	]);
-	const schedule: ShowSchedule = {
-		seasons,
-		nextEpisode,
-		fetchedAt: new Date().toISOString(),
-	};
-	await redis.set(key, schedule, { ex: CACHE_TTL.TRAKT_SCHEDULE });
-	return schedule;
+	try {
+		const [seasons, nextEpisode] = await Promise.all([
+			traktGet(`/shows/${showId}/seasons?extended=full`).then(parseSeasons),
+			traktGet(`/shows/${showId}/next_episode?extended=full`).then(
+				parseNextEpisode,
+			),
+		]);
+		const schedule: ShowSchedule = {
+			seasons,
+			nextEpisode,
+			fetchedAt: new Date().toISOString(),
+		};
+		await redis.set(key, schedule, { ex: CACHE_TTL.TRAKT_SCHEDULE_KEPT });
+		return { schedule };
+	} catch (error) {
+		if (!stored) {
+			throw error;
+		}
+		return { schedule: stored, error };
+	}
 }
