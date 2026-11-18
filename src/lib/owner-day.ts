@@ -25,3 +25,16 @@ export function ownerDay(at: Date): string {
 export function daysSinceDay(day: string, now: Date): number {
 	return Math.max(0, dayNumber(ownerDay(now)) - dayNumber(day));
 }
+
+/**
+ * Whole calendar days from the owner's today to a day (`YYYY-MM-DD`):
+ * negative once the day has passed.
+ */
+export function daysUntilDay(day: string, now: Date): number {
+	return dayNumber(day) - dayNumber(ownerDay(now));
+}
+
+/** The day (`YYYY-MM-DD`) a number of days after another. */
+export function addDays(day: string, days: number): string {
+	return new Date((dayNumber(day) + days) * DAY_MS).toISOString().slice(0, 10);
+}
