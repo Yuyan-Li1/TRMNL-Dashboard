@@ -3,6 +3,7 @@ import {
 	parseHistory,
 	parseNextEpisode,
 	parseSeasons,
+	parseWatchedHistory,
 	parseWatchedShows,
 } from "./trakt";
 
@@ -144,5 +145,33 @@ describe("parseNextEpisode", () => {
 				first_aired: "2026-11-20T02:00:00.000Z",
 			}),
 		).toEqual({ season: 2, number: 6, airsAt: "2026-11-20T02:00:00.000Z" });
+	});
+});
+
+describe("parseWatchedHistory", () => {
+	it("reads every watched show with its TMDB id, title and year", () => {
+		expect(
+			parseWatchedHistory([
+				{ plays: 34, show: TED_LASSO },
+				{ show: { title: "Severance", ids: { trakt: 2, tmdb: 95396 } } },
+			]),
+		).toEqual([
+			{ tmdbId: "97546", title: "Ted Lasso", year: 2020 },
+			{ tmdbId: "95396", title: "Severance" },
+		]);
+	});
+
+	it("leaves out a show Trakt has no TMDB id for", () => {
+		expect(
+			parseWatchedHistory([
+				{
+					show: { title: "Obscure", year: 1999, ids: { trakt: 3, tmdb: null } },
+				},
+			]),
+		).toEqual([]);
+	});
+
+	it("rejects an answer that is not a list", () => {
+		expect(() => parseWatchedHistory({ error: "nope" })).toThrow(/not a list/);
 	});
 });

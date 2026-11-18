@@ -32,6 +32,10 @@ GitHub Actions (every 15 min)
     → fetches every source in parallel
     → writes the result to Redis (a TTL'd key plus a non-expiring fallback)
 
+GitHub Actions (once a day)
+  → POST /api/daily
+    → writes each source's full history to Redis, for the consumed set
+
 TRMNL device (every 15 min)
   → screenshots the dashboard page
     → the page reads only from Redis, never from a source

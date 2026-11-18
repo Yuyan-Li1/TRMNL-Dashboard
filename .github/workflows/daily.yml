@@ -1,0 +1,37 @@
+name: Daily Run
+
+on:
+  # Once a day at 15:00 UTC: 02:00 in Sydney in summer, 01:00 in winter,
+  # before the Collector's nightly jobs
+  schedule:
+    - cron: "0 15 * * *"
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger the daily run
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://${{ secrets.VERCEL_URL }}/api/daily" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+
+          # 207 is a partial success: some source's history was not read
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "Daily run finished"
+          else
+            echo "Daily run failed with status $http_code"
+            exit 1
+          fi
