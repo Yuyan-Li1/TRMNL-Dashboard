@@ -81,7 +81,7 @@ export function catalogs(db: Database): FindInCatalog {
 			}
 		}
 		const found = pickSearchResult(await searchTrakt(medium, query.title), {
-			type: medium,
+			medium,
 			title: query.title,
 			year: query.year,
 		});

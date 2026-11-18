@@ -4,7 +4,7 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows), 4 (Alerts and the status strip) and 5 (the Collector and books) are built. The Collector (`collector/`) runs on the owner's home server, not on Vercel.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows), 4 (Alerts and the status strip), 5 (the Collector and books) and 6 (the consumed set and Catalog picks) are built. The Collector (`collector/`) runs on the owner's home server, not on Vercel.
 
 ## Tech Stack
 
@@ -193,7 +193,8 @@ src/
 │   │   ├── movies.ts            # What movies contribute: Finished candidates and the Medium card
 │   │   ├── shows.ts             # What shows contribute: In progress and Finished candidates and the Medium card
 │   │   ├── books.ts             # What books contribute: In progress and Finished candidates and the Medium card
-│   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours"
+│   │   ├── picks.ts             # What the Pool contributes: its picks as Recommendation candidates
+│   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours", cutText()
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── igdb/client.ts           # IGDB itself, free of Redis, so the Collector can ask it too
 │   ├── consumed/set.ts          # ConsumedSet, consumedKey(), nameKey(), isConsumed(): shared by both sides
@@ -256,7 +257,7 @@ Collector tick (launchd on the home server, every 15 min)
     → Publishes `home:status`, `home:books` and, once `collector seed` has run, one consumed set per Medium from SQLite
     → Sends its own Alerts, with the sender [home]
 
-GitHub Actions (once a day, 15:00 UTC)
+GitHub Actions (once a day, 15:07 UTC)
   → POST /api/daily (with CRON_SECRET)
     → runDaily()
       → Writes each source's full history to `history:<source>`: the Steam library, the Xbox title history, PSN's played list and trophy list paged to the end, the Switch play history, every show watched on Trakt, the Letterboxd feed
@@ -266,7 +267,8 @@ Dashboard page render (server-side)
   → loadScreen()
     → Reads from Redis (TTL'd key, falls back to the :latest key)
     → Each Medium contributes its Spotlight candidates and its latest activity
-    → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated
+    → The Pool contributes its picks as Recommendation candidates
+    → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated, and a Recommendation's appearance is counted
     → Reads the stored poster and thumbnails
     → Renders the 800x480 screen: Spotlight poster, text column, rail of Medium cards
   → loadStatusStrip() reads the bookkeeping for the status strip below the screen
@@ -326,6 +328,8 @@ The rules are in `src/lib/picks/pool.ts`; `src/lib/api/picks.ts` applies them to
 
 The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts`, `movies.ts` and `shows.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
 
+A Recommendation comes from the Pool, not from a Medium: `picksContent()` (`src/lib/screen/picks.ts`) turns each pick with a stored title into a candidate with its reason, the Catalog's rating and the description cut to about 140 characters. Its freshness is the day it entered the Pool. The admin preview does not count an appearance.
+
 Type utilities are in `globals.css`: `type-12`, `type-16`, `type-21` (the TRMNL pixel fonts, only at their native sizes, unsmoothed) and `type-title` (Inter Bold, the Spotlight title only).
 
 ### Posters
@@ -342,7 +346,7 @@ Vitest, with test files beside the code (`*.test.ts`), in `src/` and `collector/
 - **Key ownership**: every key the Collector writes starts with `home:`, and Vercel never writes under it. The one shared prefix is `alert:` (per-failure Alert state), written by both.
 - **SQLite is its record** (`~/trmnl-collector/collector.db`); Redis can be rebuilt from it with `collector publish`. Jobs write SQLite only; the tick publishes.
 - **Goodreads** gives no finish date: a book is Finished on the day its review id is first seen on the read shelf, and the first read records every book already there with no date. A read fails, changing nothing, when a request errors, a page is not what was asked for, or the read shelf had books and now has none. Goodreads does not say which time zone its progress times are in, so books use days, never hours.
-- **The consumed set** is everything the owner has Consumed, per Medium, and the Collector is its single owner. `collector seed` loads the Letterboxd and Goodreads exports from `~/trmnl-collector/exports/` once; until it has run nothing is published. Every tick the `consumed` job adds Vercel's full histories (`history:<source>`) and brings the record in line with the "also consumed" files. Nothing a source recorded ever leaves the record.
+- **The consumed set** is everything the owner has Consumed, per Medium, and the Collector is its single owner. `collector seed` loads the Letterboxd and Goodreads exports from `~/trmnl-collector/exports/` once; until it has run nothing is published. A Medium's set is also held back until the full history of each of its sources has been merged once (all four game sources for games, Trakt for shows, the Letterboxd feed for movies), so a partial set never reaches Vercel. Every tick the `consumed` job adds Vercel's full histories (`history:<source>`) and brings the record in line with the "also consumed" files. Nothing a source recorded ever leaves the record.
   - A game counts with 30 minutes or more of play, with any trophy or achievement, or when its source records no play time (Xbox, a PSN title only in the trophy list). Every game in the Steam library counts, played or not: it is owned.
   - Matching is by Catalog id: IGDB for games (looked up by the Collector, at most 150 a tick), TMDB for movies and shows (the sources supply it), Goodreads for books. Games and books are also matched by name key (`nameKey()`), for a game IGDB does not know by its source's name and for another edition of a book.
   - `~/trmnl-collector/also-consumed/<medium>.txt`: one title per line, optionally followed by a year in brackets (`Heat (1995)`) or, for a book, its author (`Piranesi (Susanna Clarke)`); `#` starts a comment. A new line is looked up once (IGDB, Trakt search, Goodreads search). A line with no match raises one Alert naming it and is retried only when edited. Removing a line removes its title from the set. The files' text is kept in SQLite (`files`), so the snapshot holds it and `collector restore` writes it back.

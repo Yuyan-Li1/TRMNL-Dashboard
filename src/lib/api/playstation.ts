@@ -204,7 +204,10 @@ async function allPages<T>(
 	for (let page = 0; page < HISTORY_MAX_PAGES; page++) {
 		const { items, total } = await getPage(page * pageSize);
 		all.push(...items);
-		if (items.length < pageSize || all.length >= total) {
+		// To the total PSN reports; a short page ends it only when PSN
+		// reports none
+		const atEnd = total > 0 ? all.length >= total : items.length < pageSize;
+		if (items.length === 0 || atEnd) {
 			break;
 		}
 	}

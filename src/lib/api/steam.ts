@@ -27,7 +27,7 @@ function libraryImageUrl(appId: string): string {
  * The owner's library. The owned-games call is used because it alone carries
  * the last played date; the recently-played call does not.
  */
-async function getOwnedGames() {
+async function getOwnedGames(): ReturnType<SteamAPI["getUserOwnedGames"]> {
 	const steamId = process.env.STEAM_ID;
 	if (!steamId) {
 		throw new Error("STEAM_ID not configured");

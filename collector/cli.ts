@@ -162,9 +162,9 @@ async function main(): Promise<void> {
 
 	const db = openDatabase(DATABASE_PATH);
 	if (command === "seed") {
-		const { films, books } = seedConsumed(db, EXPORTS_DIR, new Date());
+		const { movies, books } = seedConsumed(db, EXPORTS_DIR, new Date());
 		console.log(
-			`Seeded ${films} films and ${books} read books. The next tick publishes the consumed set.`,
+			`Seeded ${movies} movies and ${books} read books. The next tick publishes the consumed set.`,
 		);
 		return;
 	}

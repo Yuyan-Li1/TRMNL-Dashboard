@@ -366,12 +366,12 @@ export function parseSearch(body: unknown): TraktSearchResult[] {
  */
 export function pickSearchResult(
 	results: TraktSearchResult[],
-	wanted: { type: "movie" | "show"; title: string; year?: number },
+	wanted: { medium: "movie" | "show"; title: string; year?: number },
 ): TraktSearchResult | undefined {
 	const key = matchKey(wanted.title);
 	const matches = results.filter(
 		(result) =>
-			result.type === wanted.type &&
+			result.type === wanted.medium &&
 			result.tmdbId !== undefined &&
 			matchKey(result.title) === key &&
 			(wanted.year === undefined || result.year === wanted.year),
@@ -385,12 +385,12 @@ export function pickSearchResult(
  * may not call TMDB, to find a title's TMDB id.
  */
 export async function searchTrakt(
-	type: "movie" | "show",
+	medium: "movie" | "show",
 	title: string,
 ): Promise<TraktSearchResult[]> {
 	return parseSearch(
 		await traktGet(
-			`/search/${type}?query=${encodeURIComponent(title)}&fields=title`,
+			`/search/${medium}?query=${encodeURIComponent(title)}&fields=title`,
 		),
 	);
 }

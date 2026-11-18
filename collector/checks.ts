@@ -5,7 +5,8 @@ import {
 	JOB_LABELS,
 	type JobName,
 } from "@/lib/home/status";
-import { MEDIA, type Medium } from "@/lib/screen/types";
+import { MEDIA } from "@/lib/screen/types";
+import type { UnmatchedLine } from "./consumed/sets";
 
 /** Who is speaking in the Collector's Alerts, and the start of its failures' ids. */
 export const SENDER = "home";
@@ -34,7 +35,7 @@ export interface TickFindings {
 	jobs: Record<JobName, HomeJobStatus>;
 	claudeTokenExpiresOn?: string;
 	/** The lines of the "also consumed" files that no Catalog could match */
-	unmatchedLines?: { medium: Medium; line: string }[];
+	unmatchedLines?: UnmatchedLine[];
 }
 
 /** What the Collector alerts on, judged from one tick. */
@@ -68,8 +69,9 @@ export function homeChecks(findings: TickFindings, now: Date): Check[] {
 					: null,
 		});
 	}
-	// One Alert per wording, so each line is named once: when it is first
-	// unmatched. Editing the line clears it without a word.
+	// One Alert per file and wording: sent when a line is first unmatched,
+	// naming every unmatched line of the file. Editing the lines clears it
+	// without a word.
 	for (const medium of MEDIA) {
 		const lines = (findings.unmatchedLines ?? [])
 			.filter((entry) => entry.medium === medium)

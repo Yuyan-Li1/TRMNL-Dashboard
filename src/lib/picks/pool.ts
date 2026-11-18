@@ -151,7 +151,7 @@ export function reasonFor(medium: Medium, seedTitle: string): string {
 		: `${reason.slice(0, REASON_MAX_LENGTH - 3).trimEnd()}...`;
 }
 
-interface ChoosePicksInput<Seed, Result, Pick> {
+interface ChoosePicksInput<Seed, Result, Chosen> {
 	/** Newest first */
 	seeds: Seed[];
 	/** How many picks the Medium still has room for */
@@ -164,7 +164,7 @@ interface ChoosePicksInput<Seed, Result, Pick> {
 	/** In the consumed set, already in the Pool, or barred from returning */
 	isExcluded(result: Result): boolean;
 	/** Make a result into a pick, or null when it cannot be one: no artwork */
-	accept(result: Result, seed: Seed): Promise<Pick | null>;
+	accept(result: Result): Promise<Chosen | null>;
 }
 
 /**
@@ -175,17 +175,17 @@ interface ChoosePicksInput<Seed, Result, Pick> {
 export async function choosePicks<
 	Seed,
 	Result extends { catalogId: string },
-	Pick,
+	Chosen,
 >({
 	seeds,
 	wanted,
 	resultsOf,
 	isExcluded,
 	accept,
-}: ChoosePicksInput<Seed, Result, Pick>): Promise<
-	{ seed: Seed; pick: Pick }[]
+}: ChoosePicksInput<Seed, Result, Chosen>): Promise<
+	{ seed: Seed; pick: Chosen }[]
 > {
-	const chosen: { seed: Seed; pick: Pick }[] = [];
+	const chosen: { seed: Seed; pick: Chosen }[] = [];
 	const taken = new Set<string>();
 	const remaining = new Map<Seed, Result[]>();
 
@@ -205,7 +205,7 @@ export async function choosePicks<
 				if (taken.has(result.catalogId) || isExcluded(result)) {
 					continue;
 				}
-				const pick = await accept(result, seed);
+				const pick = await accept(result);
 				if (pick !== null) {
 					taken.add(result.catalogId);
 					chosen.push({ seed, pick });

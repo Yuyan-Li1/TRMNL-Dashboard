@@ -9,9 +9,10 @@ import {
 	historyKey,
 	type SourceHistory,
 } from "@/types/history";
-import { type Database, transaction } from "../db";
+import { type Database, setMeta, transaction } from "../db";
 import type { Job } from "../jobs";
 import type { HomeRedis } from "../redis";
+import { mergedKey } from "./sets";
 
 /** A game is Consumed with this much play, or with any trophy. */
 const CONSUMED_MINUTES = 30;
@@ -70,7 +71,7 @@ export interface ConsumedOptions {
  * PSN title only in the trophy list). A game in the Steam library is kept
  * out even if unplayed: the owner owns it.
  */
-function counts(game: HistoryGame): boolean {
+function isConsumedOrOwned(game: HistoryGame): boolean {
 	return (
 		game.owned === true ||
 		game.minutesPlayed === undefined ||
@@ -80,14 +81,24 @@ function counts(game: HistoryGame): boolean {
 }
 
 /** Add what Vercel's full-history keys hold to the record. Nothing leaves it. */
-async function mergeHistories(db: Database, redis: HomeRedis): Promise<void> {
-	const games = new Map<string, HistoryGame>();
+async function mergeHistories(
+	db: Database,
+	redis: HomeRedis,
+	now: Date,
+): Promise<void> {
+	// The sources whose history Vercel has written: a Medium's set is not
+	// published until every one of its sources has been merged once
+	const merged: HistorySource[] = [];
+	const games: { source: HistorySource; game: HistoryGame }[] = [];
 	for (const source of GAME_SOURCES) {
 		const history = await redis.get<SourceHistory<HistoryGame>>(
 			historyKey(source),
 		);
+		if (history) {
+			merged.push(source);
+		}
 		for (const game of history?.titles ?? []) {
-			games.set(`${source}:${game.name}`, game);
+			games.push({ source, game });
 		}
 	}
 	const titles: { medium: Medium; source: string; title: HistoryTitle }[] = [];
@@ -95,26 +106,27 @@ async function mergeHistories(db: Database, redis: HomeRedis): Promise<void> {
 		const history = await redis.get<SourceHistory<HistoryTitle>>(
 			historyKey(source as HistorySource),
 		);
+		if (history) {
+			merged.push(source as HistorySource);
+		}
 		for (const title of history?.titles ?? []) {
 			titles.push({ medium, source, title });
 		}
 	}
 
 	transaction(db, () => {
+		for (const source of merged) {
+			setMeta(db, mergedKey(source), now.toISOString());
+		}
 		const insertGame = db.prepare(
 			`INSERT INTO consumed (medium, key, title, steam_app_id, source)
 			 VALUES ('game', ?, ?, ?, ?) ON CONFLICT (medium, key) DO UPDATE SET
 			 steam_app_id = COALESCE(consumed.steam_app_id, excluded.steam_app_id)`,
 		);
-		for (const [id, game] of games) {
+		for (const { source, game } of games) {
 			const key = nameKey("game", game.name);
-			if (key && counts(game)) {
-				insertGame.run(
-					key,
-					game.name,
-					game.steamAppId ?? null,
-					id.slice(0, id.indexOf(":")),
-				);
+			if (key && isConsumedOrOwned(game)) {
+				insertGame.run(key, game.name, game.steamAppId ?? null, source);
 			}
 		}
 		const insertTitle = db.prepare(
@@ -271,7 +283,7 @@ export async function mergeConsumed(
 ): Promise<void> {
 	const errors: unknown[] = [];
 	try {
-		await mergeHistories(options.db, options.redis);
+		await mergeHistories(options.db, options.redis, now);
 	} catch (error) {
 		errors.push(error);
 	}
