@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HomeStatus } from "@/lib/home/status";
 import { healthChecks, tokenExpiry } from "./checks";
+import { type DailyStatus, nextDailyStatus } from "./daily";
 import type { RefreshStatus, SourceHealth } from "./status";
 
 const NOW = new Date("2026-11-18T01:00:00Z"); // the 18th in Sydney
@@ -35,6 +36,7 @@ describe("healthChecks", () => {
 			"vercel:psn-expiry",
 			"vercel:nintendo-expiry",
 			"vercel:home-heartbeat",
+			"vercel:daily",
 		]);
 	});
 
@@ -148,5 +150,73 @@ describe("healthChecks", () => {
 		});
 		// Before the Collector is set up there is nothing to be Stale
 		expect(heartbeat(null)?.failure).toBeNull();
+	});
+
+	it("fails the daily run once its last clean run is over 50 hours old", () => {
+		const daily = (from: DailyStatus | null) =>
+			healthChecks(status(), NOW, null, from).find(
+				(entry) => entry.id === "vercel:daily",
+			)?.failure;
+		const clean = (at: string): DailyStatus => ({
+			lastRunAt: at,
+			lastSuccessAt: at,
+			errors: [],
+		});
+
+		// Before the daily run has ever run there is nothing to be Stale
+		expect(daily(null)).toBeNull();
+		expect(daily(clean("2026-11-15T23:30:00Z"))).toBeNull();
+		// It has stopped running: GitHub disabled the schedule, say
+		expect(daily(clean("2026-11-15T22:30:00Z"))).toEqual({
+			what: "Daily run Stale",
+			since: "2026-11-15T22:30:00Z",
+		});
+		// It runs, with an error each time
+		expect(
+			daily({
+				lastRunAt: "2026-11-17T15:07:00Z",
+				lastSuccessAt: "2026-11-14T15:07:00Z",
+				failingSince: "2026-11-15T15:07:00Z",
+				errors: ["History (psn): 500"],
+			}),
+		).toEqual({ what: "Daily run failing", since: "2026-11-15T15:07:00Z" });
+		// One bad run is not yet a failure
+		expect(
+			daily({
+				lastRunAt: "2026-11-17T15:07:00Z",
+				lastSuccessAt: "2026-11-16T15:07:00Z",
+				failingSince: "2026-11-17T15:07:00Z",
+				errors: ["History (psn): 500"],
+			}),
+		).toBeNull();
+	});
+});
+
+describe("nextDailyStatus", () => {
+	it("keeps the last clean run and when the errors began, until a run is clean again", () => {
+		const first = nextDailyStatus(null, [], new Date("2026-11-16T15:07:00Z"));
+		const second = nextDailyStatus(
+			first,
+			["Picks: 500"],
+			new Date("2026-11-17T15:07:00Z"),
+		);
+		const third = nextDailyStatus(
+			second,
+			["History (psn): 500"],
+			new Date("2026-11-18T15:07:00Z"),
+		);
+		expect(third).toEqual({
+			lastRunAt: "2026-11-18T15:07:00.000Z",
+			lastSuccessAt: "2026-11-16T15:07:00.000Z",
+			failingSince: "2026-11-17T15:07:00.000Z",
+			errors: ["History (psn): 500"],
+		});
+		expect(
+			nextDailyStatus(third, [], new Date("2026-11-19T15:07:00Z")),
+		).toEqual({
+			lastRunAt: "2026-11-19T15:07:00.000Z",
+			lastSuccessAt: "2026-11-19T15:07:00.000Z",
+			errors: [],
+		});
 	});
 });

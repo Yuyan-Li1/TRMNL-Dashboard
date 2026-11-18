@@ -12,6 +12,12 @@ export function consumedKey(medium: Medium): string {
 	return `home:consumed:${medium}`;
 }
 
+/**
+ * A game is Consumed, and may seed a Catalog pick, with this many minutes
+ * of play.
+ */
+export const GAME_CONSUMED_MINUTES = 30;
+
 /** The value of a consumed-set key. */
 export interface ConsumedSet {
 	/**

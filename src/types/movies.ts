@@ -14,6 +14,8 @@ export interface DiaryEntry {
 	review?: string;
 	/** Absent when the entry is not a movie on TMDB */
 	tmdbId?: string;
+	/** TMDB's id for a series logged in the diary, which is not a movie */
+	tmdbShowId?: string;
 	/** The feed's own poster */
 	imageUrl?: string;
 }

@@ -181,6 +181,7 @@ src/
 │   │   ├── status.ts            # updateStatus(), isStale(), the `refresh:status` key
 │   │   ├── checks.ts            # healthChecks(): the Alert thresholds, token expiry days
 │   │   ├── home.ts              # readHomeStatus(), isHeartbeatStale(): the home server as Vercel sees it
+│   │   ├── daily.ts             # recordDailyRun(), readDailyStatus(): the `daily:status` key
 │   │   ├── alert.ts             # sendAlerts(), sendTestAlert(), the Redis Alert store
 │   │   ├── strip.ts             # What the status strip shows (public)
 │   │   └── report.ts            # healthReport(): what the admin area shows (not public)
@@ -262,6 +263,7 @@ GitHub Actions (once a day, 15:07 UTC)
     → runDaily()
       → Writes each source's full history to `history:<source>`: the Steam library, the Xbox title history, PSN's played list and trophy list paged to the end, the Switch play history, every show watched on Trakt, the Letterboxd feed
       → Rebuilds the Catalog picks: retires those due to leave, then fills each of movies, shows and games back up to 5 from TMDB `/recommendations` and IGDB `similar_games`
+      → Notes how it ended in `daily:status`, which the refresh alerts on
 
 Dashboard page render (server-side)
   → loadScreen()
@@ -292,6 +294,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - The previous Spotlight pick: `spotlight:previous`, no TTL
 - The Pool: `pool:record` (each pick's Medium, Catalog id, origin, reason and the day it entered, and the picks barred from returning; no TTL), `pool:appearances` (a hash of Spotlight appearances per pick, which the page adds to) and `pool:titles` (what the Catalog says about each pick; rewritten by the daily run and expiring after 150 days, because it holds TMDB's text)
 - The refresh's bookkeeping: `refresh:status`, no TTL
+- The daily run's bookkeeping: `daily:status` (its last run, its last run with no error, and the last run's errors), no TTL
 - Alert state: `alert:<failure>` (such as `alert:vercel:psn`), one key per failure, deleted when it clears. `alert:` is the one prefix the Collector also writes under
 - The last Alert Vercel tried to send: `telegram:last-send`, no TTL
 - The Collector's keys, none with a TTL: `home:status` (heartbeat, commit, jobs, Claude Code token expiry; rewritten every tick), `home:books` (the currently-reading shelf and the latest 20 read), `home:consumed:<medium>` (the consumed set of each Medium: Catalog ids, and name keys for games and books) and `home:backup` (the newest snapshot of the Collector's SQLite, gzipped)
@@ -309,7 +312,8 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 - `processChecks()` sends one message when a failure starts, a reminder every 24 hours and one line when it clears. A message Telegram does not take is retried on the next run.
 - When Redis cannot be reached the refresh sends one "Redis unreachable" message and fails.
 - Vercel alerts when the home server's heartbeat (`home:status`) is more than 1 hour old; before the Collector has ever ticked there is nothing to alert on.
-- The Collector's Alerts (`collector/checks.ts`) follow the same rules through `processChecks()`: the Goodreads read after 2 failed reads in a row, a line of an "also consumed" file that no Catalog matches (once, naming the line), a failed code update at once, the Vercel refresh Stale after 1 hour unless the tick's own call to the refresh works, Redis unreachable, and the Claude Code token 14 and 3 days before it expires (one year after its fingerprint was first seen or changed). Its Alert state lives in SQLite, so it still alerts when Redis is down.
+- Vercel alerts when the daily run's last run with no error is more than 50 hours old: "Daily run Stale" when it has stopped running, "Daily run failing" when its runs have errors. The refresh reads `daily:status` for this.
+- The Collector's Alerts (`collector/checks.ts`) follow the same rules through `processChecks()`: the Goodreads read after 2 failed reads in a row, the consumed set's merge after 4 failed ticks in a row, each line of an "also consumed" file that no Catalog matches (once per line, naming it), a failed code update at once, the Vercel refresh Stale after 1 hour unless the tick's own call to the refresh works, Redis unreachable, and the Claude Code token 14 and 3 days before it expires (one year after its fingerprint was first seen or changed). Its Alert state lives in SQLite, so it still alerts when Redis is down.
 - The status strip and the source health page also show the home server's heartbeat, the Collector's jobs and the Claude Code token's expiry.
 - The admin area looks like the device: the panel's four greys on white, with `--color-signal` kept for trouble. Text is Geist Pixel (the `geist` package), drawn for ordinary screens; the wordmark and headings stay in the TRMNL face (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
 - The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
@@ -318,7 +322,7 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 
 The rules are in `src/lib/picks/pool.ts`; `src/lib/api/picks.ts` applies them to Redis and the Catalogs.
 
-- **Seeds**: Titles Finished or In progress in the last 90 days, skipping any the owner rated below 3.5 stars.
+- **Seeds**: Titles Finished or In progress in the last 90 days, skipping any the owner rated below 3.5 stars and any game with under 30 minutes of play in all.
 - **Choosing** (`choosePicks()`, in the daily run): go round the seeds, newest first, taking each seed's best result that is not in the consumed set or the owner's activity, not in the Pool and not barred, until the Medium has 5 Catalog picks. A result without artwork is skipped. **With no published consumed set for a Medium, no pick is made for it.**
 - **Leaving** (`retirePicks()`, at every refresh): once the Title is in the owner's activity or the consumed set (which is how an "also consumed" line rejects a pick), after 3 Spotlight appearances, or after 30 days. It may not return for 6 months.
 - A pick is matched by Catalog id, and a game also by name key. Books get no Catalog picks.
@@ -346,8 +350,9 @@ Vitest, with test files beside the code (`*.test.ts`), in `src/` and `collector/
 - **Key ownership**: every key the Collector writes starts with `home:`, and Vercel never writes under it. The one shared prefix is `alert:` (per-failure Alert state), written by both.
 - **SQLite is its record** (`~/trmnl-collector/collector.db`); Redis can be rebuilt from it with `collector publish`. Jobs write SQLite only; the tick publishes.
 - **Goodreads** gives no finish date: a book is Finished on the day its review id is first seen on the read shelf, and the first read records every book already there with no date. A read fails, changing nothing, when a request errors, a page is not what was asked for, or the read shelf had books and now has none. Goodreads does not say which time zone its progress times are in, so books use days, never hours.
-- **The consumed set** is everything the owner has Consumed, per Medium, and the Collector is its single owner. `collector seed` loads the Letterboxd and Goodreads exports from `~/trmnl-collector/exports/` once; until it has run nothing is published. A Medium's set is also held back until the full history of each of its sources has been merged once (all four game sources for games, Trakt for shows, the Letterboxd feed for movies), so a partial set never reaches Vercel. Every tick the `consumed` job adds Vercel's full histories (`history:<source>`) and brings the record in line with the "also consumed" files. Nothing a source recorded ever leaves the record.
+- **The consumed set** is everything the owner has Consumed, per Medium, and the Collector is its single owner. `collector seed` loads the Letterboxd and Goodreads exports from `~/trmnl-collector/exports/` once; until it has run nothing is published. A Medium's set is also held back until the full history of each of its sources has been merged once (all four game sources for games, Trakt and the Letterboxd feed for shows, the Letterboxd feed for movies), so a partial set never reaches Vercel. Every tick the `consumed` job adds Vercel's full histories (`history:<source>`) and brings the record in line with the "also consumed" files. Nothing a source recorded ever leaves the record.
   - A game counts with 30 minutes or more of play, with any trophy or achievement, or when its source records no play time (Xbox, a PSN title only in the trophy list). Every game in the Steam library counts, played or not: it is owned.
+  - A series logged in the Letterboxd diary is a show: the feed gives its TMDB id as `tmdb:tvId`.
   - Matching is by Catalog id: IGDB for games (looked up by the Collector, at most 150 a tick), TMDB for movies and shows (the sources supply it), Goodreads for books. Games and books are also matched by name key (`nameKey()`), for a game IGDB does not know by its source's name and for another edition of a book.
   - `~/trmnl-collector/also-consumed/<medium>.txt`: one title per line, optionally followed by a year in brackets (`Heat (1995)`) or, for a book, its author (`Piranesi (Susanna Clarke)`); `#` starts a comment. A new line is looked up once (IGDB, Trakt search, Goodreads search). A line with no match raises one Alert naming it and is retried only when edited. Removing a line removes its title from the set. The files' text is kept in SQLite (`files`), so the snapshot holds it and `collector restore` writes it back.
 - The home server's files are in `~/trmnl-collector/` (`.env`, `collector.db`, `snapshots/`, `logs/`, `exports/`, `also-consumed/`, the `collector` wrapper), set up by `collector/setup.sh`. Agents do not run the wizard or change the home server; the owner does.

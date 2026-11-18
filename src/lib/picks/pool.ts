@@ -1,3 +1,4 @@
+import { GAME_CONSUMED_MINUTES } from "@/lib/consumed/set";
 import { addDays, daysSinceDay, ownerDay } from "@/lib/owner-day";
 import type { Medium } from "@/lib/screen/types";
 import { DAY_MS } from "@/lib/time";
@@ -136,11 +137,18 @@ export function seedShows(
 }
 
 /**
- * The games that seed Catalog picks: played in the last 90 days. Games
- * carry no owner's rating. `games` is most recently played first.
+ * The games that seed Catalog picks: played in the last 90 days, for 30
+ * minutes or more in all, so a game tried once and put down is not one. A
+ * game with no play time recorded counts. Games carry no owner's rating.
+ * `games` is most recently played first.
  */
 export function seedGames(games: Game[], now: Date): Game[] {
-	return games.filter((game) => withinSeedDays(game.lastPlayedAt, now));
+	return games.filter(
+		(game) =>
+			withinSeedDays(game.lastPlayedAt, now) &&
+			(game.minutesPlayed === undefined ||
+				game.minutesPlayed >= GAME_CONSUMED_MINUTES),
+	);
 }
 
 /** A Catalog pick's reason: the Title it was suggested for. */

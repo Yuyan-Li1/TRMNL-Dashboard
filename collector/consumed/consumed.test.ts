@@ -268,6 +268,16 @@ describe("the consumed set", () => {
 		]);
 	});
 
+	it("counts a series logged in the Letterboxd diary as a show, not a movie", async () => {
+		const world = home();
+		world.seed();
+		world.history("letterboxd", [
+			{ tmdbId: "1396", title: "Breaking Bad", medium: "show" },
+		]);
+		expect((await world.published("show"))?.ids).toContain("1396");
+		expect((await world.published("movie"))?.ids).not.toContain("1396");
+	});
+
 	it("counts a book on the read shelf, not one being read", async () => {
 		const world = home();
 		world.seed();

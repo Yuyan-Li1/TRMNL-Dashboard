@@ -74,6 +74,10 @@ function toDiaryEntry(item: string): DiaryEntry | null {
 	if (tmdbId) {
 		entry.tmdbId = tmdbId;
 	}
+	const tmdbShowId = element(item, "tmdb:tvId");
+	if (tmdbShowId) {
+		entry.tmdbShowId = tmdbShowId;
+	}
 	const image = description.match(/<img[^>]*\ssrc="([^"]+)"/i);
 	if (image) {
 		entry.imageUrl = decodeEntities(image[1]);
