@@ -37,3 +37,19 @@ export function formatHours(minutes: number): string {
 	}
 	return plural(Math.round(minutes / 60), "hour");
 }
+
+/**
+ * Text cut to about a length: whole when it fits, otherwise cut at the last
+ * word that does, with "..." after it.
+ */
+export function cutText(text: string, length: number): string {
+	if (text.length <= length) {
+		return text;
+	}
+	const cut = text.slice(0, length + 1);
+	const lastSpace = cut.lastIndexOf(" ");
+	const kept = (lastSpace > 0 ? cut.slice(0, lastSpace) : cut.slice(0, length))
+		// No comma or full stop left hanging before the dots
+		.replace(/[\s.,;:!?-]+$/, "");
+	return `${kept}...`;
+}

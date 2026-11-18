@@ -4,7 +4,7 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows), 4 (Alerts and the status strip) and 5 (the Collector and books) are built. The Collector (`collector/`) runs on the owner's home server, not on Vercel.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows), 4 (Alerts and the status strip), 5 (the Collector and books) and 6 (the consumed set and Catalog picks) are built. The Collector (`collector/`) runs on the owner's home server, not on Vercel.
 
 ## Tech Stack
 
@@ -193,7 +193,8 @@ src/
 │   │   ├── movies.ts            # What movies contribute: Finished candidates and the Medium card
 │   │   ├── shows.ts             # What shows contribute: In progress and Finished candidates and the Medium card
 │   │   ├── books.ts             # What books contribute: In progress and Finished candidates and the Medium card
-│   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours"
+│   │   ├── picks.ts             # What the Pool contributes: its picks as Recommendation candidates
+│   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours", cutText()
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── igdb/client.ts           # IGDB itself, free of Redis, so the Collector can ask it too
 │   ├── consumed/set.ts          # ConsumedSet, consumedKey(), nameKey(), isConsumed(): shared by both sides
@@ -266,7 +267,8 @@ Dashboard page render (server-side)
   → loadScreen()
     → Reads from Redis (TTL'd key, falls back to the :latest key)
     → Each Medium contributes its Spotlight candidates and its latest activity
-    → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated
+    → The Pool contributes its picks as Recommendation candidates
+    → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated, and a Recommendation's appearance is counted
     → Reads the stored poster and thumbnails
     → Renders the 800x480 screen: Spotlight poster, text column, rail of Medium cards
   → loadStatusStrip() reads the bookkeeping for the status strip below the screen
@@ -325,6 +327,8 @@ The rules are in `src/lib/picks/pool.ts`; `src/lib/api/picks.ts` applies them to
 ### The screen
 
 The layout, type, Modes and Spotlight rotation rules are in the spec overview. A Medium joins the screen by providing a `MediumContent` (see `src/lib/screen/games.ts`, `movies.ts` and `shows.ts`) and adding it to `loadScreen()`. A Medium whose stage has not shipped shows an empty Medium card.
+
+A Recommendation comes from the Pool, not from a Medium: `picksContent()` (`src/lib/screen/picks.ts`) turns each pick with a stored title into a candidate with its reason, the Catalog's rating and the description cut to about 140 characters. Its freshness is the day it entered the Pool. The admin preview does not count an appearance.
 
 Type utilities are in `globals.css`: `type-12`, `type-16`, `type-21` (the TRMNL pixel fonts, only at their native sizes, unsmoothed) and `type-title` (Inter Bold, the Spotlight title only).
 
