@@ -110,6 +110,7 @@ describe("runTick", () => {
 			commit: "abc1234",
 			jobs: {
 				goodreads: { failuresInARow: 0 },
+				consumed: { failuresInARow: 0 },
 				"code-update": { failuresInARow: 0 },
 				snapshot: { failuresInARow: 0 },
 			},
@@ -302,5 +303,21 @@ describe("runTick", () => {
 		world.redisState.reachable = false;
 		await world.tick(after(15 * MINUTE), { publish });
 		expect(published).toBe(1);
+	});
+
+	it("names an also-consumed line with no match once, and says nothing when it is edited", async () => {
+		const world = home();
+		world.db
+			.prepare("INSERT INTO also_consumed (medium, line) VALUES (?, ?)")
+			.run("game", "Hadez II");
+		await world.tick(T0);
+		await world.tick(after(25 * HOUR));
+		expect(world.sent).toEqual([
+			'[home] No match for "Hadez II" in also-consumed/game.txt.\nFix: edit the line in ~/trmnl-collector/also-consumed/game.txt: correct the title, or add the year in brackets.',
+		]);
+
+		world.db.exec("DELETE FROM also_consumed");
+		await world.tick(after(26 * HOUR));
+		expect(world.sent).toHaveLength(1);
 	});
 });

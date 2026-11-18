@@ -6,6 +6,10 @@ import { sendTelegramMessage } from "@/lib/alerts/telegram";
 import { HOME_KEYS, JOB_NAMES } from "@/lib/home/status";
 import { SENDER } from "./checks";
 import { codeUpdateJob, exec } from "./code-update";
+import { catalogs } from "./consumed/catalogs";
+import { consumedJob } from "./consumed/merge";
+import { seedConsumed } from "./consumed/seed";
+import { publishConsumed } from "./consumed/sets";
 import { type Database, openDatabase } from "./db";
 import { goodreadsJob, publishBooks } from "./goodreads/read";
 import { type Job, runJob } from "./jobs";
@@ -22,7 +26,11 @@ const USAGE = `Usage: collector <command>
   tick          Write the heartbeat, check the Vercel refresh, run the jobs
                 that are due and send Alerts. Started by launchd.
   publish       Rewrite every home: key from SQLite.
-  restore       Rebuild SQLite from the snapshot in Redis or on disk.
+  restore       Rebuild SQLite and the also-consumed files from the snapshot
+                in Redis or on disk.
+  seed          Load the Letterboxd and Goodreads exports in
+                ~/trmnl-collector/exports/ into SQLite. One-off; safe to run
+                twice.
   test-alert    Send a test Alert.
   run <job>     Run one job now, ignoring its schedule: ${JOB_NAMES.join(", ")}.`;
 
@@ -30,6 +38,7 @@ const COMMANDS: readonly string[] = [
 	"tick",
 	"publish",
 	"restore",
+	"seed",
 	"test-alert",
 	"run",
 ] as const;
@@ -41,6 +50,8 @@ const HOME_DIR =
 	process.env.COLLECTOR_HOME ?? path.join(homedir(), "trmnl-collector");
 const DATABASE_PATH = path.join(HOME_DIR, "collector.db");
 const SNAPSHOT_DIR = path.join(HOME_DIR, "snapshots");
+const EXPORTS_DIR = path.join(HOME_DIR, "exports");
+const ALSO_CONSUMED_DIR = path.join(HOME_DIR, "also-consumed");
 const REPO_DIR = path.resolve(import.meta.dirname, "..");
 
 function env(name: string): string {
@@ -82,10 +93,27 @@ async function refresh(): Promise<void> {
 function jobs(db: Database, store: HomeRedis): Job[] {
 	return [
 		goodreadsJob({ db, userId: env("GOODREADS_USER_ID") }),
+		// After Goodreads, so a book read today is in the set this tick
+		consumedJob({
+			db,
+			redis: store,
+			alsoConsumedDir: ALSO_CONSUMED_DIR,
+			findInCatalog: catalogs(db),
+		}),
 		snapshotJob({ db, dir: SNAPSHOT_DIR, redis: store }),
 		// Last, so nothing else in the tick runs after the code has changed
 		codeUpdateJob({ repoDir: REPO_DIR, exec }),
 	];
+}
+
+/** Rewrite what the Collector publishes besides its status and its backup. */
+async function publish(
+	db: Database,
+	store: HomeRedis,
+	now: Date,
+): Promise<void> {
+	await publishBooks(db, store);
+	await publishConsumed(db, store, now);
 }
 
 async function statusOptions(): Promise<
@@ -126,12 +154,20 @@ async function main(): Promise<void> {
 			databasePath: DATABASE_PATH,
 			dir: SNAPSHOT_DIR,
 			redis: redis(),
+			filesDir: HOME_DIR,
 		});
 		console.log(`Restored ${DATABASE_PATH} from ${from}.`);
 		return;
 	}
 
 	const db = openDatabase(DATABASE_PATH);
+	if (command === "seed") {
+		const { films, books } = seedConsumed(db, EXPORTS_DIR, new Date());
+		console.log(
+			`Seeded ${films} films and ${books} read books. The next tick publishes the consumed set.`,
+		);
+		return;
+	}
 	const store = redis();
 	if (command === "tick") {
 		const options = await statusOptions();
@@ -141,15 +177,16 @@ async function main(): Promise<void> {
 			jobs: jobs(db, store),
 			refresh,
 			send,
-			publish: () => publishBooks(db, store),
+			publish: () => publish(db, store, options.now),
 			...options,
 		});
 		console.log(
 			`${options.now.toISOString()} tick at ${options.commit}: ${alerts.length} Alert(s)`,
 		);
 	} else if (command === "publish") {
-		await store.set(HOME_KEYS.STATUS, homeStatus(db, await statusOptions()));
-		await publishBooks(db, store);
+		const options = await statusOptions();
+		await store.set(HOME_KEYS.STATUS, homeStatus(db, options));
+		await publish(db, store, options.now);
 		await publishBackup(SNAPSHOT_DIR, store);
 		console.log("Published every home: key.");
 	} else {
@@ -161,7 +198,7 @@ async function main(): Promise<void> {
 		await runJob(db, job, options.now);
 		const status = homeStatus(db, options);
 		await store.set(HOME_KEYS.STATUS, status);
-		await publishBooks(db, store);
+		await publish(db, store, options.now);
 		const { lastError } = status.jobs[job.name];
 		if (lastError) {
 			throw new Error(`${job.name} failed: ${lastError}`);

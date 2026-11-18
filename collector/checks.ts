@@ -5,6 +5,7 @@ import {
 	JOB_LABELS,
 	type JobName,
 } from "@/lib/home/status";
+import { MEDIA, type Medium } from "@/lib/screen/types";
 
 /** Who is speaking in the Collector's Alerts, and the start of its failures' ids. */
 export const SENDER = "home";
@@ -32,6 +33,8 @@ export interface TickFindings {
 	refresh?: { stale: boolean; lastSuccessAt?: string };
 	jobs: Record<JobName, HomeJobStatus>;
 	claudeTokenExpiresOn?: string;
+	/** The lines of the "also consumed" files that no Catalog could match */
+	unmatchedLines?: { medium: Medium; line: string }[];
 }
 
 /** What the Collector alerts on, judged from one tick. */
@@ -63,6 +66,28 @@ export function homeChecks(findings: TickFindings, now: Date): Check[] {
 				job.failuresInARow >= threshold
 					? { what: `${label} failing`, since: job.failingSince }
 					: null,
+		});
+	}
+	// One Alert per wording, so each line is named once: when it is first
+	// unmatched. Editing the line clears it without a word.
+	for (const medium of MEDIA) {
+		const lines = (findings.unmatchedLines ?? [])
+			.filter((entry) => entry.medium === medium)
+			.map((entry) => `"${entry.line}"`);
+		const file = `also-consumed/${medium}.txt`;
+		checks.push({
+			id: `${SENDER}:also-consumed:${medium}`,
+			label: file,
+			failure:
+				lines.length > 0
+					? {
+							what: `No match for ${lines.join(", ")} in ${file}`,
+							fix: `edit the line in ~/trmnl-collector/${file}: correct the title, or add ${
+								medium === "book" ? "the author" : "the year"
+							} in brackets.`,
+						}
+					: null,
+			oneOff: true,
 		});
 	}
 	const expiring =

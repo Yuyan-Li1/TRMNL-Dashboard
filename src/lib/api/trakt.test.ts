@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
 	parseHistory,
 	parseNextEpisode,
+	parseSearch,
 	parseSeasons,
 	parseWatchedHistory,
 	parseWatchedShows,
+	pickSearchResult,
 } from "./trakt";
 
 const TED_LASSO = {
@@ -173,5 +175,53 @@ describe("parseWatchedHistory", () => {
 
 	it("rejects an answer that is not a list", () => {
 		expect(() => parseWatchedHistory({ error: "nope" })).toThrow(/not a list/);
+	});
+});
+
+describe("searching Trakt", () => {
+	const results = parseSearch([
+		{
+			type: "movie",
+			score: 1000,
+			movie: { title: "Severance", year: 2006, ids: { trakt: 1, tmdb: 9418 } },
+		},
+		{
+			type: "show",
+			score: 900,
+			show: { title: "Severance", year: 2022, ids: { trakt: 2, tmdb: 95396 } },
+		},
+		{
+			type: "movie",
+			score: 800,
+			movie: { title: "Heat", year: 1995, ids: { trakt: 3, tmdb: 949 } },
+		},
+		{
+			type: "movie",
+			score: 700,
+			movie: { title: "Heat", year: 1986, ids: { trakt: 4, tmdb: 31670 } },
+		},
+		{ type: "person", person: { name: "Heat" } },
+	]);
+
+	it("picks by type, never the first result", () => {
+		expect(
+			pickSearchResult(results, { type: "show", title: "severance" })?.tmdbId,
+		).toBe("95396");
+	});
+
+	it("picks by year when one is given", () => {
+		expect(
+			pickSearchResult(results, { type: "movie", title: "Heat", year: 1986 })
+				?.tmdbId,
+		).toBe("31670");
+		expect(
+			pickSearchResult(results, { type: "movie", title: "Heat", year: 2001 }),
+		).toBeUndefined();
+	});
+
+	it("picks nothing when the title alone could be more than one", () => {
+		expect(
+			pickSearchResult(results, { type: "movie", title: "Heat" }),
+		).toBeUndefined();
 	});
 });

@@ -10,12 +10,19 @@ export const HOME_KEYS = {
 	BOOKS: "home:books",
 	BACKUP: "home:backup",
 } as const;
+// The consumed sets, `home:consumed:<medium>`, are in `@/lib/consumed/set`
 
-export const JOB_NAMES = ["goodreads", "code-update", "snapshot"] as const;
+export const JOB_NAMES = [
+	"goodreads",
+	"consumed",
+	"code-update",
+	"snapshot",
+] as const;
 export type JobName = (typeof JOB_NAMES)[number];
 
 export const JOB_LABELS: Record<JobName, string> = {
 	goodreads: "Goodreads read",
+	consumed: "Consumed set",
 	"code-update": "Code update",
 	snapshot: "Snapshot",
 };

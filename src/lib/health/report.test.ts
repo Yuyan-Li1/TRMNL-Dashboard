@@ -137,6 +137,7 @@ describe("healthReport", () => {
 				lastSuccessAt: "2026-11-18T00:00:00Z",
 				failuresInARow: 0,
 			},
+			consumed: { failuresInARow: 0 },
 			"code-update": { failuresInARow: 0 },
 			snapshot: { failuresInARow: 0 },
 		},
@@ -163,6 +164,15 @@ describe("healthReport", () => {
 					trouble: false,
 					lastAttempt: "18 Nov 11:00",
 					lastSuccess: "18 Nov 11:00",
+					failedRuns: 0,
+				},
+				{
+					id: "consumed",
+					name: "Consumed set",
+					state: "Not run yet",
+					trouble: false,
+					lastAttempt: "never",
+					lastSuccess: "never",
 					failedRuns: 0,
 				},
 				{
