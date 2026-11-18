@@ -36,11 +36,14 @@ export async function readPoster(
  * Get the dithered poster for a source image, for the Spotlight or a
  * thumbnail. Runs during the refresh, never at render time. The result is
  * kept in Redis keyed by source URL and target, so a title's poster is made
- * once and reused until its source URL changes.
+ * once and reused until its source URL changes. With `ttlSeconds` it is
+ * dropped after that long and made again by the next refresh that wants it,
+ * for artwork that may not be kept for ever.
  */
 export async function getPoster(
 	sourceUrl: string,
 	target: PosterTarget,
+	ttlSeconds?: number,
 ): Promise<Poster> {
 	const redis = getRedis();
 	const key = posterKey(sourceUrl, target);
@@ -66,6 +69,8 @@ export async function getPoster(
 		height: rendered.height,
 		dataUri: `data:image/png;base64,${rendered.png.toString("base64")}`,
 	};
-	await redis.set(key, poster);
+	await (ttlSeconds === undefined
+		? redis.set(key, poster)
+		: redis.set(key, poster, { ex: ttlSeconds }));
 	return poster;
 }

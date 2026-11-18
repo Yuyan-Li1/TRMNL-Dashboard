@@ -65,6 +65,8 @@ export async function refreshAllData(): Promise<DashboardData> {
 		CACHE_KEYS.DASHBOARD_DATA,
 		dashboardData,
 		CACHE_TTL.DASHBOARD_DATA,
+		// It holds TMDB's text, which may not be kept for ever
+		CACHE_TTL.TMDB_DERIVED,
 	);
 
 	return dashboardData;

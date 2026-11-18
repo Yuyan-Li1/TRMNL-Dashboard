@@ -23,6 +23,14 @@ export const CACHE_TTL = {
 	GAMING: 60 * 60, // 1 hour
 	MOVIES: 60 * 60, // 1 hour
 	DASHBOARD_DATA: 15 * 60, // 15 minutes
+	/** How long a TMDB lookup is reused before TMDB is asked again */
+	TMDB_LOOKUP: 30 * 24 * 60 * 60, // 30 days
+	/**
+	 * The longest anything made from a TMDB lookup is kept: a poster, or the
+	 * non-expiring copy of data that holds TMDB's text. With the lookup's own
+	 * 30 days this keeps TMDB data under the 6 months its terms allow.
+	 */
+	TMDB_DERIVED: 150 * 24 * 60 * 60, // 150 days
 } as const;
 
 // Cache key prefixes
@@ -62,17 +70,22 @@ export async function cacheGetOrLatest<T>(key: string): Promise<T | null> {
 
 /**
  * Generic cache set with TTL
- * Also stores a non-expiring copy at `${key}:latest` so data is never lost
+ * Also stores a copy at `${key}:latest` so data is never lost. The copy does
+ * not expire unless `latestTtlSeconds` is given, which is for data that may
+ * not be kept for ever.
  */
 export async function cacheSet<T>(
 	key: string,
 	data: T,
 	ttlSeconds: number,
+	latestTtlSeconds?: number,
 ): Promise<void> {
 	const r = getRedis();
 	await Promise.all([
 		r.setex(key, ttlSeconds, data),
-		r.set(`${key}:latest`, data),
+		latestTtlSeconds === undefined
+			? r.set(`${key}:latest`, data)
+			: r.setex(`${key}:latest`, latestTtlSeconds, data),
 	]);
 }
 
