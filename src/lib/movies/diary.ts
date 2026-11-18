@@ -1,19 +1,7 @@
-import { OWNER_TIME_ZONE } from "@/lib/config";
-import { DAY_MS } from "@/lib/time";
+import { daysSinceDay } from "@/lib/owner-day";
 
 /** A movie is eligible for the Spotlight for this many days from its watched date. */
 export const SPOTLIGHT_ELIGIBLE_DAYS = 14;
-
-const OWNER_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
-	timeZone: OWNER_TIME_ZONE,
-	year: "numeric",
-	month: "2-digit",
-	day: "2-digit",
-});
-
-function dayNumber(day: string): number {
-	return Math.round(new Date(`${day}T00:00:00Z`).getTime() / DAY_MS);
-}
 
 /**
  * Whole calendar days from a diary entry's watched date to today, where
@@ -21,10 +9,7 @@ function dayNumber(day: string): number {
  * has to mean the owner's yesterday.
  */
 export function daysSinceWatched(watchedOn: string, now: Date): number {
-	return Math.max(
-		0,
-		dayNumber(OWNER_DAY_FORMAT.format(now)) - dayNumber(watchedOn),
-	);
+	return daysSinceDay(watchedOn, now);
 }
 
 /** Whether a diary entry is inside its Spotlight eligibility window. */

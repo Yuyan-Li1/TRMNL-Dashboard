@@ -20,6 +20,7 @@ export async function POST() {
 			summary: {
 				gaming: data.gaming ? "OK" : "FAILED",
 				movies: data.movies ? "OK" : "FAILED",
+				shows: data.shows ? "OK" : "FAILED",
 			},
 		});
 	} catch (error) {
