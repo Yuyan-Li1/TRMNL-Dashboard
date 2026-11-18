@@ -1,12 +1,15 @@
 import { Screen } from "@/components/screen/Screen";
-import { TmdbAttribution } from "@/components/screen/TmdbAttribution";
-import { TraktAttribution } from "@/components/screen/TraktAttribution";
+import { StatusStrip } from "@/components/status/StatusStrip";
+import { loadStatusStrip } from "@/lib/health/strip";
 import { loadScreen } from "@/lib/screen/load";
 
 export const dynamic = "force-dynamic";
 
 export default async function PreviewPage(): Promise<React.JSX.Element> {
-	const view = await loadScreen({ rememberPick: false });
+	const [view, strip] = await Promise.all([
+		loadScreen({ rememberPick: false }),
+		loadStatusStrip(),
+	]);
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-gray-800 p-8">
@@ -20,8 +23,7 @@ export default async function PreviewPage(): Promise<React.JSX.Element> {
 				</div>
 
 				<div className="mt-4 bg-eink-white">
-					<TmdbAttribution />
-					<TraktAttribution />
+					<StatusStrip view={strip} />
 				</div>
 			</div>
 		</div>
