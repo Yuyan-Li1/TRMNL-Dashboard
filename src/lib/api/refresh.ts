@@ -3,7 +3,9 @@ import {
 	CACHE_TTL,
 	cacheGetLatest,
 	cacheSet,
+	getRedis,
 } from "@/lib/cache/redis";
+import { alertRedisUnreachable, sendAlerts } from "@/lib/health/alert";
 import { collectReads } from "@/lib/health/reads";
 import {
 	fingerprint,
@@ -29,22 +31,42 @@ export interface DashboardData {
 }
 
 /**
- * Refresh every source, store the combined result in Redis, and keep the
- * refresh's bookkeeping: its last success and each source's health.
- * Called by the refresh API endpoints.
+ * Refresh every source, store the combined result in Redis, keep the
+ * refresh's bookkeeping (its last success and each source's health) and
+ * send the Alerts it calls for. Called by the refresh API endpoints.
  */
 export async function refreshAllData(): Promise<DashboardData> {
-	const { result, reads } = await collectReads(readAndStore);
+	try {
+		const { result, reads } = await collectReads(readAndStore);
 
-	const npsso = process.env.PSN_NPSSO;
-	const status = updateStatus(
-		await readRefreshStatus(),
-		{ reads, npsso: npsso ? { fingerprint: fingerprint(npsso) } : undefined },
-		new Date(),
-	);
-	await writeRefreshStatus(status);
+		const now = new Date();
+		const npsso = process.env.PSN_NPSSO;
+		const status = updateStatus(
+			await readRefreshStatus(),
+			{ reads, npsso: npsso ? { fingerprint: fingerprint(npsso) } : undefined },
+			now,
+		);
+		await writeRefreshStatus(status);
+		await sendAlerts(status, now);
 
-	return result;
+		return result;
+	} catch (error) {
+		// At most one message per refresh: with Redis down nothing remembers
+		// that it was sent
+		if (!(await isRedisReachable())) {
+			await alertRedisUnreachable();
+		}
+		throw error;
+	}
+}
+
+async function isRedisReachable(): Promise<boolean> {
+	try {
+		await getRedis().ping();
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 async function readAndStore(): Promise<DashboardData> {

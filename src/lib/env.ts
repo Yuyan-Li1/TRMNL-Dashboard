@@ -36,5 +36,6 @@ export const ENV_GROUPS = {
 	trakt: ["TRAKT_CLIENT_ID", "TRAKT_USER_SLUG"],
 	tmdb: ["TMDB_API_KEY"],
 	igdb: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
+	telegram: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
 	cron: ["CRON_SECRET"],
 } as const;
