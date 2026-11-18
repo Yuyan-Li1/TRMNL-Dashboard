@@ -132,7 +132,8 @@ src/
 │   │                            # Stars, PosterImage
 │   ├── status/                  # Below the captured area: StatusStrip, TmdbAttribution,
 │   │                            # TraktAttribution, IgdbAttribution
-│   ├── admin/                   # RefreshButton, TestAlertButton
+│   ├── admin/                   # AdminNav, PostButton (RefreshButton, TestAlertButton),
+│   │                            # StateMark and TroubleNotes
 │   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
 │   ├── api/                     # Source clients
@@ -156,7 +157,8 @@ src/
 │   │   ├── status.ts            # updateStatus(), isStale(), the `refresh:status` key
 │   │   ├── checks.ts            # healthChecks(): the Alert thresholds, token expiry days
 │   │   ├── alert.ts             # sendAlerts(), sendTestAlert(), the Redis Alert store
-│   │   └── strip.ts             # What the status strip shows
+│   │   ├── strip.ts             # What the status strip shows (public)
+│   │   └── report.ts            # healthReport(): what the admin area shows (not public)
 │   ├── screen/                  # What the screen shows
 │   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
@@ -249,6 +251,7 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 - `healthChecks()` holds the thresholds: a read alerts after 4 failed runs in a row, a rejected token (PSN, Nintendo, Trakt) at once, and a dated token 14 and 3 days before it expires. PSN's expiry is 60 days after the day its fingerprint changed; Nintendo's date is a constant in `checks.ts`.
 - `processChecks()` sends one message when a failure starts, a reminder every 24 hours and one line when it clears. A message Telegram does not take is retried on the next run.
 - When Redis cannot be reached the refresh sends one "Redis unreachable" message and fails.
+- The admin area looks like the device: the panel's four greys on white, with `--color-signal` kept for trouble. Text is Geist Pixel (the `geist` package), drawn for ordinary screens; the wordmark and headings stay in the TRMNL face (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
 - The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
 
 ### The screen

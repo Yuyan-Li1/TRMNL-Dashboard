@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-export default function AdminLoginPage() {
+export default function AdminLoginPage(): React.JSX.Element {
 	const [token, setToken] = useState("");
 	const [error, setError] = useState("");
-	const inputRef = useRef<HTMLInputElement>(null);
+	const [busy, setBusy] = useState(false);
 
-	useEffect(() => {
-		inputRef.current?.focus();
-	}, []);
-
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent): Promise<void> => {
 		e.preventDefault();
 		setError("");
+		setBusy(true);
 
 		try {
 			const res = await fetch("/api/admin/login", {
@@ -26,49 +23,48 @@ export default function AdminLoginPage() {
 				window.location.href = "/admin";
 				return;
 			}
-			setError("Invalid token. Please check your CRON_SECRET value.");
+			setError("That token was not accepted. Check CRON_SECRET in Vercel.");
 		} catch {
-			setError("Connection error. Is the server running?");
+			setError("The request did not reach the server. Try again.");
 		}
+		setBusy(false);
 	};
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-gray-100">
-			<div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
-				<h1 className="mb-2 text-2xl font-bold text-gray-900">TRMNL Admin</h1>
-				<p className="mb-6 text-sm text-gray-500">
-					Enter the admin token (CRON_SECRET) to continue.
+		<div className="mx-auto max-w-[360px] pt-[12vh]">
+			<h1 className="m-0 type-42">TRMNL</h1>
+			<p className="mt-2 mb-8 text-eink-dark">The admin area.</p>
+
+			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+				<div className="flex flex-col gap-2">
+					<label htmlFor="token" className="block font-bold">
+						Admin token
+					</label>
+					<input
+						id="token"
+						type="password"
+						value={token}
+						onChange={(e) => setToken(e.target.value)}
+						aria-describedby="token-hint"
+						autoComplete="current-password"
+						className="block w-full border-2 border-eink-black bg-eink-white px-3 py-[7px]"
+						required
+						// oxlint-disable-next-line jsx-a11y/no-autofocus -- the page's only field
+						autoFocus
+					/>
+					<p id="token-hint" className="m-0 text-eink-dark">
+						The value of CRON_SECRET.
+					</p>
+				</div>
+
+				<p role="alert" className="m-0 font-bold text-signal empty:hidden">
+					{error}
 				</p>
 
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<div>
-						<label
-							htmlFor="token"
-							className="block text-sm font-medium text-gray-700"
-						>
-							Admin Token
-						</label>
-						<input
-							id="token"
-							type="password"
-							value={token}
-							onChange={(e) => setToken(e.target.value)}
-							className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-							required
-							ref={inputRef}
-						/>
-					</div>
-
-					{error && <p className="text-sm text-red-600">{error}</p>}
-
-					<button
-						type="submit"
-						className="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
-					>
-						Sign In
-					</button>
-				</form>
-			</div>
+				<button type="submit" disabled={busy} className="admin-button w-full">
+					{busy ? "Signing in" : "Sign in"}
+				</button>
+			</form>
 		</div>
 	);
 }

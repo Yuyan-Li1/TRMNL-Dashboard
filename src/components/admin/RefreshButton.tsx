@@ -1,65 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { type Outcome, PostButton } from "./PostButton";
 
 interface RefreshResult {
-	success?: boolean;
 	duration?: string;
 	errors?: string[];
-	summary?: Record<string, string>;
 	error?: string;
+	details?: string;
 }
 
-export function RefreshButton() {
-	const [loading, setLoading] = useState(false);
-	const [result, setResult] = useState<RefreshResult | null>(null);
+function seconds(duration: string | undefined): string {
+	const ms = Number.parseInt(duration ?? "", 10);
+	return Number.isNaN(ms) ? "" : ` in ${(ms / 1000).toFixed(1)} seconds`;
+}
 
-	const handleRefresh = async () => {
-		setLoading(true);
-		setResult(null);
+function describe(body: unknown, ok: boolean): Outcome {
+	const result = body as RefreshResult;
+	if (!ok || result.error) {
+		return {
+			ok: false,
+			message: `Not refreshed: ${result.details ?? result.error ?? "the server gave no reason"}.`,
+		};
+	}
+	if (result.errors && result.errors.length > 0) {
+		return {
+			ok: false,
+			message: `Refreshed${seconds(result.duration)}, with errors: ${result.errors.join("; ")}.`,
+		};
+	}
+	return { ok: true, message: `Refreshed${seconds(result.duration)}.` };
+}
 
-		try {
-			const res = await fetch("/api/admin/refresh", { method: "POST" });
-			const data: RefreshResult = await res.json();
-			setResult(data);
-		} catch {
-			setResult({ error: "Network error" });
-		} finally {
-			setLoading(false);
-		}
-	};
+/** Runs the refresh now, then shows the page again with what it found. */
+export function RefreshButton(): React.JSX.Element {
+	const router = useRouter();
 
 	return (
-		<div className="inline-flex flex-col items-start gap-2">
-			<button
-				type="button"
-				onClick={handleRefresh}
-				disabled={loading}
-				className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-			>
-				{loading ? "Refreshing..." : "Refresh Data Now"}
-			</button>
-
-			{result && (
-				<div
-					className={`rounded px-3 py-2 text-xs ${
-						result.error || !result.success
-							? "bg-red-50 text-red-700"
-							: "bg-green-50 text-green-700"
-					}`}
-				>
-					{result.error ? (
-						<span>{result.error}</span>
-					) : (
-						<span>
-							Done in {result.duration}
-							{result.errors && result.errors.length > 0 && (
-								<> — {result.errors.join(", ")}</>
-							)}
-						</span>
-					)}
-				</div>
-			)}
-		</div>
+		<PostButton
+			endpoint="/api/admin/refresh"
+			label="Refresh now"
+			busyLabel="Refreshing"
+			describe={describe}
+			onDone={() => router.refresh()}
+		/>
 	);
 }

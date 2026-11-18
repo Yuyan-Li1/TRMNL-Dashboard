@@ -1,95 +1,123 @@
 import { TestAlertButton } from "@/components/admin/TestAlertButton";
+import { StateMark, TroubleNotes } from "@/components/admin/Trouble";
 import { readLastSend } from "@/lib/health/alert";
-import { formatDay, tokenExpiry } from "@/lib/health/checks";
-import { SOURCE_IDS, SOURCES } from "@/lib/health/sources";
-import { isStale, readRefreshStatus } from "@/lib/health/status";
+import { healthReport } from "@/lib/health/report";
+import { readRefreshStatus } from "@/lib/health/status";
 import { formatWhenOrNever } from "@/lib/health/strip";
 
 export const dynamic = "force-dynamic";
 
-const CELL = "px-4 py-2 text-left align-top";
+const HEAD =
+	"px-3 py-2 text-left font-normal whitespace-nowrap first:pl-0 last:pr-0";
+const CELL = "px-3 pt-3 text-left align-top first:pl-0 last:pr-0";
 
 export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 	const [status, lastSend] = await Promise.all([
 		readRefreshStatus(),
 		readLastSend(),
 	]);
-	const now = new Date();
+	const report = healthReport(status, new Date());
 
 	return (
-		<div className="space-y-6">
-			<h1 className="text-2xl font-bold text-gray-900">Source health</h1>
+		<div className="flex flex-col gap-12">
+			<section className="flex flex-col gap-4">
+				<h1 className="m-0 type-42">Sources</h1>
+				<p className="m-0 text-eink-dark">
+					Last refresh {report.lastRefresh}. A Source is Stale when its last
+					good read is more than 2 hours old.
+				</p>
 
-			<div className="overflow-x-auto rounded-lg bg-white shadow">
-				<table className="w-full text-sm text-gray-900">
-					<thead className="border-b border-gray-200 text-gray-500">
-						<tr>
-							<th className={CELL}>Source</th>
-							<th className={CELL}>Last good read</th>
-							<th className={CELL}>Failures in a row</th>
-							<th className={CELL}>Token</th>
-							<th className={CELL}>Token expires</th>
-							<th className={CELL}>Last error</th>
-						</tr>
-					</thead>
-					<tbody>
-						{SOURCE_IDS.map((id) => {
-							const { name, kind, token } = SOURCES[id];
-							const health = status?.sources[id];
-							const expiresOn = tokenExpiry(id, status);
-							return (
-								<tr key={id} className="border-b border-gray-100">
-									<td className={CELL}>
-										{name}
-										{kind === "catalog" && (
-											<span className="text-gray-500"> (Catalog)</span>
-										)}
-									</td>
-									<td className={CELL}>
-										{formatWhenOrNever(health?.lastGoodReadAt)}
-										{isStale(id, health, now) && (
-											<span className="font-semibold text-red-700"> Stale</span>
-										)}
-									</td>
-									<td className={CELL}>{health?.failuresInARow ?? 0}</td>
-									<td className={CELL}>
-										{token?.name ?? ""}
-										{health?.rejected && (
-											<span className="font-semibold text-red-700">
+				<div className="overflow-x-auto">
+					<table className="w-full min-w-[760px] border-collapse">
+						<thead className="border-b-2 border-eink-black text-eink-dark">
+							<tr>
+								<th scope="col" className={HEAD}>
+									Source
+								</th>
+								<th scope="col" className={HEAD}>
+									State
+								</th>
+								<th scope="col" className={HEAD}>
+									Last good read
+								</th>
+								<th scope="col" className={`${HEAD} text-right`}>
+									Failed runs
+								</th>
+								<th scope="col" className={HEAD}>
+									Token
+								</th>
+							</tr>
+						</thead>
+						{report.rows.map((row) => (
+							<tbody key={row.id} className="border-b-2 border-eink-light">
+								<tr>
+									<th
+										scope="row"
+										className={`${CELL} font-bold whitespace-nowrap`}
+									>
+										<StateMark row={row} />
+										{row.name}
+										{row.catalog && (
+											<span className="font-normal text-eink-dark">
 												{" "}
-												Rejected
+												Catalog
+											</span>
+										)}
+									</th>
+									<td
+										className={`${CELL} whitespace-nowrap ${row.failedRuns > 0 || row.state === "Stale" || row.state === "Never read" ? "font-bold text-signal" : ""}`}
+									>
+										{row.state}
+									</td>
+									<td className={`${CELL} whitespace-nowrap`}>
+										{row.lastGoodRead}
+									</td>
+									<td className={`${CELL} text-right`}>{row.failedRuns}</td>
+									<td className={`${CELL} whitespace-nowrap`}>
+										{row.token}
+										{row.expires && (
+											<span
+												className={`block ${row.expiresSoon ? "font-bold text-signal" : "text-eink-dark"}`}
+											>
+												{row.expires === "No expiry" ||
+												row.expires === "Not known yet"
+													? row.expires
+													: `Expires ${row.expires}`}
 											</span>
 										)}
 									</td>
-									<td className={CELL}>
-										{expiresOn
-											? formatDay(expiresOn)
-											: id === "psn"
-												? "Not known yet"
-												: token
-													? "No expiry"
-													: ""}
-									</td>
-									<td className={`${CELL} text-red-700`}>
-										{health?.lastError ?? ""}
+								</tr>
+								<tr>
+									<td colSpan={5} className="pt-1 pb-3 pl-6">
+										<TroubleNotes row={row} />
 									</td>
 								</tr>
-							);
-						})}
-					</tbody>
-				</table>
-			</div>
+							</tbody>
+						))}
+					</table>
+				</div>
+			</section>
 
-			<div className="space-y-3 rounded-lg bg-white p-6 text-sm text-gray-900 shadow">
-				<p>Last refresh: {formatWhenOrNever(status?.lastSuccessAt)}</p>
-				<p>
-					Last Alert:{" "}
-					{lastSend
-						? `${lastSend.label}, ${formatWhenOrNever(lastSend.at)}, ${lastSend.ok ? "sent" : `send failed (${lastSend.error ?? "no reason given"})`}`
-						: "none"}
+			<section className="flex flex-col gap-4">
+				<h2 className="m-0 type-21 font-bold">Alerts</h2>
+				<p className="m-0 text-eink-dark">
+					{lastSend ? (
+						<>
+							Last Alert: {lastSend.label}, {formatWhenOrNever(lastSend.at)},{" "}
+							{lastSend.ok ? (
+								"sent."
+							) : (
+								<span className="font-bold text-signal">
+									not sent ({lastSend.error ?? "Telegram gave no reason"}).
+								</span>
+							)}
+						</>
+					) : (
+						"No Alert has been sent yet."
+					)}
 				</p>
 				<TestAlertButton />
-			</div>
+			</section>
 		</div>
 	);
 }
