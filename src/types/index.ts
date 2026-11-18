@@ -1,4 +1,11 @@
 export type {
+	Book,
+	BooksData,
+	HomeBooks,
+	ReadingProgress,
+	ShelfBook,
+} from "./books";
+export type {
 	Game,
 	GameTitle,
 	GamingData,
