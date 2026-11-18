@@ -211,12 +211,12 @@ export async function lookupShow(tmdbId: number): Promise<CatalogShow | null> {
  * daily run asks, once per seed.
  */
 export async function getRecommendations(
-	kind: "movie" | "show",
+	medium: "movie" | "show",
 	tmdbId: string | number,
 ): Promise<string[]> {
 	const found = await trackRead("tmdb", () =>
 		tmdbGet<{ results?: { id?: number }[] }>(
-			`/${kind === "movie" ? "movie" : "tv"}/${encodeURIComponent(tmdbId)}/recommendations`,
+			`/${medium === "movie" ? "movie" : "tv"}/${encodeURIComponent(tmdbId)}/recommendations`,
 		),
 	);
 	return (found?.results ?? []).flatMap((result) =>

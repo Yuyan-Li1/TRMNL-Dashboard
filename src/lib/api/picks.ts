@@ -33,6 +33,19 @@ type CatalogPickMedium = (typeof CATALOG_PICK_MEDIA)[number];
 
 type TitleSet = Pick<ConsumedSet, "ids" | "names">;
 
+/** What the owner is known to have Consumed in one Medium. */
+interface KnownTitles {
+	known: TitleSet;
+	/** Whether the Collector has published the Medium's consumed set */
+	published: boolean;
+}
+
+/** A pick chosen for the Pool, with what the Catalog says about it. */
+interface NewPick {
+	pick: PoolPick;
+	title: PickTitle;
+}
+
 const EMPTY_RECORD: PoolRecord = { picks: [], barred: {} };
 
 /** The Titles of one Medium in the owner's activity, as a set to check against. */
@@ -70,7 +83,7 @@ function activity(data: DashboardData, medium: Medium): TitleSet {
 async function knownTitles(
 	data: DashboardData,
 	media: readonly Medium[],
-): Promise<Map<Medium, { known: TitleSet; published: boolean }>> {
+): Promise<Map<Medium, KnownTitles>> {
 	const redis = getRedis();
 	const entries = await Promise.all(
 		media.map(async (medium) => {
@@ -272,10 +285,10 @@ async function fillMedium<
 >(
 	picker: Picker<Seed, Result>,
 	record: PoolRecord,
-	known: { known: TitleSet; published: boolean } | undefined,
+	known: KnownTitles | undefined,
 	now: Date,
 	errors: string[],
-): Promise<{ pick: PoolPick; title: PickTitle }[]> {
+): Promise<NewPick[]> {
 	const { medium } = picker;
 	const held = record.picks.filter(
 		(pick) => pick.medium === medium && pick.origin === "catalog",
@@ -365,7 +378,8 @@ export async function rebuildCatalogPicks(
 	]);
 	const fill = <Seed, Result extends { catalogId: string; title?: string }>(
 		picker: Picker<Seed, Result>,
-	) => fillMedium(picker, record, known.get(picker.medium), now, result.errors);
+	): Promise<NewPick[]> =>
+		fillMedium(picker, record, known.get(picker.medium), now, result.errors);
 	const added = (
 		await Promise.all([
 			fill(moviePicker(data, now)),
@@ -377,9 +391,18 @@ export async function rebuildCatalogPicks(
 		result.added[pick.medium as CatalogPickMedium] += 1;
 	}
 
-	const picks = [...record.picks, ...added.map(({ pick }) => pick)];
+	// Choosing took a while, and a refresh may have retired picks meanwhile:
+	// the new picks are added to the record as it now stands
+	const latest =
+		(await redis.get<PoolRecord>(CACHE_KEYS.POOL_RECORD)) ?? record;
+	const picks = [
+		...latest.picks,
+		...added
+			.map(({ pick }) => pick)
+			.filter((pick) => !isBarred(latest, pick, now)),
+	];
 	const titles: PoolTitles = {};
-	for (const pick of record.picks) {
+	for (const pick of latest.picks) {
 		const title = stored?.[pickId(pick)];
 		if (title) {
 			titles[pickId(pick)] = title;
@@ -393,6 +416,6 @@ export async function rebuildCatalogPicks(
 	await redis.set(CACHE_KEYS.POOL_TITLES, titles, {
 		ex: CACHE_TTL.TMDB_DERIVED,
 	});
-	await redis.set(CACHE_KEYS.POOL_RECORD, { ...record, picks });
+	await redis.set(CACHE_KEYS.POOL_RECORD, { ...latest, picks });
 	return result;
 }

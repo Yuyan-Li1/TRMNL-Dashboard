@@ -15,7 +15,7 @@ export const GAME_FIELDS = [
 	"total_rating",
 	"first_release_date",
 	"platforms.abbreviation",
-];
+] as const;
 /** IGDB's id for Steam among its external game sources. */
 const STEAM_SOURCE_ID = 1;
 const REQUEST_SPACING_MS = 300;

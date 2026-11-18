@@ -39,7 +39,7 @@ export function seedConsumed(
 	db: Database,
 	exportsDir: string,
 	now: Date,
-): { films: number; books: number } {
+): { movies: number; books: number } {
 	const watched = parseCsv(
 		read(path.join(exportsDir, "letterboxd", "watched.csv")),
 	);
@@ -91,5 +91,5 @@ export function seedConsumed(
 		}
 		setMeta(db, SEEDED_KEY, now.toISOString());
 	});
-	return { films: watched.length, books: books.length };
+	return { movies: watched.length, books: books.length };
 }

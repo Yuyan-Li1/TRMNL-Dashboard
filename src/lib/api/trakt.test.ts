@@ -205,23 +205,23 @@ describe("searching Trakt", () => {
 
 	it("picks by type, never the first result", () => {
 		expect(
-			pickSearchResult(results, { type: "show", title: "severance" })?.tmdbId,
+			pickSearchResult(results, { medium: "show", title: "severance" })?.tmdbId,
 		).toBe("95396");
 	});
 
 	it("picks by year when one is given", () => {
 		expect(
-			pickSearchResult(results, { type: "movie", title: "Heat", year: 1986 })
+			pickSearchResult(results, { medium: "movie", title: "Heat", year: 1986 })
 				?.tmdbId,
 		).toBe("31670");
 		expect(
-			pickSearchResult(results, { type: "movie", title: "Heat", year: 2001 }),
+			pickSearchResult(results, { medium: "movie", title: "Heat", year: 2001 }),
 		).toBeUndefined();
 	});
 
 	it("picks nothing when the title alone could be more than one", () => {
 		expect(
-			pickSearchResult(results, { type: "movie", title: "Heat" }),
+			pickSearchResult(results, { medium: "movie", title: "Heat" }),
 		).toBeUndefined();
 	});
 });

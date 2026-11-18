@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { type ConsumedSet, consumedKey } from "@/lib/consumed/set";
 import type { Medium } from "@/lib/screen/types";
 import {
+	HISTORY_SOURCES,
 	type HistoryGame,
 	type HistorySource,
 	type HistoryTitle,
@@ -76,7 +77,12 @@ function home() {
 		},
 	};
 	const db = openDatabase(":memory:");
+	// Vercel's daily run has written every source's history, each empty so far
+	for (const source of HISTORY_SOURCES) {
+		keys.set(historyKey(source), { titles: [], readAt: NOW.toISOString() });
+	}
 	const world = {
+		keys,
 		db,
 		exportsDir,
 		/** What each Catalog knows, by medium and title */
@@ -126,7 +132,7 @@ function home() {
 describe("collector seed", () => {
 	it("loads every film in the Letterboxd export by its TMDB id", async () => {
 		const world = home();
-		expect(world.seed()).toEqual({ films: 2, books: 2 });
+		expect(world.seed()).toEqual({ movies: 2, books: 2 });
 		expect((await world.published("movie"))?.ids.toSorted()).toEqual([
 			"49046",
 			"585",
@@ -148,7 +154,7 @@ describe("collector seed", () => {
 	it("is safe to run twice", async () => {
 		const world = home();
 		world.seed();
-		expect(world.seed()).toEqual({ films: 2, books: 2 });
+		expect(world.seed()).toEqual({ movies: 2, books: 2 });
 		expect((await world.published("movie"))?.ids).toHaveLength(2);
 	});
 
@@ -170,6 +176,21 @@ describe("the consumed set", () => {
 		expect(await world.published("show")).toBeUndefined();
 		world.seed();
 		expect((await world.published("show"))?.ids).toEqual(["97546"]);
+	});
+
+	it("holds a Medium's set back until each of its sources' full history has been merged", async () => {
+		const world = home();
+		world.seed();
+		world.keys.delete(historyKey("psn"));
+		world.keys.delete(historyKey("trakt"));
+		expect(await world.published("game")).toBeUndefined();
+		expect(await world.published("show")).toBeUndefined();
+		expect((await world.published("movie"))?.ids).toHaveLength(2);
+
+		world.history("psn", [{ name: "Astro Bot", minutesPlayed: 600 }]);
+		world.history("trakt", []);
+		expect((await world.published("game"))?.names).toEqual(["astrobot"]);
+		expect((await world.published("show"))?.ids).toEqual([]);
 	});
 
 	it("counts a game with 30 minutes of play, any trophy, or no play time recorded", async () => {

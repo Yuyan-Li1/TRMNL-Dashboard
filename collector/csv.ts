@@ -42,7 +42,7 @@ export function parseCsv(text: string): Record<string, string>[] {
 		return [];
 	}
 	// An export may start with a byte order mark
-	header[0] = header[0].replace(/^﻿/, "");
+	header[0] = header[0].replace(/^\uFEFF/, "");
 	return records
 		.filter((record) => record.some((value) => value !== ""))
 		.map((record) =>
