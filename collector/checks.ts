@@ -1,5 +1,5 @@
 import type { Check } from "@/lib/alerts/alerts";
-import { expiryWarning } from "@/lib/health/checks";
+import { expiryAlert } from "@/lib/health/checks";
 import {
 	type HomeJobStatus,
 	JOB_LABELS,
@@ -67,7 +67,7 @@ export function homeChecks(findings: TickFindings, now: Date): Check[] {
 	}
 	const expiring =
 		findings.claudeTokenExpiresOn &&
-		expiryWarning("Claude Code token", findings.claudeTokenExpiresOn, now);
+		expiryAlert("Claude Code token", findings.claudeTokenExpiresOn, now);
 	checks.push({
 		id: `${SENDER}:claude-token-expiry`,
 		label: "Claude Code token",

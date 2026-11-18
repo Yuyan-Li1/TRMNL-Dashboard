@@ -49,7 +49,7 @@ export function tokenExpiry(
  * days, on 17 Jan 2027", or null while it is further off. Shared with the
  * Collector, which dates the Claude Code token.
  */
-export function expiryWarning(
+export function expiryAlert(
 	tokenName: string,
 	expiresOn: string,
 	now: Date,
@@ -97,7 +97,7 @@ function expiryCheck(
 	};
 	const expiresOn = tokenExpiry(id, status);
 	const what =
-		expiresOn && expiryWarning(token?.name ?? check.label, expiresOn, now);
+		expiresOn && expiryAlert(token?.name ?? check.label, expiresOn, now);
 	if (what) {
 		check.failure = { what };
 		if (token) {

@@ -39,6 +39,16 @@ TRMNL device (every 15 min)
 
 The page is cache-first, so a failing source leaves stale data on screen instead of a blank panel.
 
+## The home server
+
+Books come from Goodreads, which is read by the Collector (`collector/`) on the owner's home server. To set it up, run the wizard on the home server itself:
+
+```bash
+ssh homeserver
+curl -fsSL https://raw.githubusercontent.com/Yuyan-Li1/TRMNL-Dashboard/main/collector/setup.sh -o setup.sh
+bash setup.sh
+```
+
 ## Tech stack
 
 - Next.js 16 (App Router), React 19, TypeScript

@@ -36,6 +36,15 @@ function snapshotFiles(dir: string): string[] {
 		.map((name) => path.join(dir, name));
 }
 
+/** When a snapshot file was taken, from its name. */
+function takenAt(file: string): string {
+	// `collector-2026-11-18T01-00-00-000Z.db` back to an ISO time
+	return path
+		.basename(file, ".db")
+		.slice("collector-".length)
+		.replace(/T(\d+)-(\d+)-(\d+)-(\d+)Z$/, "T$1:$2:$3.$4Z");
+}
+
 /**
  * Take a consistent copy of the record into the snapshots folder and drop
  * all but the last 14. Returns the new file.
@@ -62,10 +71,8 @@ export async function publishBackup(
 	if (!newest) {
 		return;
 	}
-	const stamp = path.basename(newest, ".db").slice("collector-".length);
 	const backup: Backup = {
-		// `2026-11-18T01-00-00-000Z` back to an ISO time
-		takenAt: stamp.replace(/T(\d+)-(\d+)-(\d+)-(\d+)Z$/, "T$1:$2:$3.$4Z"),
+		takenAt: takenAt(newest),
 		database: gzipSync(readFileSync(newest)).toString("base64"),
 	};
 	await redis.set(HOME_KEYS.BACKUP, backup);
@@ -88,8 +95,9 @@ export function snapshotJob(options: {
 }
 
 /**
- * Rebuild the record from the snapshot in Redis, or from the newest on disk
- * when Redis has none or cannot be reached. The record being replaced is
+ * Rebuild the record from the snapshot in Redis or the newest on disk,
+ * whichever was taken later; from disk when Redis has none or cannot be
+ * reached. The record being replaced is
  * kept beside it as `.before-restore`. Returns where the snapshot came from.
  */
 export async function restore(options: {
@@ -106,7 +114,7 @@ export async function restore(options: {
 	if (existsSync(databasePath)) {
 		renameSync(databasePath, `${databasePath}.before-restore`);
 	}
-	if (backup) {
+	if (backup && !(onDisk && takenAt(onDisk) > backup.takenAt)) {
 		writeFileSync(
 			databasePath,
 			gunzipSync(Buffer.from(backup.database, "base64")),

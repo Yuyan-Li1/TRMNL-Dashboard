@@ -91,6 +91,18 @@ describe("the snapshot", () => {
 		expect(readNote(databasePath)).toBe("second night");
 	});
 
+	it("restores from disk when its newest snapshot is later than the one in Redis", async () => {
+		const { db, dir, databasePath } = workspace();
+		const redis = fakeRedis();
+		note(db, "in Redis");
+		await snapshotJob({ db, dir, redis }).run(T0);
+		note(db, "on disk only");
+		takeSnapshot(db, dir, new Date(T0.getTime() + DAY));
+		db.close();
+		await restore({ databasePath, dir, redis });
+		expect(readNote(databasePath)).toBe("on disk only");
+	});
+
 	it("has nothing to restore from when there is no snapshot anywhere", async () => {
 		const { db, dir, databasePath } = workspace();
 		db.close();

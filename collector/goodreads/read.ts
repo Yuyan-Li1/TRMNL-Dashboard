@@ -1,3 +1,4 @@
+import { SPOTLIGHT_ELIGIBLE_DAYS } from "@/lib/books/shelf";
 import { HOME_KEYS } from "@/lib/home/status";
 import { addDays, ownerDay } from "@/lib/owner-day";
 import type { HomeBooks, ShelfBook } from "@/types/books";
@@ -15,8 +16,6 @@ const GOODREADS = "https://www.goodreads.com";
 const FETCH_TIMEOUT_MS = 20_000;
 /** The most books one widget returns; it has no paging. */
 const WIDGET_BOOKS = 100;
-/** A book is looked up for the Spotlight while it could appear there. */
-const SPOTLIGHT_ELIGIBLE_DAYS = 14;
 /** Book lookups can be bot-challenged under load: few, and one at a time. */
 const LOOKUPS_PER_READ = 10;
 const PAUSE_BETWEEN_LOOKUPS_MS = 2000;
@@ -149,6 +148,12 @@ export async function readGoodreads(
 	db.exec("BEGIN");
 	try {
 		db.exec("UPDATE books SET position = NULL WHERE shelf = 'read'");
+		// New books below every known one at the foot of a full list were
+		// pushed into the newest hundred by others leaving the shelf; they
+		// were not just read
+		const lastKnown = read.findLastIndex((book) => known.has(book.reviewId));
+		const pushedInFrom =
+			read.length === WIDGET_BOOKS ? lastKnown + 1 : read.length;
 		for (const [position, book] of read.entries()) {
 			const before = known.get(book.reviewId);
 			let firstReadOn: string | null;
@@ -158,11 +163,7 @@ export async function readGoodreads(
 				// It was on the currently-reading shelf: finished since
 				firstReadOn = today;
 			} else {
-				// A book at the foot of a full list was pushed into the newest
-				// hundred by another leaving the shelf; it was not just read
-				const pushedIn =
-					read.length === WIDGET_BOOKS && position === read.length - 1;
-				firstReadOn = seeded && !pushedIn ? today : null;
+				firstReadOn = seeded && position < pushedInFrom ? today : null;
 			}
 			upsertBook(db, book, "read", position, firstReadOn);
 		}
@@ -186,7 +187,9 @@ export async function readGoodreads(
 				db.prepare("DELETE FROM books WHERE review_id = ?").run(reviewId);
 			}
 		}
-		// Newest first: the first update seen for a book is its latest
+		// Newest first: the first update seen for a book is its latest. An
+		// update with the same numbers as the one kept is the same update:
+		// a time written "3 days ago" must not move it forward on each read
 		const latest = new Set<string>();
 		for (const update of progress) {
 			if (latest.has(update.bookId)) {
@@ -198,7 +201,10 @@ export async function readGoodreads(
 				 VALUES (?, ?, ?, ?, ?)
 				 ON CONFLICT (book_id) DO UPDATE SET page = excluded.page,
 				 pages = excluded.pages, percent = excluded.percent, at = excluded.at
-				 WHERE excluded.at > book_progress.at`,
+				 WHERE excluded.at > book_progress.at
+				 AND NOT (excluded.page IS book_progress.page
+				 AND excluded.pages IS book_progress.pages
+				 AND excluded.percent IS book_progress.percent)`,
 			).run(
 				update.bookId,
 				update.page ?? null,

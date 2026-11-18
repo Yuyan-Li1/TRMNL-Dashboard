@@ -16,9 +16,11 @@ import {
 	writeRefreshStatus,
 } from "@/lib/health/status";
 import { addDays, ownerDay } from "@/lib/owner-day";
+import type { BooksData } from "@/types/books";
 import type { GamingData } from "@/types/gaming";
 import type { MoviesData } from "@/types/movies";
 import type { ShowsData } from "@/types/shows";
+import { getBooksData } from "./books";
 import { getGamingData } from "./gaming";
 import { getMoviesData } from "./movies";
 import { getShowsData } from "./shows";
@@ -29,6 +31,8 @@ export interface DashboardData {
 	movies?: MoviesData | null;
 	/** Absent in data stored before shows were read */
 	shows?: ShowsData | null;
+	/** Absent in data stored before books were read */
+	books?: BooksData | null;
 	errors: string[];
 	refreshedAt: string;
 }
@@ -130,10 +134,11 @@ async function readAndStore(): Promise<DashboardData> {
 		}
 	}
 
-	const [gaming, readMovies, readShows] = await Promise.all([
+	const [gaming, readMovies, readShows, books] = await Promise.all([
 		read("Gaming", getGamingData, (data) => data.gaming),
 		read("Movies", getMoviesData, (data) => data.movies),
 		read("Shows", getShowsData, (data) => data.shows),
+		read("Books", getBooksData, (data) => data.books),
 	]);
 
 	// TMDB's text may not be kept for ever. The copy that otherwise never
@@ -155,6 +160,7 @@ async function readAndStore(): Promise<DashboardData> {
 		gaming,
 		movies,
 		shows,
+		books,
 		errors,
 		refreshedAt: new Date().toISOString(),
 	};

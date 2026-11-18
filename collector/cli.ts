@@ -11,7 +11,7 @@ import { goodreadsJob, publishBooks } from "./goodreads/read";
 import { type Job, runJob } from "./jobs";
 import { connectRedis, type HomeRedis } from "./redis";
 import { publishBackup, restore, snapshotJob } from "./snapshot";
-import { homeStatus, runTick } from "./tick";
+import { homeStatus, runTick, type TickOptions } from "./tick";
 
 /**
  * The Collector's commands. `tick` is started by launchd every 15 minutes;
@@ -26,7 +26,13 @@ const USAGE = `Usage: collector <command>
   test-alert    Send a test Alert.
   run <job>     Run one job now, ignoring its schedule: ${JOB_NAMES.join(", ")}.`;
 
-const COMMANDS = ["tick", "publish", "restore", "test-alert", "run"];
+const COMMANDS: readonly string[] = [
+	"tick",
+	"publish",
+	"restore",
+	"test-alert",
+	"run",
+] as const;
 
 const REFRESH_TIMEOUT_MS = 90_000;
 
@@ -82,7 +88,9 @@ function jobs(db: Database, store: HomeRedis): Job[] {
 	];
 }
 
-async function statusOptions() {
+async function statusOptions(): Promise<
+	Pick<TickOptions, "now" | "commit" | "claudeToken">
+> {
 	return {
 		now: new Date(),
 		commit: await exec("git", ["rev-parse", "--short", "HEAD"], REPO_DIR),
@@ -101,6 +109,8 @@ async function main(): Promise<void> {
 	if (existsSync(envFile)) {
 		process.loadEnvFile(envFile);
 	}
+	// It would be used in place of the subscription token by any `claude` run
+	delete process.env.ANTHROPIC_API_KEY;
 	mkdirSync(HOME_DIR, { recursive: true, mode: 0o700 });
 
 	if (command === "test-alert") {
