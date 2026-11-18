@@ -4,7 +4,7 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies) and 3 (shows) are built; books arrive in a later stage.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows) and 4 (Alerts and the status strip) are built; books arrive in a later stage.
 
 ## Tech Stack
 
@@ -122,16 +122,17 @@ type GamingPlatform = (typeof GAMING_PLATFORMS)[number];
 src/
 ├── app/
 │   ├── (dashboard)/             # TRMNL-facing routes (/, /preview)
-│   ├── (admin)/admin/           # Admin UI (login, manual refresh)
+│   ├── (admin)/admin/           # Admin UI (login, manual refresh, source health page)
 │   └── api/
 │       ├── health/              # Redis health check
 │       ├── refresh/             # Cron-triggered data refresh
-│       ├── tokens/              # Live PSN token check
-│       └── admin/               # Protected admin endpoints (login, refresh)
+│       └── admin/               # Protected admin endpoints (login, refresh, test-alert)
 ├── components/
 │   ├── screen/                  # The 800x480 screen: Screen, Spotlight, MediumCard,
-│   │                            # Stars, PosterImage, TmdbAttribution, TraktAttribution
-│   ├── admin/                   # RefreshButton
+│   │                            # Stars, PosterImage
+│   ├── status/                  # Below the captured area: StatusStrip, TmdbAttribution,
+│   │                            # TraktAttribution, IgdbAttribution
+│   ├── admin/                   # RefreshButton, TestAlertButton
 │   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
 │   ├── api/                     # Source clients
@@ -145,6 +146,17 @@ src/
 │   │   ├── shows.ts             # Reads Trakt, applies the show rules, adds Catalog data and posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
+│   ├── alerts/                  # The Alert rules and the Telegram sender. Imports nothing
+│   │   │                        # from the rest of src/, so the Collector can share it
+│   │   ├── alerts.ts            # processChecks(): start, 24-hour reminder, recovery, retry
+│   │   └── telegram.ts          # sendTelegramMessage()
+│   ├── health/                  # The refresh's bookkeeping and what Vercel alerts on
+│   │   ├── sources.ts           # The sources and Catalogs, their names and tokens
+│   │   ├── reads.ts             # trackRead(): notes each real read during a refresh
+│   │   ├── status.ts            # updateStatus(), isStale(), the `refresh:status` key
+│   │   ├── checks.ts            # healthChecks(): the Alert thresholds, token expiry days
+│   │   ├── alert.ts             # sendAlerts(), sendTestAlert(), the Redis Alert store
+│   │   └── strip.ts             # What the status strip shows
 │   ├── screen/                  # What the screen shows
 │   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
@@ -193,6 +205,8 @@ GitHub Actions (every 15 min)
       → IGDB adds the description, rating and cover for recently played Titles
       → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
+    → Writes its bookkeeping: its last-success time and each source's health
+    → Sends the Telegram Alerts the bookkeeping calls for
 
 Dashboard page render (server-side)
   → loadScreen()
@@ -201,6 +215,7 @@ Dashboard page render (server-side)
     → pickSpotlight() picks a Title; the pick is kept in Redis so it is not repeated
     → Reads the stored poster and thumbnails
     → Renders the 800x480 screen: Spotlight poster, text column, rail of Medium cards
+  → loadStatusStrip() reads the bookkeeping for the status strip below the screen
 ```
 
 ### Caching Strategy
@@ -218,10 +233,23 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
+- The refresh's bookkeeping: `refresh:status`, no TTL
+- Alert state: `alert:<failure>` (such as `alert:vercel:psn`), one key per failure, deleted when it clears. `alert:` is the one prefix the Collector also writes under
+- The last Alert Vercel tried to send: `telegram:last-send`, no TTL
 
-**TMDB's terms**: its data may not be kept longer than 6 months. A lookup is reused for 30 days and anything made from it (a poster, the dashboard data's `:latest` copy) expires 150 days after it is written (`CACHE_TTL.TMDB_LOOKUP`, `CACHE_TTL.TMDB_DERIVED`). The attribution notice and logo (`TmdbAttribution`) are on the dashboard page below the 800x480 area the device captures. TMDB data is never given to an LLM.
+**TMDB's terms**: its data may not be kept longer than 6 months. A lookup is reused for 30 days and anything made from it (a poster, the dashboard data's `:latest` copy) expires 150 days after it is written (`CACHE_TTL.TMDB_LOOKUP`, `CACHE_TTL.TMDB_DERIVED`). The attribution notice and logo (`TmdbAttribution`) are on the status strip, below the 800x480 area the device captures. TMDB data is never given to an LLM.
 
-**Trakt's API policy** asks for an attribution line; `TraktAttribution` sits below the TMDB notice, also outside the captured area.
+**Trakt's API policy** asks for an attribution line; `TraktAttribution` sits below the TMDB notice, with the IGDB line after it.
+
+### Bookkeeping and Alerts
+
+Every real read of a source or Catalog (not an answer from our own cache) goes through `trackRead()`. After a refresh, `updateStatus()` stores per source the last good read, the failed runs in a row and whether its token was rejected; a run that did not need to read a source leaves it alone. A source throws `TokenRejectedError` when its token is turned away.
+
+- A Source is Stale when its last good read is more than 2 hours old. A Catalog is read only on demand, so it is Stale only while its reads are failing.
+- `healthChecks()` holds the thresholds: a read alerts after 4 failed runs in a row, a rejected token (PSN, Nintendo, Trakt) at once, and a dated token 14 and 3 days before it expires. PSN's expiry is 60 days after the day its fingerprint changed; Nintendo's date is a constant in `checks.ts`.
+- `processChecks()` sends one message when a failure starts, a reminder every 24 hours and one line when it clears. A message Telegram does not take is retried on the next run.
+- When Redis cannot be reached the refresh sends one "Redis unreachable" message and fails.
+- The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
 
 ### The screen
 
@@ -250,13 +278,9 @@ Key ownership (from stage 5): every key the Collector writes starts with `home:`
 
 ### Automation (require `VERCEL_URL` and `CRON_SECRET` repo secrets)
 
-| Workflow           | Schedule       | Purpose                                                      |
-| ------------------ | -------------- | ------------------------------------------------------------ |
-| `refresh.yml`      | Every 15 min   | Main data refresh via `/api/refresh`                         |
-| `health-check.yml` | Every 6 hours  | Check Redis connectivity, creates GitHub issue on failure    |
-| `token-expiry.yml` | Daily 9 AM UTC | Check the PSN token, creates GitHub issue when it is expired |
-
-The two issue workflows are replaced by Telegram Alerts in stage 4.
+| Workflow      | Schedule     | Purpose                              |
+| ------------- | ------------ | ------------------------------------ |
+| `refresh.yml` | Every 15 min | Main data refresh via `/api/refresh` |
 
 ### CI
 
@@ -310,6 +334,10 @@ TMDB_API_KEY=                 # The API key or the API read access token
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 
+# Telegram (Alerts)
+TELEGRAM_BOT_TOKEN=           # From BotFather
+TELEGRAM_CHAT_ID=             # The owner's private chat with the bot
+
 # Client-side
 NEXT_PUBLIC_APP_URL=
 ```
@@ -352,7 +380,7 @@ PSN NPSSO expires every ~2 months. To refresh:
 
 These require manual action and cannot be automated:
 
-1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB), TMDB, a Trakt API app
+1. **Account Registration**: Upstash, Steam, OpenXBL, a Twitch application (for IGDB), TMDB, a Trakt API app, a Telegram bot from BotFather
 2. **Token Retrieval**: PSN NPSSO and the Nintendo session token (manual browser login required)
 3. **Environment Variables**: Must be added to the Vercel dashboard
 4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets

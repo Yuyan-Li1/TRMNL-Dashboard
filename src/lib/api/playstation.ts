@@ -23,12 +23,8 @@ let authExpiresAt = 0;
 /** Most recently played first, so the first page holds everything recent. */
 const PLAYED_GAMES_LIMIT = 100;
 
-const NPSSO_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
-
 interface StoredPsnAuth {
 	refreshToken: string;
-	/** When the NPSSO in `PSN_NPSSO` is expected to stop working. */
-	npssoExpiresAt?: string;
 }
 
 function remember(authResponse: AuthTokensResponse): AuthorizationPayload {
@@ -83,7 +79,6 @@ async function getAuth(): Promise<AuthorizationPayload> {
 
 	await redis.set(CACHE_KEYS.PSN_AUTH, {
 		refreshToken: authResponse.refreshToken,
-		npssoExpiresAt: new Date(Date.now() + NPSSO_LIFETIME_MS).toISOString(),
 	} satisfies StoredPsnAuth);
 	return remember(authResponse);
 }
@@ -131,38 +126,4 @@ export async function getPlayStationPlays(): Promise<PlatformPlay[]> {
 		await cacheSet(CACHE_KEYS.GAMING_PSN, plays, CACHE_TTL.GAMING);
 		return plays;
 	});
-}
-
-export interface PsnTokenHealth {
-	status: "healthy" | "expiring_soon" | "expired";
-	expiresAt?: string;
-	message?: string;
-}
-
-/**
- * Live check of the PSN token: authenticate now and report the result.
- */
-export async function checkPSNTokenHealth(): Promise<PsnTokenHealth> {
-	try {
-		await getAuth();
-	} catch (error) {
-		return { status: "expired", message: String(error) };
-	}
-
-	const stored = await getRedis().get<StoredPsnAuth>(CACHE_KEYS.PSN_AUTH);
-	const expiresAt = stored?.npssoExpiresAt;
-	if (expiresAt) {
-		const daysUntilExpiry = Math.floor(
-			(new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-		);
-		if (daysUntilExpiry <= 7) {
-			return {
-				status: "expiring_soon",
-				expiresAt,
-				message: `NPSSO expires in ${daysUntilExpiry} days`,
-			};
-		}
-	}
-
-	return { status: "healthy", expiresAt };
 }
