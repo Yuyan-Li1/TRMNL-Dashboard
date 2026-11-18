@@ -6,13 +6,17 @@ import {
 } from "@/lib/cache/redis";
 import type { GamingData } from "@/types/gaming";
 import type { MoviesData } from "@/types/movies";
+import type { ShowsData } from "@/types/shows";
 import { getGamingData } from "./gaming";
 import { getMoviesData } from "./movies";
+import { getShowsData } from "./shows";
 
 export interface DashboardData {
 	gaming: GamingData | null;
 	/** Absent in data stored before movies were read */
 	movies?: MoviesData | null;
+	/** Absent in data stored before shows were read */
+	shows?: ShowsData | null;
 	errors: string[];
 	refreshedAt: string;
 }
@@ -49,30 +53,31 @@ export async function refreshAllData(): Promise<DashboardData> {
 		}
 	}
 
-	const [gaming, readMovies] = await Promise.all([
+	const [gaming, readMovies, readShows] = await Promise.all([
 		read("Gaming", getGamingData, (data) => data.gaming),
 		read("Movies", getMoviesData, (data) => data.movies),
+		read("Shows", getShowsData, (data) => data.shows),
 	]);
 
 	// TMDB's text may not be kept for ever. The copy that otherwise never
-	// expires lives only as long as the movies in it may still be kept, and
-	// movies carried over from the last good data are dropped once too old.
-	let movies = readMovies;
-	let latestTtlSeconds: number | undefined;
-	if (movies) {
-		const ageSeconds = Math.floor(
-			(Date.now() - new Date(movies.fetchedAt).getTime()) / 1000,
-		);
-		latestTtlSeconds = CACHE_TTL.TMDB_DERIVED - ageSeconds;
-		if (latestTtlSeconds <= 0) {
-			movies = null;
-			latestTtlSeconds = undefined;
-		}
-	}
+	// expires lives only as long as the movies and shows in it may still be
+	// kept, and those carried over from the last good data are dropped once
+	// too old.
+	const secondsLeft = (data: { fetchedAt: string }): number =>
+		CACHE_TTL.TMDB_DERIVED -
+		Math.floor((Date.now() - new Date(data.fetchedAt).getTime()) / 1000);
+	const movies = readMovies && secondsLeft(readMovies) > 0 ? readMovies : null;
+	const shows = readShows && secondsLeft(readShows) > 0 ? readShows : null;
+	const withTmdbData = [movies, shows].filter((data) => data !== null);
+	const latestTtlSeconds =
+		withTmdbData.length > 0
+			? Math.min(...withTmdbData.map(secondsLeft))
+			: undefined;
 
 	const dashboardData: DashboardData = {
 		gaming,
 		movies,
+		shows,
 		errors,
 		refreshedAt: new Date().toISOString(),
 	};
