@@ -22,6 +22,9 @@ export function getRedis(): Redis {
 export const CACHE_TTL = {
 	GAMING: 60 * 60, // 1 hour
 	MOVIES: 60 * 60, // 1 hour
+	SHOWS: 60 * 60, // 1 hour
+	/** How long a show's seasons and next episode are reused */
+	TRAKT_SCHEDULE: 24 * 60 * 60, // 1 day
 	DASHBOARD_DATA: 15 * 60, // 15 minutes
 	/** How long a TMDB lookup is reused before TMDB is asked again */
 	TMDB_LOOKUP: 30 * 24 * 60 * 60, // 30 days
@@ -40,6 +43,7 @@ export const CACHE_KEYS = {
 	GAMING_PSN: "plays:psn",
 	GAMING_SWITCH: "plays:switch",
 	MOVIES_LETTERBOXD: "diary:letterboxd",
+	SHOWS_TRAKT: "watched:trakt",
 	IGDB_TOKEN: "igdb:token",
 	PSN_AUTH: "psn:auth",
 	DASHBOARD_DATA: "dashboard:media",

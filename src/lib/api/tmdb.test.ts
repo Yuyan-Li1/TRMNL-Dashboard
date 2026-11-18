@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toCatalogMovie } from "./tmdb";
+import { toCatalogMovie, toCatalogShow } from "./tmdb";
 
 const PAST_LIVES = {
 	title: "Past Lives",
@@ -48,6 +48,37 @@ describe("toCatalogMovie", () => {
 				title: "Untitled",
 				overview: "",
 				release_date: "",
+				poster_path: null,
+				vote_average: 0,
+				vote_count: 0,
+			}),
+		).toEqual({});
+	});
+});
+
+describe("toCatalogShow", () => {
+	it("reads the poster, overview and rating in five stars", () => {
+		expect(
+			toCatalogShow({
+				name: "Ted Lasso",
+				overview: "An American football coach moves to England.",
+				poster_path: "/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg",
+				vote_average: 8.4,
+				vote_count: 3100,
+			}),
+		).toEqual({
+			posterUrl:
+				"https://image.tmdb.org/t/p/w780/5fhZdwP1DVJ0FyVH6vrFdHwpXIn.jpg",
+			overview: "An American football coach moves to England.",
+			rating: 4,
+		});
+	});
+
+	it("leaves out what TMDB does not have", () => {
+		expect(
+			toCatalogShow({
+				name: "Untitled",
+				overview: "",
 				poster_path: null,
 				vote_average: 0,
 				vote_count: 0,

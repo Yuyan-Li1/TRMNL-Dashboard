@@ -33,6 +33,7 @@ export const ENV_GROUPS = {
 	psn: ["PSN_NPSSO"],
 	nintendo: ["NINTENDO_SESSION_TOKEN"],
 	letterboxd: ["LETTERBOXD_USERNAME"],
+	trakt: ["TRAKT_CLIENT_ID", "TRAKT_USER_SLUG"],
 	tmdb: ["TMDB_API_KEY"],
 	igdb: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
 	cron: ["CRON_SECRET"],
