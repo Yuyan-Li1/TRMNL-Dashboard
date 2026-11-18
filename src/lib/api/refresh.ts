@@ -6,6 +6,7 @@ import {
 	getRedis,
 } from "@/lib/cache/redis";
 import { alertRedisUnreachable, sendAlerts } from "@/lib/health/alert";
+import { NPSSO_LIFETIME_DAYS } from "@/lib/health/checks";
 import { collectReads } from "@/lib/health/reads";
 import {
 	fingerprint,
@@ -13,6 +14,7 @@ import {
 	updateStatus,
 	writeRefreshStatus,
 } from "@/lib/health/status";
+import { addDays, ownerDay } from "@/lib/owner-day";
 import type { GamingData } from "@/types/gaming";
 import type { MoviesData } from "@/types/movies";
 import type { ShowsData } from "@/types/shows";
@@ -40,10 +42,10 @@ export async function refreshAllData(): Promise<DashboardData> {
 		const { result, reads } = await collectReads(readAndStore);
 
 		const now = new Date();
-		const npsso = process.env.PSN_NPSSO;
+		const previous = await readRefreshStatus();
 		const status = updateStatus(
-			await readRefreshStatus(),
-			{ reads, npsso: npsso ? { fingerprint: fingerprint(npsso) } : undefined },
+			previous,
+			{ reads, npsso: await configuredNpsso(!previous?.npsso) },
 			now,
 		);
 		await writeRefreshStatus(status);
@@ -58,6 +60,35 @@ export async function refreshAllData(): Promise<DashboardData> {
 		}
 		throw error;
 	}
+}
+
+/**
+ * The PSN token now configured. The first time it is seen, the day it was
+ * set is taken from the expiry time once kept beside the PSN refresh token,
+ * so a token already weeks old is not dated from today.
+ */
+async function configuredNpsso(
+	firstSeen: boolean,
+): Promise<{ fingerprint: string; knownSince?: string } | undefined> {
+	const npsso = process.env.PSN_NPSSO;
+	if (!npsso) {
+		return undefined;
+	}
+	const configured: { fingerprint: string; knownSince?: string } = {
+		fingerprint: fingerprint(npsso),
+	};
+	if (firstSeen) {
+		const stored = await getRedis().get<{ npssoExpiresAt?: string }>(
+			CACHE_KEYS.PSN_AUTH,
+		);
+		if (stored?.npssoExpiresAt) {
+			configured.knownSince = addDays(
+				ownerDay(new Date(stored.npssoExpiresAt)),
+				-NPSSO_LIFETIME_DAYS,
+			);
+		}
+	}
+	return configured;
 }
 
 async function isRedisReachable(): Promise<boolean> {

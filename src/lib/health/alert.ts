@@ -8,10 +8,9 @@ import {
 import { sendTelegramMessage } from "@/lib/alerts/telegram";
 import { getRedis } from "@/lib/cache/redis";
 import { OWNER_TIME_ZONE } from "@/lib/config";
-import { healthChecks } from "./checks";
+import { healthChecks, SENDER } from "./checks";
 import type { RefreshStatus } from "./status";
 
-const SENDER = "vercel";
 /** Per-failure Alert state. The one prefix the Collector also writes under. */
 const ALERT_KEY_PREFIX = "alert:";
 /** The last Alert Vercel tried to send, and whether Telegram took it */
@@ -55,7 +54,9 @@ export async function sendAlerts(
 		now,
 		timeZone: OWNER_TIME_ZONE,
 	});
-	const last = alerts.at(-1);
+	// A send that failed is the one to show, so a later one that worked in
+	// the same run does not hide it
+	const last = alerts.find((alert) => !alert.ok) ?? alerts.at(-1);
 	if (last) {
 		await getRedis().set(LAST_SEND_KEY, last);
 	}

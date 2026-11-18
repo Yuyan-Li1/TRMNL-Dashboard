@@ -208,9 +208,9 @@ describe("processChecks", () => {
 		);
 	});
 
-	it("sends a one-off warning once per wording, with no reminder and no recovery", async () => {
+	it("sends a one-off Alert once per wording, with no reminder and no recovery", async () => {
 		const { run, sent, states } = setup();
-		const warning = (days: number): Check => ({
+		const expiring = (days: number): Check => ({
 			id: "vercel:psn-expiry",
 			label: "PSN NPSSO",
 			oneOff: true,
@@ -219,10 +219,10 @@ describe("processChecks", () => {
 			},
 		});
 
-		await run([warning(14)], START);
-		await run([warning(14)], hoursLater(48));
-		await run([warning(3)], hoursLater(11 * 24));
-		await run([{ ...warning(3), failure: null }], hoursLater(12 * 24));
+		await run([expiring(14)], START);
+		await run([expiring(14)], hoursLater(48));
+		await run([expiring(3)], hoursLater(11 * 24));
+		await run([{ ...expiring(3), failure: null }], hoursLater(12 * 24));
 
 		expect(sent).toEqual([
 			"[vercel] PSN NPSSO expires within 14 days, on 17 Jan 2027.",

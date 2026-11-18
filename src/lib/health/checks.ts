@@ -3,14 +3,16 @@ import { addDays, daysUntilDay } from "@/lib/owner-day";
 import { SOURCE_IDS, SOURCES, type SourceId } from "./sources";
 import type { RefreshStatus } from "./status";
 
+/** Who is speaking in Vercel's Alerts, and the start of its failures' ids. */
+export const SENDER = "vercel";
 /** A failed source read alerts after this many failed runs in a row: 1 hour. */
 const FAILED_RUNS_BEFORE_ALERT = 4;
 /** Sony's NPSSO lasts 60 days from the day it is issued. */
-const NPSSO_LIFETIME_DAYS = 60;
+export const NPSSO_LIFETIME_DAYS = 60;
 /** The day the Nintendo session token now configured stops working. */
 const NINTENDO_TOKEN_EXPIRES_ON = "2028-11-16";
-/** A dated token warns this many days before it expires, nearest first. */
-const WARN_DAYS_BEFORE = [3, 14] as const;
+/** A dated token alerts this many days before it expires, nearest first. */
+const ALERT_DAYS_BEFORE = [3, 14] as const;
 
 const DAY_FORMAT = new Intl.DateTimeFormat("en-GB", {
 	timeZone: "UTC",
@@ -43,7 +45,7 @@ export function tokenExpiry(
 function sourceCheck(id: SourceId, status: RefreshStatus): Check {
 	const { name, token } = SOURCES[id];
 	const health = status.sources[id];
-	const check: Check = { id: `vercel:${id}`, label: name, failure: null };
+	const check: Check = { id: `${SENDER}:${id}`, label: name, failure: null };
 	if (!health || health.failuresInARow === 0) {
 		return check;
 	}
@@ -68,7 +70,9 @@ function expiryCheck(
 	const token = SOURCES[id].token;
 	const check: Check = {
 		id: checkId,
-		label: token?.name ?? SOURCES[id].name,
+		// The source's name, not the token's: the label of the last Alert is
+		// shown on the public status strip
+		label: SOURCES[id].name,
 		failure: null,
 		oneOff: true,
 	};
@@ -77,10 +81,10 @@ function expiryCheck(
 		return check;
 	}
 	const daysLeft = daysUntilDay(expiresOn, now);
-	const within = WARN_DAYS_BEFORE.find((days) => daysLeft <= days);
+	const within = ALERT_DAYS_BEFORE.find((days) => daysLeft <= days);
 	if (within !== undefined) {
 		check.failure = {
-			what: `${check.label} expires within ${within} days, on ${formatDay(expiresOn)}`,
+			what: `${token?.name ?? check.label} expires within ${within} days, on ${formatDay(expiresOn)}`,
 		};
 		if (token) {
 			check.failure.fix = token.fix;
@@ -97,7 +101,7 @@ function expiryCheck(
 export function healthChecks(status: RefreshStatus, now: Date): Check[] {
 	return [
 		...SOURCE_IDS.map((id) => sourceCheck(id, status)),
-		expiryCheck("vercel:psn-expiry", "psn", status, now),
-		expiryCheck("vercel:nintendo-expiry", "switch", status, now),
+		expiryCheck(`${SENDER}:psn-expiry`, "psn", status, now),
+		expiryCheck(`${SENDER}:nintendo-expiry`, "switch", status, now),
 	];
 }

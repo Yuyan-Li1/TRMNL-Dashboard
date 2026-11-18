@@ -19,7 +19,10 @@ export type RunReads = Partial<Record<SourceId, SourceReads>>;
 
 export interface SourceHealth {
 	lastGoodReadAt?: string;
-	/** Failed runs in a row; a run that did not read the source is not counted */
+	/**
+	 * Runs in a row in which no read of the source worked; a run that did not
+	 * read it is not counted
+	 */
 	failuresInARow: number;
 	/** When the first of those runs failed */
 	failingSince?: string;
@@ -44,8 +47,11 @@ export interface RefreshStatus {
 
 export interface RunResult {
 	reads: RunReads;
-	/** The PSN token now configured */
-	npsso?: { fingerprint: string };
+	/**
+	 * The PSN token now configured. `knownSince` is the day it was set, where
+	 * that is known from before fingerprints were kept.
+	 */
+	npsso?: { fingerprint: string; knownSince?: string };
 }
 
 export const REFRESH_STATUS_KEY = "refresh:status";
@@ -64,7 +70,9 @@ function updateSource(
 	if (!reads || (reads.good === 0 && reads.failed === 0)) {
 		return previous;
 	}
-	if (reads.failed === 0) {
+	// One read that worked makes the run good: a single show or Title the
+	// source cannot answer for is not the source failing
+	if (reads.good > 0) {
 		return { lastGoodReadAt: at, failuresInARow: 0 };
 	}
 	const health: SourceHealth = {
@@ -74,7 +82,8 @@ function updateSource(
 	if (previous?.lastGoodReadAt) {
 		health.lastGoodReadAt = previous.lastGoodReadAt;
 	}
-	if (reads.rejected) {
+	// Once rejected, a token stays so until the source is read again
+	if (reads.rejected || previous?.rejected) {
 		health.rejected = true;
 	}
 	if (reads.error) {
@@ -104,7 +113,7 @@ export function updateStatus(
 	} else if (run.npsso) {
 		status.npsso = {
 			fingerprint: run.npsso.fingerprint,
-			changedOn: ownerDay(now),
+			changedOn: run.npsso.knownSince ?? ownerDay(now),
 		};
 	}
 

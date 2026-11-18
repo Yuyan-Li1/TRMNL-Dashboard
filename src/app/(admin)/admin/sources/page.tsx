@@ -1,18 +1,13 @@
 import { TestAlertButton } from "@/components/admin/TestAlertButton";
-import { formatMoment } from "@/lib/alerts/alerts";
-import { OWNER_TIME_ZONE } from "@/lib/config";
 import { readLastSend } from "@/lib/health/alert";
 import { formatDay, tokenExpiry } from "@/lib/health/checks";
 import { SOURCE_IDS, SOURCES } from "@/lib/health/sources";
 import { isStale, readRefreshStatus } from "@/lib/health/status";
+import { formatWhenOrNever } from "@/lib/health/strip";
 
 export const dynamic = "force-dynamic";
 
 const CELL = "px-4 py-2 text-left align-top";
-
-function when(at: string | undefined): string {
-	return at ? formatMoment(at, OWNER_TIME_ZONE) : "never";
-}
 
 export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 	const [status, lastSend] = await Promise.all([
@@ -51,7 +46,7 @@ export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 										)}
 									</td>
 									<td className={CELL}>
-										{when(health?.lastGoodReadAt)}
+										{formatWhenOrNever(health?.lastGoodReadAt)}
 										{isStale(id, health, now) && (
 											<span className="font-semibold text-red-700"> Stale</span>
 										)}
@@ -69,9 +64,11 @@ export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 									<td className={CELL}>
 										{expiresOn
 											? formatDay(expiresOn)
-											: token
-												? "No expiry"
-												: ""}
+											: id === "psn"
+												? "Not known yet"
+												: token
+													? "No expiry"
+													: ""}
 									</td>
 									<td className={`${CELL} text-red-700`}>
 										{health?.lastError ?? ""}
@@ -84,11 +81,11 @@ export default async function SourceHealthPage(): Promise<React.JSX.Element> {
 			</div>
 
 			<div className="space-y-3 rounded-lg bg-white p-6 text-sm text-gray-900 shadow">
-				<p>Last refresh: {when(status?.lastSuccessAt)}</p>
+				<p>Last refresh: {formatWhenOrNever(status?.lastSuccessAt)}</p>
 				<p>
 					Last Alert:{" "}
 					{lastSend
-						? `${lastSend.label}, ${when(lastSend.at)}, ${lastSend.ok ? "sent" : `send failed (${lastSend.error ?? "no reason given"})`}`
+						? `${lastSend.label}, ${formatWhenOrNever(lastSend.at)}, ${lastSend.ok ? "sent" : `send failed (${lastSend.error ?? "no reason given"})`}`
 						: "none"}
 				</p>
 				<TestAlertButton />

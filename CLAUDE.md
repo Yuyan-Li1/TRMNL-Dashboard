@@ -243,7 +243,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 
 ### Bookkeeping and Alerts
 
-Every real read of a source or Catalog (not an answer from our own cache) goes through `trackRead()`. After a refresh, `updateStatus()` stores per source the last good read, the failed runs in a row and whether its token was rejected; a run that did not need to read a source leaves it alone. A source throws `TokenRejectedError` when its token is turned away.
+Every real read of a source or Catalog (not an answer from our own cache) goes through `trackRead()`. After a refresh, `updateStatus()` stores per source the last good read, the failed runs in a row and whether its token was rejected. A run fails for a source when it tried to read it and no read worked; a run that did not need to read a source leaves it alone. A source throws `TokenRejectedError` when its token is turned away.
 
 - A Source is Stale when its last good read is more than 2 hours old. A Catalog is read only on demand, so it is Stale only while its reads are failing.
 - `healthChecks()` holds the thresholds: a read alerts after 4 failed runs in a row, a rejected token (PSN, Nintendo, Trakt) at once, and a dated token 14 and 3 days before it expires. PSN's expiry is 60 days after the day its fingerprint changed; Nintendo's date is a constant in `checks.ts`.
@@ -265,7 +265,7 @@ Artwork is dithered by us when data is refreshed, never at render time and never
 
 Vitest, with test files beside the code (`*.test.ts`). Tests go through a module's public interface.
 
-Key ownership (from stage 5): every key the Collector writes starts with `home:`. Vercel never writes under it.
+Key ownership (from stage 5): every key the Collector writes starts with `home:`, and Vercel never writes under it. The one shared prefix is `alert:` (per-failure Alert state), written by both.
 
 ### Auth
 
