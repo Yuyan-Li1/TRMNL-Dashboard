@@ -4,16 +4,16 @@
 
 A TRMNL e-ink dashboard that shows one person's media activity: what they are playing, watching and reading, on one 800x480 four-grey screen. Built with Next.js and TypeScript, hosted on Vercel (Hobby plan).
 
-The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows) and 4 (Alerts and the status strip) are built; books arrive in a later stage.
+The dashboard is being rebuilt in stages. The staged spec is `docs/spec/media-dashboard/` (start with its `README.md`); it holds every product and source decision. Domain language is in `GLOSSARY.md`. Stages 1 (games), 2 (movies), 3 (shows), 4 (Alerts and the status strip) and 5 (the Collector and books) are built. The Collector (`collector/`) runs on the owner's home server, not on Vercel.
 
 ## Tech Stack
 
-- **Runtime**: Node.js 20+
+- **Runtime**: Node.js 20+ on Vercel; Node.js 22.13+ for the Collector and the tests (`node:sqlite`)
 - **Package Manager**: pnpm (required)
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript (strict mode)
 - **React**: 19 (with React Compiler enabled)
-- **Store**: Upstash Redis, the only store Vercel reads
+- **Store**: Upstash Redis, the only store Vercel reads; SQLite (`node:sqlite`) is the Collector's record on the home server
 - **Styling**: Tailwind CSS 4 (e-ink optimized)
 - **Formatter**: Oxfmt
 - **Linter**: Oxlint
@@ -95,6 +95,7 @@ The issue tracker is local markdown under `.scratch/`. Do not search for it or q
 - **IGDB**: 4 requests/second
 - **TMDB**: about 40 requests/second; attribution required
 - **Letterboxd**: public RSS feed, no key; fetch at most hourly
+- **Goodreads**: unofficial, no login, read only by the Collector from the home connection; every 6 hours, book lookups one at a time
 - **Trakt**: client id only, no OAuth; 500 requests per 5 minutes; user endpoints are cached by Trakt for up to an hour, fetch at most hourly
 
 ## Code Style Guidelines
@@ -119,6 +120,18 @@ type GamingPlatform = (typeof GAMING_PLATFORMS)[number];
 ### File Organization
 
 ```text
+collector/                       # The Collector: runs on the home server, started by launchd
+├── cli.ts                       # `collector tick|publish|restore|test-alert|run <job>`
+├── tick.ts                      # runTick(): heartbeat, Vercel refresh check, due jobs, Alerts
+├── jobs.ts                      # Job, everyHours(), dailyAt(), the jobs table
+├── checks.ts                    # homeChecks(): what the Collector alerts on
+├── alert-store.ts               # Alert state in SQLite, copied to Redis under `alert:`
+├── token.ts                     # The Claude Code token's fingerprint and expiry day
+├── code-update.ts, snapshot.ts  # The daily pull of main; the nightly snapshot and restore
+├── goodreads/                   # parse.ts (widget, progress list, tooltip), read.ts (the job,
+│                                # homeBooks()), markup.ts (Goodreads' markup rebuilt for tests)
+├── db.ts, redis.ts              # The SQLite schema; the little of Redis the Collector uses
+└── setup.sh                     # The owner's one-sitting setup wizard for the home server
 src/
 ├── app/
 │   ├── (dashboard)/             # TRMNL-facing routes (/, /preview)
@@ -133,7 +146,7 @@ src/
 │   ├── status/                  # Below the captured area: StatusStrip, TmdbAttribution,
 │   │                            # TraktAttribution, IgdbAttribution
 │   ├── admin/                   # AdminNav, PostButton (RefreshButton, TestAlertButton),
-│   │                            # StateMark and TroubleNotes
+│   │                            # StateMark and TroubleNotes, HomeServer
 │   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
 │   ├── api/                     # Source clients
@@ -145,6 +158,7 @@ src/
 │   │   ├── movies.ts            # Reads the diary, adds Catalog data and posters
 │   │   ├── trakt.ts             # The owner's Trakt history and watched shows, the Source for shows
 │   │   ├── shows.ts             # Reads Trakt, applies the show rules, adds Catalog data and posters
+│   │   ├── books.ts             # Reads the books the Collector published, adds posters
 │   │   └── refresh.ts           # Refresh orchestrator
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── alerts/                  # The Alert rules and the Telegram sender. Imports nothing
@@ -156,20 +170,26 @@ src/
 │   │   ├── reads.ts             # trackRead(): notes each real read during a refresh
 │   │   ├── status.ts            # updateStatus(), isStale(), the `refresh:status` key
 │   │   ├── checks.ts            # healthChecks(): the Alert thresholds, token expiry days
+│   │   ├── home.ts              # readHomeStatus(), isHeartbeatStale(): the home server as Vercel sees it
 │   │   ├── alert.ts             # sendAlerts(), sendTestAlert(), the Redis Alert store
 │   │   ├── strip.ts             # What the status strip shows (public)
 │   │   └── report.ts            # healthReport(): what the admin area shows (not public)
+│   ├── home/status.ts           # What the Collector publishes of itself: the `home:` keys, HomeStatus,
+│   │                            # the job names. Imports nothing, shared by both sides
 │   ├── screen/                  # What the screen shows
 │   │   ├── types.ts             # Medium, Mode, SpotlightCandidate, MediumContent, ScreenView
 │   │   ├── spotlight.ts         # pickSpotlight(): Mode shares, freshness, no repeats
 │   │   ├── games.ts             # What games contribute: candidates and the Medium card
 │   │   ├── movies.ts            # What movies contribute: Finished candidates and the Medium card
 │   │   ├── shows.ts             # What shows contribute: In progress and Finished candidates and the Medium card
+│   │   ├── books.ts             # What books contribute: In progress and Finished candidates and the Medium card
 │   │   ├── format.ts            # "3 hours ago", "yesterday", "42 hours"
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── movies/diary.ts          # Days since a movie was watched, in the owner's time zone
 │   ├── shows/progress.ts        # The show rules: one entry per show, Finished, Caught up
+│   ├── books/shelf.ts           # The book rules: a book's activity day, eligibility, the latest book
+│   ├── html.ts                  # decodeEntities()
 │   ├── owner-day.ts             # Calendar days in the owner's time zone
 │   ├── poster/                  # Dithers artwork to four-grey PNGs at refresh time
 │   │   ├── render.ts            # The recipe: resize, normalise, lift, dither
@@ -205,10 +225,21 @@ GitHub Actions (every 15 min)
       → Shows: the latest episode watched of each show in the owner's Trakt history, with where the owner is in its season
       → TMDB adds the director, year, overview, rating and poster for recently watched movies, and the overview, rating and poster for recently watched shows
       → IGDB adds the description, rating and cover for recently played Titles
+      → Books: whatever the Collector last published as `home:books`; no source is read
       → Posters are dithered and stored
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
     → Writes its bookkeeping: its last-success time and each source's health
-    → Sends the Telegram Alerts the bookkeeping calls for
+    → Sends the Telegram Alerts the bookkeeping calls for, and one when the home server's heartbeat is Stale
+
+Collector tick (launchd on the home server, every 15 min)
+  → runTick()
+    → Writes the heartbeat and `home:status`
+    → Calls POST /api/refresh itself when the last success is over 30 minutes old
+    → Runs the jobs that are due according to SQLite
+      → Goodreads read (every 6 hours): both shelves and the progress list into SQLite
+      → Snapshot (nightly), code update (daily at 03:30 Sydney, last in the tick)
+    → Publishes `home:status` and `home:books` from SQLite
+    → Sends its own Alerts, with the sender [home]
 
 Dashboard page render (server-side)
   → loadScreen()
@@ -238,6 +269,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - The refresh's bookkeeping: `refresh:status`, no TTL
 - Alert state: `alert:<failure>` (such as `alert:vercel:psn`), one key per failure, deleted when it clears. `alert:` is the one prefix the Collector also writes under
 - The last Alert Vercel tried to send: `telegram:last-send`, no TTL
+- The Collector's keys, none with a TTL: `home:status` (heartbeat, commit, jobs, Claude Code token expiry; rewritten every tick), `home:books` (the currently-reading shelf and the latest 20 read) and `home:backup` (the newest snapshot of the Collector's SQLite, gzipped)
 
 **TMDB's terms**: its data may not be kept longer than 6 months. A lookup is reused for 30 days and anything made from it (a poster, the dashboard data's `:latest` copy) expires 150 days after it is written (`CACHE_TTL.TMDB_LOOKUP`, `CACHE_TTL.TMDB_DERIVED`). The attribution notice and logo (`TmdbAttribution`) are on the status strip, below the 800x480 area the device captures. TMDB data is never given to an LLM.
 
@@ -251,6 +283,9 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 - `healthChecks()` holds the thresholds: a read alerts after 4 failed runs in a row, a rejected token (PSN, Nintendo, Trakt) at once, and a dated token 14 and 3 days before it expires. PSN's expiry is 60 days after the day its fingerprint changed; Nintendo's date is a constant in `checks.ts`.
 - `processChecks()` sends one message when a failure starts, a reminder every 24 hours and one line when it clears. A message Telegram does not take is retried on the next run.
 - When Redis cannot be reached the refresh sends one "Redis unreachable" message and fails.
+- Vercel alerts when the home server's heartbeat (`home:status`) is more than 1 hour old; before the Collector has ever ticked there is nothing to alert on.
+- The Collector's Alerts (`collector/checks.ts`) follow the same rules through `processChecks()`: the Goodreads read after 2 failed reads in a row, a failed code update at once, the Vercel refresh Stale after 1 hour unless the tick's own call to the refresh works, Redis unreachable, and the Claude Code token 14 and 3 days before it expires (one year after its fingerprint was first seen or changed). Its Alert state lives in SQLite, so it still alerts when Redis is down.
+- The status strip and the source health page also show the home server's heartbeat, the Collector's jobs and the Claude Code token's expiry.
 - The admin area looks like the device: the panel's four greys on white, with `--color-signal` kept for trouble. Text is Geist Pixel (the `geist` package), drawn for ordinary screens; the wordmark and headings stay in the TRMNL face (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
 - The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
 
@@ -266,9 +301,15 @@ Artwork is dithered by us when data is refreshed, never at render time and never
 
 ### Tests
 
-Vitest, with test files beside the code (`*.test.ts`). Tests go through a module's public interface.
+Vitest, with test files beside the code (`*.test.ts`), in `src/` and `collector/`. Tests go through a module's public interface.
 
-Key ownership (from stage 5): every key the Collector writes starts with `home:`, and Vercel never writes under it. The one shared prefix is `alert:` (per-failure Alert state), written by both.
+### The Collector
+
+- Run by `tsx`, so it imports from `src/` with the `@/` alias. Keep what it imports free of Next.js.
+- **Key ownership**: every key the Collector writes starts with `home:`, and Vercel never writes under it. The one shared prefix is `alert:` (per-failure Alert state), written by both.
+- **SQLite is its record** (`~/trmnl-collector/collector.db`); Redis can be rebuilt from it with `collector publish`. Jobs write SQLite only; the tick publishes.
+- **Goodreads** gives no finish date: a book is Finished on the day its review id is first seen on the read shelf, and the first read records every book already there with no date. A read fails, changing nothing, when a request errors, a page is not what was asked for, or the read shelf had books and now has none. Goodreads does not say which time zone its progress times are in, so books use days, never hours.
+- The home server's files are in `~/trmnl-collector/` (`.env`, `collector.db`, `snapshots/`, `logs/`, the `collector` wrapper), set up by `collector/setup.sh`. Agents do not run the wizard or change the home server; the owner does.
 
 ### Auth
 
@@ -345,6 +386,8 @@ TELEGRAM_CHAT_ID=             # The owner's private chat with the bot
 NEXT_PUBLIC_APP_URL=
 ```
 
+The Collector reads `~/trmnl-collector/.env` on the home server, not Vercel's variables: the Upstash and Telegram values above, `CRON_SECRET`, `DASHBOARD_URL` (the dashboard's origin, with `https://`), `GOODREADS_USER_ID` (the number in the owner's profile address) and `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, used from stage 8). No `ANTHROPIC_API_KEY` may be set there.
+
 Env var validation is centralized in `src/lib/env.ts` with grouped checks. `.env.local` is blocked to agents by a deny rule: the owner adds every secret by hand, locally and in Vercel.
 
 ## Commands
@@ -358,6 +401,7 @@ pnpm fix              # Run Oxfmt and write changes
 pnpm type-check       # TypeScript type check
 pnpm test             # Run the Vitest suite (src/**/*.test.ts)
 pnpm run ci           # Full CI pipeline (lint + format + type-check + test + build)
+pnpm collector        # The Collector's CLI (on the home server: ~/trmnl-collector/collector)
 pnpm clean            # Remove .next and node_modules
 ```
 
@@ -387,3 +431,4 @@ These require manual action and cannot be automated:
 2. **Token Retrieval**: PSN NPSSO and the Nintendo session token (manual browser login required)
 3. **Environment Variables**: Must be added to the Vercel dashboard
 4. **GitHub Secrets**: `VERCEL_URL` and `CRON_SECRET` must be set as repo secrets
+5. **The home server**: the owner runs `collector/setup.sh` there (Node, the clone, `~/trmnl-collector/.env`, the Claude Code token, the launchd job)

@@ -1,6 +1,7 @@
 import type { DashboardData } from "@/lib/api/refresh";
 import { CACHE_KEYS, cacheGetOrLatest, getRedis } from "@/lib/cache/redis";
 import { readPoster } from "@/lib/poster/poster";
+import { booksContent } from "./books";
 import { gamesContent } from "./games";
 import { moviesContent } from "./movies";
 import { showsContent } from "./shows";
@@ -35,11 +36,12 @@ export async function loadScreen({
 		redis.get<string>(CACHE_KEYS.SPOTLIGHT_PREVIOUS),
 	]);
 
-	// A medium whose stage has not shipped contributes nothing
+	// A medium with no data yet contributes nothing
 	const contents: MediumContent[] = [
 		gamesContent(data?.gaming?.games ?? [], now),
 		moviesContent(data?.movies?.movies ?? [], now),
 		showsContent(data?.shows?.shows ?? [], now),
+		booksContent(data?.books?.books ?? [], now),
 	];
 
 	const picked = pickSpotlight({

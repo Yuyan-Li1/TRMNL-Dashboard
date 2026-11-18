@@ -46,12 +46,14 @@ export async function POST(request: NextRequest) {
 		const gamingCount = data.gaming?.games.length ?? 0;
 		const moviesCount = data.movies?.movies.length ?? 0;
 		const showsCount = data.shows?.shows.length ?? 0;
+		const booksCount = data.books?.books.length ?? 0;
 		console.log(
 			[
 				`Refresh completed in ${duration}ms`,
 				`  Gaming:   ${data.gaming ? `OK (${gamingCount} games)` : "FAILED"}`,
 				`  Movies:   ${data.movies ? `OK (${moviesCount} diary entries)` : "FAILED"}`,
 				`  Shows:    ${data.shows ? `OK (${showsCount} shows)` : "FAILED"}`,
+				`  Books:    ${data.books ? `OK (${booksCount} books)` : "FAILED"}`,
 				...(data.errors.length > 0
 					? [`  Errors: ${data.errors.join(", ")}`]
 					: []),
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
 					gaming: data.gaming ? `OK (${gamingCount} games)` : "FAILED",
 					movies: data.movies ? `OK (${moviesCount} diary entries)` : "FAILED",
 					shows: data.shows ? `OK (${showsCount} shows)` : "FAILED",
+					books: data.books ? `OK (${booksCount} books)` : "FAILED",
 				},
 			},
 			{
