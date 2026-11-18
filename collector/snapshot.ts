@@ -11,7 +11,7 @@ import {
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { HOME_KEYS } from "@/lib/home/status";
-import type { Database } from "./db";
+import { type Database, openDatabase } from "./db";
 import { dailyAt, type Job } from "./jobs";
 import type { HomeRedis } from "./redis";
 
@@ -97,15 +97,19 @@ export function snapshotJob(options: {
 /**
  * Rebuild the record from the snapshot in Redis or the newest on disk,
  * whichever was taken later; from disk when Redis has none or cannot be
- * reached. The record being replaced is
- * kept beside it as `.before-restore`. Returns where the snapshot came from.
+ * reached. The record being replaced is kept beside it as
+ * `.before-restore`. With `filesDir`, the owner's text files the record
+ * holds (the "also consumed" files) are written back under it, each file
+ * that differs kept the same way. Returns where the snapshot came from.
  */
 export async function restore(options: {
 	databasePath: string;
 	dir: string;
 	redis: HomeRedis;
+	/** The Collector's folder, which the text files are relative to */
+	filesDir?: string;
 }): Promise<string> {
-	const { databasePath, dir, redis } = options;
+	const { databasePath, dir, redis, filesDir } = options;
 	const backup = await redis.get<Backup>(HOME_KEYS.BACKUP).catch(() => null);
 	const onDisk = snapshotFiles(dir).at(-1);
 	if (!backup && !onDisk) {
@@ -114,13 +118,40 @@ export async function restore(options: {
 	if (existsSync(databasePath)) {
 		renameSync(databasePath, `${databasePath}.before-restore`);
 	}
+	let from: string;
 	if (backup && !(onDisk && takenAt(onDisk) > backup.takenAt)) {
 		writeFileSync(
 			databasePath,
 			gunzipSync(Buffer.from(backup.database, "base64")),
 		);
-		return `Redis, taken ${backup.takenAt}`;
+		from = `Redis, taken ${backup.takenAt}`;
+	} else {
+		copyFileSync(onDisk as string, databasePath);
+		from = onDisk as string;
 	}
-	copyFileSync(onDisk as string, databasePath);
-	return onDisk as string;
+	if (filesDir) {
+		restoreFiles(databasePath, filesDir);
+	}
+	return from;
+}
+
+/** Write the text files a restored record holds back to disk. */
+function restoreFiles(databasePath: string, filesDir: string): void {
+	const db = openDatabase(databasePath);
+	const files = db.prepare("SELECT path, content FROM files").all() as {
+		path: string;
+		content: string;
+	}[];
+	db.close();
+	for (const { path: relative, content } of files) {
+		const file = path.join(filesDir, relative);
+		if (existsSync(file)) {
+			if (readFileSync(file, "utf8") === content) {
+				continue;
+			}
+			renameSync(file, `${file}.before-restore`);
+		}
+		mkdirSync(path.dirname(file), { recursive: true });
+		writeFileSync(file, content);
+	}
 }

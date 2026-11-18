@@ -49,6 +49,40 @@ const SCHEMA = `
 		description TEXT,
 		average_rating REAL
 	);
+	-- Every title the owner has Consumed that a source or an export records.
+	-- Read books are not copied here: they are in books already
+	CREATE TABLE IF NOT EXISTS consumed (
+		medium TEXT NOT NULL,
+		-- What its source knows the title by: a movie's or show's TMDB id, a
+		-- book's Goodreads id, the matching form of a game's name
+		key TEXT NOT NULL,
+		title TEXT NOT NULL,
+		author TEXT,
+		steam_app_id TEXT,
+		-- A game's IGDB id; NULL until it is looked up, and when IGDB has
+		-- no match. Movies, shows and books are their own Catalog id
+		catalog_id TEXT,
+		-- When IGDB was asked about a game, match or not
+		looked_up_at TEXT,
+		-- Where it was first seen: a source or an export
+		source TEXT NOT NULL,
+		PRIMARY KEY (medium, key)
+	);
+	-- Each line of the "also consumed" files, looked up once
+	CREATE TABLE IF NOT EXISTS also_consumed (
+		medium TEXT NOT NULL,
+		line TEXT NOT NULL,
+		-- NULL when the Catalog had no match for the line
+		catalog_id TEXT,
+		title TEXT,
+		author TEXT,
+		PRIMARY KEY (medium, line)
+	);
+	-- The owner's text files as last read, so that a snapshot holds them
+	CREATE TABLE IF NOT EXISTS files (
+		path TEXT PRIMARY KEY,
+		content TEXT NOT NULL
+	);
 	CREATE TABLE IF NOT EXISTS meta (
 		key TEXT PRIMARY KEY,
 		value TEXT NOT NULL
@@ -62,4 +96,30 @@ export function openDatabase(path: string): Database {
 	const db = new DatabaseSync(path);
 	db.exec(SCHEMA);
 	return db;
+}
+
+/** A value the record keeps by name, where it has one. */
+export function getMeta(db: Database, key: string): string | undefined {
+	const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key);
+	return row?.value as string | undefined;
+}
+
+export function setMeta(db: Database, key: string, value: string): void {
+	db.prepare(
+		`INSERT INTO meta (key, value) VALUES (?, ?)
+		 ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+	).run(key, value);
+}
+
+/** Run a change as one transaction: all of it or none. */
+export function transaction<T>(db: Database, change: () => T): T {
+	db.exec("BEGIN");
+	try {
+		const result = change();
+		db.exec("COMMIT");
+		return result;
+	} catch (error) {
+		db.exec("ROLLBACK");
+		throw error;
+	}
 }

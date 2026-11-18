@@ -128,6 +128,7 @@ describe("healthChecks", () => {
 			commit: "abc1234",
 			jobs: {
 				goodreads: { failuresInARow: 0 },
+				consumed: { failuresInARow: 0 },
 				"code-update": { failuresInARow: 0 },
 				snapshot: { failuresInARow: 0 },
 			},

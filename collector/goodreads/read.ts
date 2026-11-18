@@ -2,7 +2,7 @@ import { SPOTLIGHT_ELIGIBLE_DAYS } from "@/lib/books/shelf";
 import { HOME_KEYS } from "@/lib/home/status";
 import { addDays, ownerDay } from "@/lib/owner-day";
 import type { HomeBooks, ShelfBook } from "@/types/books";
-import type { Database } from "../db";
+import { type Database, getMeta, setMeta } from "../db";
 import { everyHours, type Job } from "../jobs";
 import type { HomeRedis } from "../redis";
 import {
@@ -34,7 +34,7 @@ export interface GoodreadsOptions {
 	pause?(ms: number): Promise<void>;
 }
 
-async function fetchText(url: string): Promise<string> {
+export async function fetchText(url: string): Promise<string> {
 	const response = await fetch(url, {
 		headers: { "User-Agent": "Mozilla/5.0 (compatible; trmnl-collector)" },
 		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -46,18 +46,6 @@ async function fetchText(url: string): Promise<string> {
 		);
 	}
 	return response.text();
-}
-
-function meta(db: Database, key: string): string | undefined {
-	const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key);
-	return row?.value as string | undefined;
-}
-
-function setMeta(db: Database, key: string, value: string): void {
-	db.prepare(
-		`INSERT INTO meta (key, value) VALUES (?, ?)
-		 ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-	).run(key, value);
 }
 
 interface KnownBook {
@@ -143,7 +131,7 @@ export async function readGoodreads(
 		throw new Error("Goodreads read shelf had books and now has none");
 	}
 
-	const seeded = meta(db, SEEDED_KEY) !== undefined;
+	const seeded = getMeta(db, SEEDED_KEY) !== undefined;
 	const today = ownerDay(now);
 	db.exec("BEGIN");
 	try {
@@ -302,7 +290,7 @@ function toShelfBook(row: BookRow): ShelfBook {
  * those with a finish date first. Null until Goodreads has been read once.
  */
 export function homeBooks(db: Database): HomeBooks | null {
-	const readAt = meta(db, READ_AT_KEY);
+	const readAt = getMeta(db, READ_AT_KEY);
 	if (!readAt) {
 		return null;
 	}

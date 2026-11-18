@@ -295,18 +295,27 @@ pause
 
 # ── 3 ─────────────────────────────────────────────────────────────────────
 stage "The Collector's folder and its secrets"
-mkdir -p "$COLLECTOR_HOME/logs"
+mkdir -p "$COLLECTOR_HOME/logs" "$COLLECTOR_HOME/exports" "$COLLECTOR_HOME/also-consumed"
 chmod 700 "$COLLECTOR_HOME"
+# One "also consumed" file per medium; they start empty
+for medium in game movie show book; do
+  touch "$COLLECTOR_HOME/also-consumed/$medium.txt"
+done
 [[ -e "$ENV_FILE" ]] || (umask 077 && : > "$ENV_FILE")
 chmod 600 "$ENV_FILE"
 ok "$COLLECTOR_HOME is readable only by you."
-say "Five of these are the same values Vercel has: Vercel > the dashboard"
+say "Eight of these are the same values Vercel has: Vercel > the dashboard"
 say "project > Settings > Environment Variables. Paste each one here."
 ask_env UPSTASH_REDIS_REST_URL "UPSTASH_REDIS_REST_URL:"
 ask_env UPSTASH_REDIS_REST_TOKEN "UPSTASH_REDIS_REST_TOKEN:" secret
 ask_env TELEGRAM_BOT_TOKEN "TELEGRAM_BOT_TOKEN:" secret
 ask_env TELEGRAM_CHAT_ID "TELEGRAM_CHAT_ID:"
 ask_env CRON_SECRET "CRON_SECRET:" secret
+note "The next three let the Collector look titles up for the consumed set:"
+note "games in IGDB (through Twitch), movies and shows in Trakt search."
+ask_env TWITCH_CLIENT_ID "TWITCH_CLIENT_ID:"
+ask_env TWITCH_CLIENT_SECRET "TWITCH_CLIENT_SECRET:" secret
+ask_env TRAKT_CLIENT_ID "TRAKT_CLIENT_ID:"
 step "The dashboard's address, with https:// (https://trmnl.yuyanli.dev)."
 ask_env DASHBOARD_URL "DASHBOARD_URL:"
 step "Your Goodreads user id: the number in your profile's address,"
@@ -430,6 +439,13 @@ else
   SKIPPED+=("the test Alert: check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in $ENV_FILE")
 fi
 note "Run the Collector by hand with: $wrapper <command>"
+if [[ ! -e "$COLLECTOR_HOME/exports/letterboxd-tmdb-map.json" ]]; then
+  say "Still to do, once, for Recommendations (stage 6). From your Mac:"
+  step "scp -r ~/trmnl-media-exports/letterboxd ~/trmnl-media-exports/letterboxd-tmdb-map.json ~/trmnl-media-exports/goodreads_library_export.csv homeserver:trmnl-collector/exports/"
+  say "Then here:"
+  step "$wrapper seed"
+  note "Until then the Collector publishes no consumed set and Vercel makes no picks."
+fi
 pause
 
 finish

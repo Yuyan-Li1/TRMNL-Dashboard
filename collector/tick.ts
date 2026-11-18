@@ -9,6 +9,7 @@ import { HOME_KEYS, type HomeStatus } from "@/lib/home/status";
 import { HOUR_MS, MINUTE_MS } from "@/lib/time";
 import { alertStore } from "./alert-store";
 import { homeChecks, SENDER, type TickFindings } from "./checks";
+import { unmatchedLines } from "./consumed/sets";
 import type { Database } from "./db";
 import { type Job, readJobs, runDueJobs } from "./jobs";
 import type { HomeRedis } from "./redis";
@@ -111,6 +112,7 @@ export async function runTick(options: TickOptions): Promise<SentAlert[]> {
 	const status = homeStatus(db, options);
 	findings.jobs = status.jobs;
 	findings.claudeTokenExpiresOn = status.claudeTokenExpiresOn;
+	findings.unmatchedLines = unmatchedLines(db);
 	if (findings.redisReachable) {
 		try {
 			await redis.set(HOME_KEYS.STATUS, status);

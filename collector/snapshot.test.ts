@@ -1,4 +1,10 @@
-import { mkdtempSync, readdirSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -28,7 +34,7 @@ function workspace() {
 	const home = mkdtempSync(path.join(tmpdir(), "collector-"));
 	const databasePath = path.join(home, "collector.db");
 	const db = openDatabase(databasePath);
-	return { databasePath, db, dir: path.join(home, "snapshots") };
+	return { home, databasePath, db, dir: path.join(home, "snapshots") };
 }
 
 function note(db: ReturnType<typeof openDatabase>, value: string): void {
@@ -101,6 +107,33 @@ describe("the snapshot", () => {
 		db.close();
 		await restore({ databasePath, dir, redis });
 		expect(readNote(databasePath)).toBe("on disk only");
+	});
+
+	it("restores the owner's text files the record holds, keeping what it replaces", async () => {
+		const { db, dir, databasePath, home } = workspace();
+		const redis = fakeRedis();
+		db.prepare("INSERT INTO files (path, content) VALUES (?, ?)").run(
+			"also-consumed/game.txt",
+			"Hades II\n",
+		);
+		db.prepare("INSERT INTO files (path, content) VALUES (?, ?)").run(
+			"also-consumed/movie.txt",
+			"Heat (1995)\n",
+		);
+		await snapshotJob({ db, dir, redis }).run(T0);
+		db.close();
+		mkdirSync(path.join(home, "also-consumed"));
+		writeFileSync(
+			path.join(home, "also-consumed", "game.txt"),
+			"Edited since\n",
+		);
+
+		await restore({ databasePath, dir, redis, filesDir: home });
+		const file = (name: string) =>
+			readFileSync(path.join(home, "also-consumed", name), "utf8");
+		expect(file("game.txt")).toBe("Hades II\n");
+		expect(file("game.txt.before-restore")).toBe("Edited since\n");
+		expect(file("movie.txt")).toBe("Heat (1995)\n");
 	});
 
 	it("has nothing to restore from when there is no snapshot anywhere", async () => {

@@ -5,6 +5,7 @@ import {
 	cacheSet,
 	getRedis,
 } from "@/lib/cache/redis";
+import { matchKey } from "@/lib/games/titles";
 import { TokenRejectedError, trackRead } from "@/lib/health/reads";
 import type { HistoryTitle } from "@/types/history";
 import type {
@@ -317,4 +318,79 @@ export async function getWatchedShowsHistory(): Promise<HistoryTitle[]> {
 			await traktGet(`/users/${encodeURIComponent(slug)}/watched/shows`),
 		);
 	});
+}
+
+/** One result of a Trakt search. */
+export interface TraktSearchResult {
+	type: "movie" | "show";
+	title: string;
+	year?: number;
+	/** Absent when Trakt has no TMDB id for the title */
+	tmdbId?: string;
+}
+
+interface TraktSearchItem {
+	type?: string;
+	movie?: TraktShow;
+	show?: TraktShow;
+}
+
+/** The movies and shows in a search response, in Trakt's order: best first. */
+export function parseSearch(body: unknown): TraktSearchResult[] {
+	const results: TraktSearchResult[] = [];
+	for (const item of asList<TraktSearchItem>(body, "the search")) {
+		if (item.type !== "movie" && item.type !== "show") {
+			continue;
+		}
+		const found = item[item.type];
+		if (!found?.title) {
+			continue;
+		}
+		const result: TraktSearchResult = { type: item.type, title: found.title };
+		if (found.year) {
+			result.year = found.year;
+		}
+		if (found.ids?.tmdb) {
+			result.tmdbId = String(found.ids.tmdb);
+		}
+		results.push(result);
+	}
+	return results;
+}
+
+/**
+ * Pick the search result that is this title: of the wanted type, with the
+ * same title and, where one is given, the same year. Never simply the first
+ * result: "Severance" returns a 2006 movie ahead of the 2022 show. With no
+ * year, a title shared by results of different years matches none of them.
+ */
+export function pickSearchResult(
+	results: TraktSearchResult[],
+	wanted: { type: "movie" | "show"; title: string; year?: number },
+): TraktSearchResult | undefined {
+	const key = matchKey(wanted.title);
+	const matches = results.filter(
+		(result) =>
+			result.type === wanted.type &&
+			result.tmdbId !== undefined &&
+			matchKey(result.title) === key &&
+			(wanted.year === undefined || result.year === wanted.year),
+	);
+	const years = new Set(matches.map((result) => result.year));
+	return years.size === 1 ? matches[0] : undefined;
+}
+
+/**
+ * Search Trakt for a movie or a show by title. Used by the Collector, which
+ * may not call TMDB, to find a title's TMDB id.
+ */
+export async function searchTrakt(
+	type: "movie" | "show",
+	title: string,
+): Promise<TraktSearchResult[]> {
+	return parseSearch(
+		await traktGet(
+			`/search/${type}?query=${encodeURIComponent(title)}&fields=title`,
+		),
+	);
 }

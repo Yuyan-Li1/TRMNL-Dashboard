@@ -73,6 +73,7 @@ describe("statusStripView", () => {
 					failuresInARow: 1,
 					lastError: "Goodreads answered 503",
 				},
+				consumed: { failuresInARow: 0 },
 				"code-update": {
 					lastSuccessAt: "2026-11-17T16:30:00Z",
 					failuresInARow: 0,
@@ -85,6 +86,7 @@ describe("statusStripView", () => {
 			stale: true,
 			jobs: [
 				{ name: "Goodreads read", lastSuccess: "18 Nov 05:00", stale: true },
+				{ name: "Consumed set", lastSuccess: "never", stale: false },
 				{ name: "Code update", lastSuccess: "18 Nov 03:30", stale: false },
 				{ name: "Snapshot", lastSuccess: "never", stale: false },
 			],
