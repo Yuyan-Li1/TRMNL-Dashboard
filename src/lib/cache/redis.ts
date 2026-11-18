@@ -25,6 +25,8 @@ export const CACHE_TTL = {
 	SHOWS: 60 * 60, // 1 hour
 	/** How long a show's seasons and next episode are reused */
 	TRAKT_SCHEDULE: 24 * 60 * 60, // 1 day
+	/** How long the last good copy of them is kept for when Trakt fails */
+	TRAKT_SCHEDULE_KEPT: 30 * 24 * 60 * 60, // 30 days
 	DASHBOARD_DATA: 15 * 60, // 15 minutes
 	/** How long a TMDB lookup is reused before TMDB is asked again */
 	TMDB_LOOKUP: 30 * 24 * 60 * 60, // 30 days

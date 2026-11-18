@@ -210,7 +210,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - Each game source's plays (`plays:<source>`): 1-hour TTL
 - The Letterboxd diary (`diary:letterboxd`): 1-hour TTL
 - Trakt activity, the latest watched episodes and the watched episodes of those shows (`watched:trakt`): 1-hour TTL
-- A show's seasons and next episode (`trakt:show:<Trakt id>`): 1 day, and read again sooner once the owner has watched an episode since
+- A show's seasons and next episode (`trakt:show:<Trakt id>`): reused for 1 day, and read again sooner when the owner has watched more of the season than Trakt counts as aired; the last good copy is kept 30 days for when Trakt fails
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
 - TMDB lookups (`tmdb:movie:<TMDB id>`, `tmdb:show:<TMDB id>`): 30 days for a match, 1 day for a miss
 - Twitch app token (`igdb:token`): until a day before it expires

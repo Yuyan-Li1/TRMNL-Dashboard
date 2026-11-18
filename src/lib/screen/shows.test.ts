@@ -39,7 +39,7 @@ describe("showsContent", () => {
 				facts: ["S2 E5", "Watched 3 days ago"],
 				progress: 0.625,
 				text: "Mark leads a team whose memories have been divided.",
-				activityAt: "2026-11-15T09:30:00.000Z",
+				activityAt: "2026-11-15T00:00:00.000Z",
 				posterUrl: POSTER,
 			},
 		]);
@@ -78,7 +78,7 @@ describe("showsContent", () => {
 		expect(candidate.facts).toEqual(["Season finished", "Watched 2 days ago"]);
 		expect(candidate.progress).toBeUndefined();
 		expect(candidate.rating).toBeUndefined();
-		expect(candidate.activityAt).toBe("2026-11-16T09:30:00.000Z");
+		expect(candidate.activityAt).toBe("2026-11-16T00:00:00.000Z");
 	});
 
 	it("keeps an In progress show eligible for 14 days from its latest watch", () => {

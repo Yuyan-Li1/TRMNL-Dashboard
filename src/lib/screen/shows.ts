@@ -1,4 +1,5 @@
-import { daysSinceWatch, isRecentWatch } from "@/lib/shows/progress";
+import { ownerDay } from "@/lib/owner-day";
+import { daysSinceWatch, isEligibleForSpotlight } from "@/lib/shows/progress";
 import type { Show } from "@/types/shows";
 import { formatDaysAgo } from "./format";
 import type { MediumContent, SpotlightCandidate } from "./types";
@@ -17,8 +18,16 @@ function episodeLabel(show: Show): string {
 }
 
 /** Trakt's times are accurate only to the day, so shows say days, never hours. */
-function when(watchedAt: string, now: Date): string {
+function watchedWhen(watchedAt: string, now: Date): string {
 	return formatDaysAgo(daysSinceWatch(watchedAt, now));
+}
+
+/**
+ * The day of a watch as the freshness weight sees it. Midnight UTC falls
+ * near the middle of the owner's day, as for a movie's watched date.
+ */
+function activityDay(watchedAt: string): string {
+	return new Date(`${ownerDay(new Date(watchedAt))}T00:00:00Z`).toISOString();
 }
 
 function toCandidate(show: SpotlightShow, now: Date): SpotlightCandidate {
@@ -38,21 +47,21 @@ function toCandidate(show: SpotlightShow, now: Date): SpotlightCandidate {
 		return {
 			...base,
 			mode: "Finished",
-			facts: ["Season finished", `Watched ${when(finishedAt, now)}`],
-			activityAt: finishedAt,
+			facts: ["Season finished", `Watched ${watchedWhen(finishedAt, now)}`],
+			activityAt: activityDay(finishedAt),
 		};
 	}
 
 	return {
 		...base,
 		mode: "In progress",
-		facts: [episodeLabel(show), `Watched ${when(show.watchedAt, now)}`],
+		facts: [episodeLabel(show), `Watched ${watchedWhen(show.watchedAt, now)}`],
 		// Watched against aired episodes of the season
 		progress:
 			progress && progress.aired > 0
 				? Math.min(1, progress.watched / progress.aired)
 				: undefined,
-		activityAt: show.watchedAt,
+		activityAt: activityDay(show.watchedAt),
 	};
 }
 
@@ -69,7 +78,7 @@ export function showsContent(shows: Show[], now: Date): MediumContent {
 		.filter((show): show is SpotlightShow => Boolean(show.posterUrl))
 		.map((show) => toCandidate(show, now));
 	const eligible = fallback.filter((candidate) =>
-		isRecentWatch(candidate.activityAt, now),
+		isEligibleForSpotlight(candidate.activityAt, now),
 	);
 
 	const latest = shows[0];
@@ -81,7 +90,7 @@ export function showsContent(shows: Show[], now: Date): MediumContent {
 			? {
 					title: latest.title,
 					detail: episodeLabel(latest),
-					when: when(latest.watchedAt, now),
+					when: watchedWhen(latest.watchedAt, now),
 					thumbnailUrl: latest.thumbnailUrl,
 				}
 			: null,

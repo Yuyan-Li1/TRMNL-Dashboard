@@ -1,11 +1,13 @@
 import { CACHE_KEYS, CACHE_TTL, cacheGetLatest } from "@/lib/cache/redis";
 import { getPoster } from "@/lib/poster/poster";
 import {
-	isRecentWatch,
+	isBehindWatched,
+	isEligibleForSpotlight,
 	latestWatches,
 	seasonProgress,
 } from "@/lib/shows/progress";
 import type {
+	SeasonProgress,
 	Show,
 	ShowsData,
 	TraktActivity,
@@ -42,6 +44,33 @@ function toShow(watch: WatchedEpisode): Show {
 }
 
 /**
+ * Where the owner is in the season of their latest watch. A stored schedule
+ * that is behind what the owner has watched is asked for again, once.
+ */
+async function readProgress(
+	show: Show,
+	watchedSeasons: WatchedSeason[],
+	errors: string[],
+): Promise<SeasonProgress | undefined> {
+	const startedAt = new Date().toISOString();
+	for (const askAgain of [false, true]) {
+		const { schedule, error } = await getShowSchedule(show.id, askAgain);
+		if (error) {
+			errors.push(`Trakt (${show.title}): ${error}`);
+		}
+		const progress = seasonProgress(show.season, watchedSeasons, schedule);
+		const counts = schedule.seasons.find(
+			(season) => season.number === show.season,
+		);
+		const stored = schedule.fetchedAt < startedAt;
+		if (!progress || error || !stored || !isBehindWatched(progress, counts)) {
+			return progress;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Work out where the owner is in the show's season, add the Catalog's
  * details and make its posters. A failure here leaves the show without that
  * detail; it never fails the refresh.
@@ -54,10 +83,10 @@ async function prepareForScreen(
 ): Promise<Show> {
 	const show = toShow(watch);
 
-	const [schedule, catalog] = await Promise.all([
-		getShowSchedule(show.id, show.watchedAt).catch((error) => {
+	const [progress, catalog] = await Promise.all([
+		readProgress(show, watchedSeasons, errors).catch((error) => {
 			errors.push(`Trakt (${show.title}): ${error}`);
-			return null;
+			return undefined;
 		}),
 		show.tmdbId === undefined
 			? null
@@ -67,8 +96,6 @@ async function prepareForScreen(
 				}),
 	]);
 
-	const progress =
-		schedule && seasonProgress(show.season, watchedSeasons, schedule);
 	if (progress) {
 		show.progress = progress;
 	}
@@ -120,10 +147,12 @@ export async function getShowsData(): Promise<ShowsData> {
 
 	const now = new Date();
 	const watches = latestWatches(activity.history);
-	const recent = watches.filter((watch) => isRecentWatch(watch.watchedAt, now));
+	const eligible = watches.filter((watch) =>
+		isEligibleForSpotlight(watch.watchedAt, now),
+	);
 	const prepared = new Set(
-		(recent.length > 0
-			? recent.slice(0, MAX_PREPARED)
+		(eligible.length > 0
+			? eligible.slice(0, MAX_PREPARED)
 			: watches.slice(0, FALLBACK_PREPARED)
 		).map((watch) => watch.showId),
 	);
