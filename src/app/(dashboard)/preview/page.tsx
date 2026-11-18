@@ -1,5 +1,6 @@
 import { Screen } from "@/components/screen/Screen";
 import { TmdbAttribution } from "@/components/screen/TmdbAttribution";
+import { TraktAttribution } from "@/components/screen/TraktAttribution";
 import { loadScreen } from "@/lib/screen/load";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function PreviewPage(): Promise<React.JSX.Element> {
 
 				<div className="mt-4 bg-eink-white">
 					<TmdbAttribution />
+					<TraktAttribution />
 				</div>
 			</div>
 		</div>

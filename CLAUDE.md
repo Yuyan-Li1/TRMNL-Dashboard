@@ -130,7 +130,7 @@ src/
 │       └── admin/               # Protected admin endpoints (login, refresh)
 ├── components/
 │   ├── screen/                  # The 800x480 screen: Screen, Spotlight, MediumCard,
-│   │                            # Stars, PosterImage, TmdbAttribution
+│   │                            # Stars, PosterImage, TmdbAttribution, TraktAttribution
 │   ├── admin/                   # RefreshButton
 │   └── ui/TrmnlFontFaces.tsx    # @font-face rules with absolute URLs
 ├── lib/
@@ -220,6 +220,8 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - The previous Spotlight pick: `spotlight:previous`, no TTL
 
 **TMDB's terms**: its data may not be kept longer than 6 months. A lookup is reused for 30 days and anything made from it (a poster, the dashboard data's `:latest` copy) expires 150 days after it is written (`CACHE_TTL.TMDB_LOOKUP`, `CACHE_TTL.TMDB_DERIVED`). The attribution notice and logo (`TmdbAttribution`) are on the dashboard page below the 800x480 area the device captures. TMDB data is never given to an LLM.
+
+**Trakt's API policy** asks for an attribution line; `TraktAttribution` sits below the TMDB notice, also outside the captured area.
 
 ### The screen
 
