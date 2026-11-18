@@ -42,6 +42,7 @@ async function prepareForScreen(
 	let coverUrl: string | undefined;
 	try {
 		const catalog = await lookupGame(title);
+		game.igdbId = catalog?.id;
 		game.description = catalog?.description;
 		game.publicRating = catalog?.rating;
 		coverUrl = catalog?.coverUrl;

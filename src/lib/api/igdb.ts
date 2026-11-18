@@ -2,6 +2,8 @@ import { CACHE_KEYS, getRedis } from "@/lib/cache/redis";
 import { trackRead } from "@/lib/health/reads";
 import {
 	findGame,
+	GAME_FIELDS,
+	igdbQuery,
 	type IgdbCredentials,
 	type IgdbGame,
 	IgdbTokenRejectedError,
@@ -126,4 +128,22 @@ export async function lookupGame(
 		ex: game ? MATCH_TTL_SECONDS : NO_MATCH_TTL_SECONDS,
 	});
 	return game;
+}
+
+/**
+ * The games IGDB lists as similar to a game, in its order, each with what
+ * the Catalog says about it. Not kept: only the daily run asks, once per
+ * seed.
+ */
+export async function getSimilarGames(igdbId: number): Promise<CatalogGame[]> {
+	const found = await askIgdb((credentials) =>
+		igdbQuery<{ similar_games?: IgdbGame[] }>(
+			credentials,
+			"games",
+			`fields ${GAME_FIELDS.map((field) => `similar_games.${field}`).join(",")}; where id = ${igdbId}; limit 1;`,
+		),
+	);
+	return (found[0]?.similar_games ?? [])
+		.filter((game) => game.id !== undefined && game.name)
+		.map(toCatalogGame);
 }

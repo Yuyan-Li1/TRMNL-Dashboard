@@ -168,6 +168,7 @@ src/
 │   │   ├── books.ts             # Reads the books the Collector published, adds posters
 │   │   ├── refresh.ts           # Refresh orchestrator
 │   │   ├── histories.ts         # writeFullHistories(): each source's full history, for the Collector
+│   │   ├── picks.ts             # rebuildCatalogPicks() (daily), retirePoolPicks() (every refresh)
 │   │   └── daily.ts             # runDaily(): the daily run
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── alerts/                  # The Alert rules and the Telegram sender. Imports nothing
@@ -196,6 +197,7 @@ src/
 │   │   └── load.ts              # loadScreen(): read Redis, pick the Spotlight, read posters
 │   ├── igdb/client.ts           # IGDB itself, free of Redis, so the Collector can ask it too
 │   ├── consumed/set.ts          # ConsumedSet, consumedKey(), nameKey(), isConsumed(): shared by both sides
+│   ├── picks/pool.ts            # The Pool's rules: seeds, choosePicks(), retirePicks(), the record's types
 │   ├── games/titles.ts          # Name cleaning; one Title per game across Platforms
 │   ├── movies/diary.ts          # Days since a movie was watched, in the owner's time zone
 │   ├── shows/progress.ts        # The show rules: one entry per show, Finished, Caught up
@@ -238,6 +240,7 @@ GitHub Actions (every 15 min)
       → IGDB adds the description, rating and cover for recently played Titles
       → Books: whatever the Collector last published as `home:books`; no source is read
       → Posters are dithered and stored
+    → Retires the picks that are due to leave the Pool
     → Stores the combined result in Redis (TTL'd + non-expiring fallback)
     → Writes its bookkeeping: its last-success time and each source's health
     → Sends the Telegram Alerts the bookkeeping calls for, and one when the home server's heartbeat is Stale
@@ -257,6 +260,7 @@ GitHub Actions (once a day, 15:00 UTC)
   → POST /api/daily (with CRON_SECRET)
     → runDaily()
       → Writes each source's full history to `history:<source>`: the Steam library, the Xbox title history, PSN's played list and trophy list paged to the end, the Switch play history, every show watched on Trakt, the Letterboxd feed
+      → Rebuilds the Catalog picks: retires those due to leave, then fills each of movies, shows and games back up to 5 from TMDB `/recommendations` and IGDB `similar_games`
 
 Dashboard page render (server-side)
   → loadScreen()
@@ -284,6 +288,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 - PSN refresh token: `psn:auth`, no TTL
 - Posters: `poster:v<recipe version>:<target>:<hash of source URL>`, no TTL, except posters made from TMDB artwork, which expire after 150 days (bump `RECIPE_VERSION` in `poster.ts` when the recipe's output changes)
 - The previous Spotlight pick: `spotlight:previous`, no TTL
+- The Pool: `pool:record` (each pick's Medium, Catalog id, origin, reason and the day it entered, and the picks barred from returning; no TTL), `pool:appearances` (a hash of Spotlight appearances per pick, which the page adds to) and `pool:titles` (what the Catalog says about each pick; rewritten by the daily run and expiring after 150 days, because it holds TMDB's text)
 - The refresh's bookkeeping: `refresh:status`, no TTL
 - Alert state: `alert:<failure>` (such as `alert:vercel:psn`), one key per failure, deleted when it clears. `alert:` is the one prefix the Collector also writes under
 - The last Alert Vercel tried to send: `telegram:last-send`, no TTL
@@ -306,6 +311,16 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 - The status strip and the source health page also show the home server's heartbeat, the Collector's jobs and the Claude Code token's expiry.
 - The admin area looks like the device: the panel's four greys on white, with `--color-signal` kept for trouble. Text is Geist Pixel (the `geist` package), drawn for ordinary screens; the wordmark and headings stay in the TRMNL face (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
 - The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
+
+### The Pool and Catalog picks
+
+The rules are in `src/lib/picks/pool.ts`; `src/lib/api/picks.ts` applies them to Redis and the Catalogs.
+
+- **Seeds**: Titles Finished or In progress in the last 90 days, skipping any the owner rated below 3.5 stars.
+- **Choosing** (`choosePicks()`, in the daily run): go round the seeds, newest first, taking each seed's best result that is not in the consumed set or the owner's activity, not in the Pool and not barred, until the Medium has 5 Catalog picks. A result without artwork is skipped. **With no published consumed set for a Medium, no pick is made for it.**
+- **Leaving** (`retirePicks()`, at every refresh): once the Title is in the owner's activity or the consumed set (which is how an "also consumed" line rejects a pick), after 3 Spotlight appearances, or after 30 days. It may not return for 6 months.
+- A pick is matched by Catalog id, and a game also by name key. Books get no Catalog picks.
+- The daily workflow runs at 15:07 UTC, off the quarter hour, because the refresh and the daily run both rewrite `pool:record`.
 
 ### The screen
 
