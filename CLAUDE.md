@@ -139,6 +139,7 @@ src/
 │   └── api/
 │       ├── health/              # Redis health check
 │       ├── refresh/             # Cron-triggered data refresh
+│       ├── daily/               # Cron-triggered daily run
 │       └── admin/               # Protected admin endpoints (login, refresh, test-alert)
 ├── components/
 │   ├── screen/                  # The 800x480 screen: Screen, Spotlight, MediumCard,
@@ -159,7 +160,9 @@ src/
 │   │   ├── trakt.ts             # The owner's Trakt history and watched shows, the Source for shows
 │   │   ├── shows.ts             # Reads Trakt, applies the show rules, adds Catalog data and posters
 │   │   ├── books.ts             # Reads the books the Collector published, adds posters
-│   │   └── refresh.ts           # Refresh orchestrator
+│   │   ├── refresh.ts           # Refresh orchestrator
+│   │   ├── histories.ts         # writeFullHistories(): each source's full history, for the Collector
+│   │   └── daily.ts             # runDaily(): the daily run
 │   ├── cache/redis.ts           # Upstash Redis wrapper, TTLs, cache keys
 │   ├── alerts/                  # The Alert rules and the Telegram sender. Imports nothing
 │   │   │                        # from the rest of src/, so the Collector can share it
@@ -241,6 +244,11 @@ Collector tick (launchd on the home server, every 15 min)
     → Publishes `home:status` and `home:books` from SQLite
     → Sends its own Alerts, with the sender [home]
 
+GitHub Actions (once a day, 15:00 UTC)
+  → POST /api/daily (with CRON_SECRET)
+    → runDaily()
+      → Writes each source's full history to `history:<source>`: the Steam library, the Xbox title history, PSN's played list and trophy list paged to the end, the Switch play history, every show watched on Trakt, the Letterboxd feed
+
 Dashboard page render (server-side)
   → loadScreen()
     → Reads from Redis (TTL'd key, falls back to the :latest key)
@@ -257,6 +265,7 @@ Each `cacheSet` writes two Redis keys: a TTL'd key for freshness and a non-expir
 
 - Each game source's plays (`plays:<source>`): 1-hour TTL
 - The Letterboxd diary (`diary:letterboxd`): 1-hour TTL
+- Each source's full history (`history:<source>`, see `src/types/history.ts`): no TTL, rewritten by the daily run and read by the Collector. A source that fails keeps the history it had
 - Trakt activity, the latest watched episodes and the watched episodes of those shows (`watched:trakt`): 1-hour TTL
 - A show's seasons and next episode (`trakt:show:<Trakt id>`): reused for 1 day, and read again sooner when the owner has watched more of the season than Trakt counts as aired; the last good copy is kept 30 days for when Trakt fails
 - IGDB lookups (`igdb:game:<title id>`): 30 days for a match, 1 day for a miss
@@ -325,6 +334,7 @@ Vitest, with test files beside the code (`*.test.ts`), in `src/` and `collector/
 | Workflow      | Schedule     | Purpose                              |
 | ------------- | ------------ | ------------------------------------ |
 | `refresh.yml` | Every 15 min | Main data refresh via `/api/refresh` |
+| `daily.yml`   | Once a day   | The daily run via `/api/daily`       |
 
 ### CI
 

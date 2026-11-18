@@ -6,6 +6,7 @@ import {
 	getRedis,
 } from "@/lib/cache/redis";
 import { TokenRejectedError, trackRead } from "@/lib/health/reads";
+import type { HistoryTitle } from "@/types/history";
 import type {
 	NextEpisode,
 	SeasonCounts,
@@ -136,6 +137,28 @@ export function parseWatchedShows(body: unknown): WatchedShow[] {
 		});
 	}
 	return shows;
+}
+
+/**
+ * Every show in a watched-shows response as the full history keeps it. A
+ * show Trakt has no TMDB id for is left out: it cannot be matched to a pick.
+ */
+export function parseWatchedHistory(body: unknown): HistoryTitle[] {
+	const titles: HistoryTitle[] = [];
+	for (const { show } of asList<TraktWatchedShow>(body, "the watched shows")) {
+		if (!show?.title || !show.ids?.tmdb) {
+			continue;
+		}
+		const title: HistoryTitle = {
+			tmdbId: String(show.ids.tmdb),
+			title: show.title,
+		};
+		if (show.year) {
+			title.year = show.year;
+		}
+		titles.push(title);
+	}
+	return titles;
 }
 
 /** Each season's episode count and aired count, specials as season 0. */
@@ -278,4 +301,20 @@ export async function getShowSchedule(
 		}
 		return { schedule: stored, error };
 	}
+}
+
+/**
+ * Every show the owner has watched, for the daily run. Asked for without the
+ * seasons, which are most of the answer's size. Not cached.
+ */
+export async function getWatchedShowsHistory(): Promise<HistoryTitle[]> {
+	return trackRead("trakt", async () => {
+		const slug = process.env.TRAKT_USER_SLUG;
+		if (!slug) {
+			throw new Error("TRAKT_USER_SLUG not configured");
+		}
+		return parseWatchedHistory(
+			await traktGet(`/users/${encodeURIComponent(slug)}/watched/shows`),
+		);
+	});
 }
