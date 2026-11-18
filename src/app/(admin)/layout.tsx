@@ -27,6 +27,7 @@ export default function AdminLayout({
 
 							<div className="hidden sm:ml-6 sm:flex sm:space-x-8">
 								<NavLink href="/admin">Dashboard</NavLink>
+								<NavLink href="/admin/sources">Source health</NavLink>
 							</div>
 						</div>
 

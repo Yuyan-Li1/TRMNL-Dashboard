@@ -39,6 +39,9 @@ export default async function AdminDashboardPage() {
 					<Link href="/preview" target="_blank" className={LINK_CLASS}>
 						Preview Dashboard
 					</Link>
+					<Link href="/admin/sources" className={LINK_CLASS}>
+						Source health
+					</Link>
 					<Link href="/api/health" target="_blank" className={LINK_CLASS}>
 						Health Check
 					</Link>
