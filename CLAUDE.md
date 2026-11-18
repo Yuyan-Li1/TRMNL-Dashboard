@@ -399,7 +399,7 @@ pnpm lint             # Run Oxlint
 pnpm format           # Run Oxfmt check
 pnpm fix              # Run Oxfmt and write changes
 pnpm type-check       # TypeScript type check
-pnpm test             # Run the Vitest suite (src/**/*.test.ts)
+pnpm test             # Run the Vitest suite (src/**/*.test.ts, collector/**/*.test.ts)
 pnpm run ci           # Full CI pipeline (lint + format + type-check + test + build)
 pnpm collector        # The Collector's CLI (on the home server: ~/trmnl-collector/collector)
 pnpm clean            # Remove .next and node_modules

@@ -1,4 +1,5 @@
 import { decodeEntities } from "@/lib/html";
+import { DAY_MS, HOUR_MS, MINUTE_MS } from "@/lib/time";
 import type { ReadingProgress } from "@/types/books";
 
 /**
@@ -42,7 +43,7 @@ const MONTHS = [
 	"oct",
 	"nov",
 	"dec",
-];
+] as const;
 
 function text(html: string): string {
 	return decodeEntities(html.replace(/<[^>]+>/g, ""))
@@ -129,7 +130,9 @@ function parseTime(written: string, now: Date): string | undefined {
 	);
 	if (absolute) {
 		const [, month, day, year, hour, minute, half] = absolute;
-		const monthIndex = MONTHS.indexOf(month.toLowerCase());
+		const monthIndex = (MONTHS as readonly string[]).indexOf(
+			month.toLowerCase(),
+		);
 		if (monthIndex < 0) {
 			return undefined;
 		}
@@ -142,9 +145,9 @@ function parseTime(written: string, now: Date): string | undefined {
 		return undefined;
 	}
 	const UNIT_MS: Record<string, number> = {
-		day: 24 * 60 * 60 * 1000,
-		hour: 60 * 60 * 1000,
-		min: 60 * 1000,
+		day: DAY_MS,
+		hour: HOUR_MS,
+		min: MINUTE_MS,
 	};
 	let ago = 0;
 	for (const [, count, unit] of written.matchAll(/(\d+) (day|hour|min)/gi)) {

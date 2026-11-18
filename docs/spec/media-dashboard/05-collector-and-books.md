@@ -12,7 +12,7 @@ Read [the overview](README.md) first. This stage sets up the Collector on the ho
 
 The stage opens with one guided checklist, built as an interactive script the owner runs:
 
-1. Install Node 20 or later and pnpm.
+1. Install Node 22.13 or later (the first with `node:sqlite` unflagged) and pnpm.
 2. Clone this repo and install dependencies.
 3. Create `~/trmnl-collector/` (readable only by the owner) with `.env`: the Upstash credentials, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GOODREADS_USER_ID`, the dashboard URL and `CRON_SECRET`.
 4. Install the Claude Code CLI, run `claude setup-token`, add the result to `.env` as `CLAUDE_CODE_OAUTH_TOKEN`, and run one trivial `claude -p` to confirm it works on the Intel Mac. LLM picks arrive only in stage 8; this is done now because it is the one untested fact stage 8 rests on. No `ANTHROPIC_API_KEY` may be present.

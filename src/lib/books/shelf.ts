@@ -2,7 +2,7 @@ import { daysSinceDay } from "@/lib/owner-day";
 import type { ShelfBook } from "@/types/books";
 
 /** A book stays eligible for the Spotlight this long after its activity. */
-const SPOTLIGHT_ELIGIBLE_DAYS = 14;
+export const SPOTLIGHT_ELIGIBLE_DAYS = 14;
 
 /**
  * The day (`YYYY-MM-DD`) of a book's activity: its latest progress update

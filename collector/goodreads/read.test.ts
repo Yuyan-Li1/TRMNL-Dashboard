@@ -184,6 +184,43 @@ describe("readGoodreads", () => {
 		];
 		await world.poll(day(1));
 		expect(world.books().every((entry) => !entry.finishedOn)).toBe(true);
+		// Two more leave; a book just read arrives at the top
+		world.read = [
+			book(200),
+			...hundred.filter((entry) => !["50", "60", "70"].includes(entry.bookId)),
+			book(101),
+			book(102),
+			book(103),
+		].slice(0, 100);
+		await world.poll(day(2));
+		expect(
+			world
+				.books()
+				.filter((entry) => entry.finishedOn)
+				.map((entry) => entry.title),
+		).toEqual(["Book 200"]);
+	});
+
+	it("keeps the time of a progress update written as time ago", async () => {
+		const world = goodreads();
+		world.reading = [book(2)];
+		world.updates = [
+			{ bookId: "2", says: "is 40% done with", when: "2 days ago" },
+		];
+		await world.poll(T0);
+		// Still "2 days ago" twelve hours on: it is the same update
+		await world.poll(new Date(T0.getTime() + DAY / 2));
+		expect(world.titled("Book 2")?.progress?.at).toBe(
+			"2026-11-16T01:00:00.000Z",
+		);
+		world.updates = [
+			{ bookId: "2", says: "is 55% done with", when: "1 hours, 5 min ago" },
+		];
+		await world.poll(day(1));
+		expect(world.titled("Book 2")?.progress).toEqual({
+			percent: 55,
+			at: "2026-11-18T23:55:00.000Z",
+		});
 	});
 
 	it("gives a book in progress its latest progress update", async () => {
