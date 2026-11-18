@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { nameKey } from "@/lib/consumed/set";
+import { GAME_CONSUMED_MINUTES, nameKey } from "@/lib/consumed/set";
 import { MEDIA, type Medium } from "@/lib/screen/types";
 import {
 	type HistoryGame,
@@ -14,8 +14,6 @@ import type { Job } from "../jobs";
 import type { HomeRedis } from "../redis";
 import { mergedKey } from "./sets";
 
-/** A game is Consumed with this much play, or with any trophy. */
-const CONSUMED_MINUTES = 30;
 /**
  * The first merge has every game the owner ever played to look up, at
  * IGDB's 4 requests per second. They are spread over a few ticks.
@@ -75,7 +73,7 @@ function isConsumedOrOwned(game: HistoryGame): boolean {
 	return (
 		game.owned === true ||
 		game.minutesPlayed === undefined ||
-		game.minutesPlayed >= CONSUMED_MINUTES ||
+		game.minutesPlayed >= GAME_CONSUMED_MINUTES ||
 		(game.achievements ?? 0) > 0
 	);
 }
@@ -134,7 +132,13 @@ async function mergeHistories(
 			 VALUES (?, ?, ?, ?) ON CONFLICT (medium, key) DO NOTHING`,
 		);
 		for (const { medium, source, title } of titles) {
-			insertTitle.run(medium, title.tmdbId, title.title, source);
+			// A series in the Letterboxd diary is a show
+			insertTitle.run(
+				title.medium ?? medium,
+				title.tmdbId,
+				title.title,
+				source,
+			);
 		}
 	});
 }

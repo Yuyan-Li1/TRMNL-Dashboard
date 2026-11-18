@@ -7,6 +7,7 @@ import {
 } from "@/lib/cache/redis";
 import { alertRedisUnreachable, sendAlerts } from "@/lib/health/alert";
 import { NPSSO_LIFETIME_DAYS } from "@/lib/health/checks";
+import { readDailyStatus } from "@/lib/health/daily";
 import { readHomeStatus } from "@/lib/health/home";
 import { collectReads } from "@/lib/health/reads";
 import {
@@ -56,7 +57,13 @@ export async function refreshAllData(): Promise<DashboardData> {
 		);
 		await writeRefreshStatus(status);
 		// The Collector watches this refresh; this refresh watches the Collector
-		await sendAlerts(status, now, await readHomeStatus());
+		// and the daily run
+		await sendAlerts(
+			status,
+			now,
+			await readHomeStatus(),
+			await readDailyStatus(),
+		);
 
 		return result;
 	} catch (error) {

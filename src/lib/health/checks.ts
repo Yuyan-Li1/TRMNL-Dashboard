@@ -1,6 +1,8 @@
 import type { Check } from "@/lib/alerts/alerts";
 import type { HomeStatus } from "@/lib/home/status";
 import { addDays, daysUntilDay } from "@/lib/owner-day";
+import { HOUR_MS } from "@/lib/time";
+import type { DailyStatus } from "./daily";
 import { isHeartbeatStale } from "./home";
 import { SOURCE_IDS, SOURCES, type SourceId } from "./sources";
 import type { RefreshStatus } from "./status";
@@ -9,6 +11,11 @@ import type { RefreshStatus } from "./status";
 export const SENDER = "vercel";
 /** A failed source read alerts after this many failed runs in a row: 1 hour. */
 const FAILED_RUNS_BEFORE_ALERT = 4;
+/**
+ * The daily run alerts once its last clean run is this old: two runs missed
+ * or failed, with room for GitHub's schedule running late.
+ */
+const DAILY_STALE_AFTER_MS = 50 * HOUR_MS;
 /** Sony's NPSSO lasts 60 days from the day it is issued. */
 export const NPSSO_LIFETIME_DAYS = 60;
 /** The day the Nintendo session token now configured stops working. */
@@ -123,20 +130,49 @@ function heartbeatCheck(home: HomeStatus | null, now: Date): Check {
 }
 
 /**
- * What Vercel alerts on, judged from the refresh's bookkeeping and the
- * Collector's status: a source or Catalog read that keeps failing, a
- * rejected token, a dated token close to expiry, and a home server that has
- * stopped ticking.
+ * The daily run, which nothing else watches: it has stopped running, or
+ * every run has an error. Before it has ever run there is nothing to be
+ * Stale.
+ */
+function dailyCheck(daily: DailyStatus | null, now: Date): Check {
+	const check: Check = {
+		id: `${SENDER}:daily`,
+		label: "Daily run",
+		failure: null,
+	};
+	const lastGood = daily?.lastSuccessAt ?? daily?.failingSince;
+	if (
+		!daily ||
+		!lastGood ||
+		now.getTime() - new Date(lastGood).getTime() <= DAILY_STALE_AFTER_MS
+	) {
+		return check;
+	}
+	check.failure =
+		daily.errors.length > 0
+			? { what: "Daily run failing", since: daily.failingSince ?? lastGood }
+			: { what: "Daily run Stale", since: lastGood };
+	return check;
+}
+
+/**
+ * What Vercel alerts on, judged from the refresh's bookkeeping, the
+ * Collector's status and the daily run's bookkeeping: a source or Catalog
+ * read that keeps failing, a rejected token, a dated token close to expiry,
+ * a home server that has stopped ticking, and a daily run that has stopped
+ * or keeps failing.
  */
 export function healthChecks(
 	status: RefreshStatus,
 	now: Date,
 	home: HomeStatus | null = null,
+	daily: DailyStatus | null = null,
 ): Check[] {
 	return [
 		...SOURCE_IDS.map((id) => sourceCheck(id, status)),
 		expiryCheck(`${SENDER}:psn-expiry`, "psn", status, now),
 		expiryCheck(`${SENDER}:nintendo-expiry`, "switch", status, now),
 		heartbeatCheck(home, now),
+		dailyCheck(daily, now),
 	];
 }

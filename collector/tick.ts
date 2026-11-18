@@ -7,8 +7,13 @@ import { OWNER_TIME_ZONE } from "@/lib/config";
 import { REFRESH_STATUS_KEY, type RefreshStatus } from "@/lib/health/status";
 import { HOME_KEYS, type HomeStatus } from "@/lib/home/status";
 import { HOUR_MS, MINUTE_MS } from "@/lib/time";
-import { alertStore } from "./alert-store";
-import { homeChecks, SENDER, type TickFindings } from "./checks";
+import { alertIds, alertStore } from "./alert-store";
+import {
+	homeChecks,
+	SENDER,
+	type TickFindings,
+	UNMATCHED_LINE_PREFIX,
+} from "./checks";
 import { unmatchedLines } from "./consumed/sets";
 import type { Database } from "./db";
 import { type Job, readJobs, runDueJobs } from "./jobs";
@@ -113,6 +118,7 @@ export async function runTick(options: TickOptions): Promise<SentAlert[]> {
 	findings.jobs = status.jobs;
 	findings.claudeTokenExpiresOn = status.claudeTokenExpiresOn;
 	findings.unmatchedLines = unmatchedLines(db);
+	findings.rememberedLineAlerts = alertIds(db, UNMATCHED_LINE_PREFIX);
 	if (findings.redisReachable) {
 		try {
 			await redis.set(HOME_KEYS.STATUS, status);

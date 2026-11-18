@@ -38,3 +38,12 @@ export function alertStore(db: Database, redis: HomeRedis): AlertStore {
 		},
 	};
 }
+
+/** The ids of the remembered Alerts that start with a prefix. */
+export function alertIds(db: Database, prefix: string): string[] {
+	return (
+		db.prepare("SELECT id FROM alerts ORDER BY id").all() as { id: string }[]
+	)
+		.map((row) => row.id)
+		.filter((id) => id.startsWith(prefix));
+}

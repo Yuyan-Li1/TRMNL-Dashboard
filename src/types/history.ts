@@ -38,6 +38,11 @@ export interface HistoryTitle {
 	tmdbId: string;
 	title: string;
 	year?: number;
+	/**
+	 * Set when the title is not of its source's own Medium: a series logged
+	 * in the Letterboxd diary is a show
+	 */
+	medium?: "movie" | "show";
 }
 
 /** The value of a history key. */

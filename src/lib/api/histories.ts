@@ -25,18 +25,26 @@ function fromPlays(plays: PlatformPlay[]): HistoryGame[] {
 	});
 }
 
-/** The owner's feed: its diary entries that are movies on TMDB. */
+/**
+ * The owner's feed: its diary entries that TMDB knows, each once. A series
+ * logged in the diary is a show.
+ */
 async function getDiaryHistory(): Promise<HistoryTitle[]> {
 	const titles = new Map<string, HistoryTitle>();
 	for (const entry of await getDiaryEntries()) {
-		if (!entry.tmdbId || titles.has(entry.tmdbId)) {
+		const tmdbId = entry.tmdbId ?? entry.tmdbShowId;
+		const medium = entry.tmdbId ? "movie" : "show";
+		if (!tmdbId || titles.has(`${medium}:${tmdbId}`)) {
 			continue;
 		}
-		const title: HistoryTitle = { tmdbId: entry.tmdbId, title: entry.title };
+		const title: HistoryTitle = { tmdbId, title: entry.title };
 		if (entry.year !== undefined) {
 			title.year = entry.year;
 		}
-		titles.set(entry.tmdbId, title);
+		if (medium === "show") {
+			title.medium = medium;
+		}
+		titles.set(`${medium}:${tmdbId}`, title);
 	}
 	return [...titles.values()];
 }

@@ -320,4 +320,51 @@ describe("runTick", () => {
 		await world.tick(after(26 * HOUR));
 		expect(world.sent).toHaveLength(1);
 	});
+
+	it("names a second line with no match on its own, and the first again only if it is written again", async () => {
+		const world = home();
+		const add = world.db.prepare(
+			"INSERT INTO also_consumed (medium, line) VALUES (?, ?)",
+		);
+		add.run("movie", "Heet (1995)");
+		await world.tick(T0);
+		add.run("movie", "Past Livs");
+		await world.tick(after(15 * MINUTE));
+		expect(world.sent.map((text) => text.split("\n")[0])).toEqual([
+			'[home] No match for "Heet (1995)" in also-consumed/movie.txt.',
+			'[home] No match for "Past Livs" in also-consumed/movie.txt.',
+		]);
+
+		// The first line is corrected, and later written wrongly again
+		world.db
+			.prepare("DELETE FROM also_consumed WHERE line = ?")
+			.run("Heet (1995)");
+		await world.tick(after(30 * MINUTE));
+		add.run("movie", "Heet (1995)");
+		await world.tick(after(45 * MINUTE));
+		expect(world.sent.map((text) => text.split("\n")[0]).slice(2)).toEqual([
+			'[home] No match for "Heet (1995)" in also-consumed/movie.txt.',
+		]);
+	});
+
+	it("alerts when the consumed set's merge has failed for four ticks in a row", async () => {
+		const world = home();
+		const jobs = [
+			job({
+				name: "consumed",
+				isDue: () => true,
+				run: async () => {
+					throw new Error("IGDB answered 500");
+				},
+			}),
+		];
+		for (const minutes of [0, 15, 30]) {
+			await world.tick(after(minutes * MINUTE), { jobs });
+		}
+		expect(world.sent).toEqual([]);
+		await world.tick(after(45 * MINUTE), { jobs });
+		expect(world.sent).toEqual([
+			"[home] Consumed set failing since 18 Nov 12:00.",
+		]);
+	});
 });

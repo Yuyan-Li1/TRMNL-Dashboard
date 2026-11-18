@@ -13,7 +13,8 @@ import { isSeeded } from "./seed";
 const SOURCES_NEEDED: Record<Medium, HistorySource[]> = {
 	game: ["steam", "xbox", "psn", "switch"],
 	movie: ["letterboxd"],
-	show: ["trakt"],
+	// A series logged in the Letterboxd diary is a show
+	show: ["trakt", "letterboxd"],
 	book: [],
 };
 

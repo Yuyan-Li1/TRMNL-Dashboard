@@ -66,13 +66,15 @@ describe("parseDiaryFeed", () => {
 		]);
 	});
 
-	it("keeps a diary entry that is not a movie on TMDB, without a TMDB id", () => {
+	it("keeps a diary entry that is a series on TMDB, with the series' id and no movie id", () => {
 		const show = WATCH.replace(
 			"<tmdb:movieId>666277</tmdb:movieId>",
 			"<tmdb:tvId>1396</tmdb:tvId>",
 		);
 
-		expect(parseDiaryFeed(feed(show))[0].tmdbId).toBeUndefined();
+		const [entry] = parseDiaryFeed(feed(show));
+		expect(entry.tmdbId).toBeUndefined();
+		expect(entry.tmdbShowId).toBe("1396");
 	});
 
 	it("rejects a page that is not a feed", () => {

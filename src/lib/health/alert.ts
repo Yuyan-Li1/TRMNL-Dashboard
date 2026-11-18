@@ -10,6 +10,7 @@ import { getRedis } from "@/lib/cache/redis";
 import { OWNER_TIME_ZONE } from "@/lib/config";
 import type { HomeStatus } from "@/lib/home/status";
 import { healthChecks, SENDER } from "./checks";
+import type { DailyStatus } from "./daily";
 import type { RefreshStatus } from "./status";
 
 /** Per-failure Alert state. The one prefix the Collector also writes under. */
@@ -40,18 +41,20 @@ export async function readLastSend(): Promise<SentAlert | null> {
 }
 
 /**
- * Send the Alerts the refresh's bookkeeping and the Collector's status call
- * for: failures that have started, lasted another day or cleared, tokens
- * close to expiry, and a home server whose heartbeat is Stale.
+ * Send the Alerts the refresh's bookkeeping, the Collector's status and the
+ * daily run's bookkeeping call for: failures that have started, lasted
+ * another day or cleared, tokens close to expiry, a home server whose
+ * heartbeat is Stale, and a daily run that has stopped or keeps failing.
  */
 export async function sendAlerts(
 	status: RefreshStatus,
 	now: Date,
 	home: HomeStatus | null = null,
+	daily: DailyStatus | null = null,
 ): Promise<SentAlert[]> {
 	const alerts = await processChecks({
 		sender: SENDER,
-		checks: healthChecks(status, now, home),
+		checks: healthChecks(status, now, home, daily),
 		store: redisStore,
 		send,
 		now,

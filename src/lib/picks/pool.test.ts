@@ -91,6 +91,22 @@ describe("the seeds", () => {
 			).map((seed) => seed.id),
 		).toEqual(["recent"]);
 	});
+
+	it("skip a game with under 30 minutes of play; one with no play time recorded counts", () => {
+		const game = (id: string, minutesPlayed?: number): Game => ({
+			id,
+			name: id,
+			platform: "steam",
+			lastPlayedAt: "2026-11-10T10:00:00Z",
+			minutesPlayed,
+		});
+		expect(
+			seedGames(
+				[game("tried", 29), game("played", 30), game("untimed")],
+				NOW,
+			).map((seed) => seed.id),
+		).toEqual(["played", "untimed"]);
+	});
 });
 
 describe("choosePicks", () => {
