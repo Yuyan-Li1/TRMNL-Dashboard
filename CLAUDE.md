@@ -251,7 +251,7 @@ Every real read of a source or Catalog (not an answer from our own cache) goes t
 - `healthChecks()` holds the thresholds: a read alerts after 4 failed runs in a row, a rejected token (PSN, Nintendo, Trakt) at once, and a dated token 14 and 3 days before it expires. PSN's expiry is 60 days after the day its fingerprint changed; Nintendo's date is a constant in `checks.ts`.
 - `processChecks()` sends one message when a failure starts, a reminder every 24 hours and one line when it clears. A message Telegram does not take is retried on the next run.
 - When Redis cannot be reached the refresh sends one "Redis unreachable" message and fails.
-- The admin area looks like the device: the panel's four greys and pixel fonts on white, with `--color-signal` kept for trouble (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
+- The admin area looks like the device: the panel's four greys on white, with `--color-signal` kept for trouble. Text is Geist Pixel (the `geist` package), drawn for ordinary screens; the wordmark and headings stay in the TRMNL face (`.admin` and `type-42` in `globals.css`). Its overview (`/admin`) leads with `healthReport()`'s headline and shows the screen.
 - The status strip is public: times and source names only. Error text and tokens are on the source health page (`/admin/sources`), which also has the test Alert button.
 
 ### The screen

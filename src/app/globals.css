@@ -83,8 +83,9 @@ body {
 }
 
 /*
- * The admin area: the panel's greys and pixel fonts on paper white, with
- * the signal colour kept for trouble. TRMNL21 at twice its native size
+ * The admin area: the panel's greys on paper white, with the signal colour
+ * kept for trouble. Text is Geist Pixel, which is drawn for ordinary screens;
+ * the wordmark and headings are TRMNL21, which at twice its native size
  * stays on whole pixels.
  */
 @utility type-42 {
@@ -97,9 +98,14 @@ body {
 @layer components {
 	.admin {
 		min-height: 100vh;
-		font-family: "TRMNL16", monospace;
+		font-family: var(--font-geist-pixel-square), monospace;
 		font-size: 16px;
-		line-height: 22px;
+		line-height: 24px;
+	}
+
+	/* The TRMNL faces, kept for the wordmark and headings, stay unsmoothed */
+	.admin .type-21,
+	.admin .type-42 {
 		-webkit-font-smoothing: none;
 	}
 
