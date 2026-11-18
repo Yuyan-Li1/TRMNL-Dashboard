@@ -16,13 +16,14 @@ Read [the overview](README.md) first. This stage adds movies from the owner's Le
 ### 2. TMDB
 
 - By the TMDB id from the feed, fetch the poster, `vote_average`, `overview`, the release year and the director.
-- TMDB-derived data in Redis, including its `:latest` copy, is refetched within 6 months.
+- TMDB-derived data in Redis, including its `:latest` copy, is refetched within 6 months: a lookup is reused for 30 days, and posters made from TMDB artwork and the dashboard data's `:latest` copy expire 150 days after the movies were read. If refreshes stop that long the screen goes empty, games included.
 - Show the TMDB attribution notice and logo on the page below the 800x480 area the device captures. Stage 4 builds the status strip around it.
 
 ### 3. Movies on the screen
 
-- A movie is never In progress. It is Finished when logged in the diary, and eligible for the Spotlight for 14 days from its watched date.
-- **A movie in the Spotlight**: Mode label "Finished" with "Movie"; title; byline is year and director; the owner's rating as stars followed by "You" (omitted if the entry has no rating); the fact is when it was watched, with "Rewatch" when flagged; then the owner's review if there is one, otherwise the TMDB overview.
+- A movie is never In progress. It is Finished when logged in the diary, and eligible for the Spotlight for 14 days from its watched date, through the 14th day inclusive.
+- The diary gives a date and no time, so days are counted in the owner's time zone, `Australia/Sydney`.
+- **A movie in the Spotlight**: Mode label "Finished" with "Movie"; title; byline is year and director; the owner's rating as stars followed by "You" (omitted if the entry has no rating); the fact is when it was watched ("Watched yesterday"), with "Rewatch" as a second line when flagged; the byline reads "2023, Celine Song"; then the owner's review if there is one, otherwise the TMDB overview.
 - **The movies Medium card**: thumbnail, title, the owner's stars, "Watched", and when.
 - Poster: the TMDB poster through the pipeline; the feed's own poster is the fallback.
 
