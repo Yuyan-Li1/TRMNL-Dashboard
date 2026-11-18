@@ -42,6 +42,23 @@ export function tokenExpiry(
 	return id === "switch" ? NINTENDO_TOKEN_EXPIRES_ON : undefined;
 }
 
+/**
+ * What to say of a dated token close to expiry, "PSN NPSSO expires within 14
+ * days, on 17 Jan 2027", or null while it is further off. Shared with the
+ * Collector, which dates the Claude Code token.
+ */
+export function expiryWarning(
+	tokenName: string,
+	expiresOn: string,
+	now: Date,
+): string | null {
+	const daysLeft = daysUntilDay(expiresOn, now);
+	const within = ALERT_DAYS_BEFORE.find((days) => daysLeft <= days);
+	return within === undefined
+		? null
+		: `${tokenName} expires within ${within} days, on ${formatDay(expiresOn)}`;
+}
+
 function sourceCheck(id: SourceId, status: RefreshStatus): Check {
 	const { name, token } = SOURCES[id];
 	const health = status.sources[id];
@@ -77,15 +94,10 @@ function expiryCheck(
 		oneOff: true,
 	};
 	const expiresOn = tokenExpiry(id, status);
-	if (!expiresOn) {
-		return check;
-	}
-	const daysLeft = daysUntilDay(expiresOn, now);
-	const within = ALERT_DAYS_BEFORE.find((days) => daysLeft <= days);
-	if (within !== undefined) {
-		check.failure = {
-			what: `${token?.name ?? check.label} expires within ${within} days, on ${formatDay(expiresOn)}`,
-		};
+	const what =
+		expiresOn && expiryWarning(token?.name ?? check.label, expiresOn, now);
+	if (what) {
+		check.failure = { what };
 		if (token) {
 			check.failure.fix = token.fix;
 		}
