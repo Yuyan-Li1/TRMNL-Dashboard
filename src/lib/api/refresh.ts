@@ -7,6 +7,7 @@ import {
 } from "@/lib/cache/redis";
 import { alertRedisUnreachable, sendAlerts } from "@/lib/health/alert";
 import { NPSSO_LIFETIME_DAYS } from "@/lib/health/checks";
+import { readHomeStatus } from "@/lib/health/home";
 import { collectReads } from "@/lib/health/reads";
 import {
 	fingerprint,
@@ -49,7 +50,8 @@ export async function refreshAllData(): Promise<DashboardData> {
 			now,
 		);
 		await writeRefreshStatus(status);
-		await sendAlerts(status, now);
+		// The Collector watches this refresh; this refresh watches the Collector
+		await sendAlerts(status, now, await readHomeStatus());
 
 		return result;
 	} catch (error) {

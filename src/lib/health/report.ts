@@ -1,5 +1,12 @@
+import {
+	type HomeStatus,
+	JOB_LABELS,
+	JOB_NAMES,
+	type JobName,
+} from "@/lib/home/status";
 import { daysUntilDay } from "@/lib/owner-day";
 import { ALERT_DAYS_BEFORE, formatDay, tokenExpiry } from "./checks";
+import { isHeartbeatStale } from "./home";
 import { SOURCE_IDS, SOURCES, type SourceId } from "./sources";
 import { isStale, type RefreshStatus } from "./status";
 import { formatWhenOrNever } from "./strip";
@@ -25,13 +32,46 @@ export interface HealthRow {
 	expiresSoon: boolean;
 }
 
-/** The refresh's bookkeeping, read for the owner. Not public. */
+/** One of the Collector's jobs as the admin area shows it. */
+export interface HomeJobRow {
+	id: JobName;
+	name: string;
+	/** In words: "Running", "Not run yet", "Failing since 18 Nov 11:15" */
+	state: string;
+	trouble: boolean;
+	lastAttempt: string;
+	lastSuccess: string;
+	failedRuns: number;
+	/** The last error, while the job is failing */
+	detail?: string;
+}
+
+/** The home server as the admin area shows it. */
+export interface HomeReport {
+	heartbeat: string;
+	/** The heartbeat is more than an hour old */
+	stale: boolean;
+	commit: string;
+	/** "18 Nov 2027, in 365 days", once a Claude Code token is set */
+	claudeTokenExpires?: string;
+	claudeTokenExpiresSoon: boolean;
+	jobs: HomeJobRow[];
+	/** What needs the owner's attention, by name */
+	troubled: string[];
+}
+
+/**
+ * The refresh's bookkeeping and the Collector's status, read for the owner.
+ * Not public.
+ */
 export interface HealthReport {
 	/** One sentence that answers "is anything wrong?" */
 	headline: string;
 	trouble: boolean;
 	lastRefresh: string;
 	rows: HealthRow[];
+	/** Null until the Collector has ticked once */
+	home: HomeReport | null;
 }
 
 function sentence(text: string): string {
@@ -98,29 +138,84 @@ function healthRow(
 	return row;
 }
 
-function headline(status: RefreshStatus | null, rows: HealthRow[]): string {
+function homeReport(home: HomeStatus, now: Date): HomeReport {
+	const report: HomeReport = {
+		heartbeat: formatWhenOrNever(home.heartbeatAt),
+		stale: isHeartbeatStale(home, now),
+		commit: home.commit,
+		claudeTokenExpiresSoon: false,
+		jobs: JOB_NAMES.map((id) => {
+			const job = home.jobs[id] ?? { failuresInARow: 0 };
+			const row: HomeJobRow = {
+				id,
+				name: JOB_LABELS[id],
+				state: job.lastSuccessAt ? "Running" : "Not run yet",
+				trouble: job.failuresInARow > 0,
+				lastAttempt: formatWhenOrNever(job.lastAttemptAt),
+				lastSuccess: formatWhenOrNever(job.lastSuccessAt),
+				failedRuns: job.failuresInARow,
+			};
+			if (row.trouble) {
+				row.state = `Failing since ${formatWhenOrNever(job.failingSince)}`;
+				if (job.lastError) {
+					row.detail = job.lastError;
+				}
+			}
+			return row;
+		}),
+		troubled: [],
+	};
+	if (home.claudeTokenExpiresOn) {
+		const daysLeft = daysUntilDay(home.claudeTokenExpiresOn, now);
+		report.claudeTokenExpires = `${formatDay(home.claudeTokenExpiresOn)}, ${inDays(daysLeft)}`;
+		report.claudeTokenExpiresSoon = daysLeft <= Math.max(...ALERT_DAYS_BEFORE);
+	}
+	report.troubled = [
+		...(report.stale ? ["Home server"] : []),
+		...report.jobs.filter((job) => job.trouble).map((job) => job.name),
+		...(report.claudeTokenExpiresSoon ? ["Claude Code token"] : []),
+	];
+	return report;
+}
+
+function headline(
+	status: RefreshStatus | null,
+	rows: HealthRow[],
+	home: HomeReport | null,
+): string {
 	if (!status) {
 		return "No refresh has run yet.";
 	}
-	const troubled = rows.filter((row) => row.trouble);
+	const sources = rows.filter((row) => row.trouble).map((row) => row.name);
+	const troubled = [...sources, ...(home?.troubled ?? [])];
 	if (troubled.length === 0) {
 		return "Everything is reading.";
 	}
-	return troubled.length === 1
-		? `${troubled[0]?.name} needs attention.`
-		: `${troubled.length} sources need attention.`;
+	if (troubled.length === 1) {
+		return `${troubled[0]} needs attention.`;
+	}
+	return `${troubled.length} ${troubled.length === sources.length ? "sources" : "things"} need attention.`;
 }
 
-/** What the admin area says about the sources, their tokens and the refresh. */
+/**
+ * What the admin area says about the sources, their tokens, the refresh and
+ * the home server.
+ */
 export function healthReport(
 	status: RefreshStatus | null,
 	now: Date,
+	homeStatus: HomeStatus | null = null,
 ): HealthReport {
 	const rows = SOURCE_IDS.map((id) => healthRow(id, status, now));
+	const home = homeStatus ? homeReport(homeStatus, now) : null;
 	return {
-		headline: headline(status, rows),
-		trouble: !status || rows.some((row) => row.trouble),
+		headline: headline(status, rows, home),
+		trouble:
+			!status ||
+			rows.some((row) => row.trouble) ||
+			(home !== null && home.troubled.length > 0),
 		lastRefresh: formatWhenOrNever(status?.lastSuccessAt),
 		rows,
+		home,
 	};
 }

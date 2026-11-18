@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { StateMark, TroubleNotes } from "@/components/admin/Trouble";
 import { Screen } from "@/components/screen/Screen";
+import { readHomeStatus } from "@/lib/health/home";
 import { healthReport } from "@/lib/health/report";
 import { readRefreshStatus } from "@/lib/health/status";
 import { formatWhen } from "@/lib/screen/format";
@@ -10,13 +11,15 @@ import { loadScreen } from "@/lib/screen/load";
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage(): Promise<React.JSX.Element> {
-	const [status, view] = await Promise.all([
+	const [status, home, view] = await Promise.all([
 		readRefreshStatus(),
+		readHomeStatus(),
 		loadScreen({ rememberPick: false }),
 	]);
 	const now = new Date();
-	const report = healthReport(status, now);
+	const report = healthReport(status, now, home);
 	const troubled = report.rows.filter((row) => row.trouble);
+	const homeTroubled = report.home?.troubled ?? [];
 
 	return (
 		<div className="flex flex-col gap-10">
@@ -34,7 +37,7 @@ export default async function AdminOverviewPage(): Promise<React.JSX.Element> {
 				<RefreshButton />
 			</section>
 
-			{troubled.length > 0 && (
+			{troubled.length + homeTroubled.length > 0 && (
 				<section aria-label="Needs attention">
 					<ul className="m-0 list-none border-t-2 border-eink-black p-0">
 						{troubled.map((row) => (
@@ -50,6 +53,18 @@ export default async function AdminOverviewPage(): Promise<React.JSX.Element> {
 								<div className="pl-6">
 									<TroubleNotes row={row} />
 								</div>
+							</li>
+						))}
+						{homeTroubled.map((name) => (
+							<li key={name} className="border-b-2 border-eink-light py-3">
+								<span
+									aria-hidden="true"
+									className="mr-3 inline-block size-3 border-2 border-signal bg-signal"
+								/>
+								<span className="font-bold">{name}</span>{" "}
+								<span className="font-bold text-signal">
+									on the home server
+								</span>
 							</li>
 						))}
 					</ul>
